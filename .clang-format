@@ -1,0 +1,19 @@
+
+ColumnLimit: 120
+
+UseTab: ForIndentation
+TabWidth: 4
+IndentWidth: 4
+
+BreakBeforeBraces: Allman
+AlignAfterOpenBracket: Align
+
+MaxEmptyLinesToKeep: 2
+
+PointerAlignment: Left
+SortIncludes: true
+
+AllowShortBlocksOnASingleLine: true
+AllowShortCaseLabelsOnASingleLine: true
+AllowShortFunctionsOnASingleLine: Empty
+AllowShortLoopsOnASingleLine: false

@@ -1,0 +1,70 @@
+
+
+# Release flags:
+cflags = -flto -O3 -Wall -Wextra -pedantic -Wconversion -fvisibility=hidden -DAKO_EXPORT_SYMBOLS -DLZ4LIB_VISIBILITY="" -fdiagnostics-color=always -I./include
+lflags = -fdiagnostics-color=always
+
+# Debug flags:
+# cflags = -g -O0 -std=c11 -Wall -Wextra -pedantic -Wconversion -fdiagnostics-color=always -I./include
+# lflags = -fdiagnostics-color=always
+
+
+###
+
+rule SharedCompile
+ command = clang -c -fpic $cflags $in -o $out
+rule SharedLink
+ command = clang -fuse-ld=lld -shared $lflags $in -o $out
+
+rule StaticCompile
+ command = clang -c $cflags $in -o $out
+rule StaticLink
+ command = ar rcs $out $in
+
+rule ToolCompile
+ command = clang -c $cflags $in -o $out
+rule ToolLink
+ command = clang -fuse-ld=lld -lpng -lm $lflags $in -o $out
+
+###
+
+build ./objects/shared/lz4.o:   SharedCompile ./source/thirdparty/lz4.c
+build ./objects/shared/lz4hc.o: SharedCompile ./source/thirdparty/lz4hc.c
+build ./objects/shared/ako-decode.o:    SharedCompile ./source/ako-decode.c
+build ./objects/shared/ako-encode.o:    SharedCompile ./source/ako-encode.c
+build ./objects/shared/ako-devthings.o: SharedCompile ./source/ako-devthings.c
+
+build libako.so: SharedLink $
+ ./objects/shared/lz4.o $
+ ./objects/shared/lz4hc.o $
+ ./objects/shared/ako-decode.o $
+ ./objects/shared/ako-encode.o $
+ ./objects/shared/ako-devthings.o
+
+###
+
+build ./objects/static/lz4.o:   StaticCompile ./source/thirdparty/lz4.c
+build ./objects/static/lz4hc.o: StaticCompile ./source/thirdparty/lz4hc.c
+build ./objects/static/ako-decode.o:    StaticCompile ./source/ako-decode.c
+build ./objects/static/ako-encode.o:    StaticCompile ./source/ako-encode.c
+build ./objects/static/ako-devthings.o: StaticCompile ./source/ako-devthings.c
+
+build libako.a: StaticLink $
+ ./objects/static/lz4.o $
+ ./objects/static/lz4hc.o $
+ ./objects/static/ako-decode.o $
+ ./objects/static/ako-encode.o $
+ ./objects/static/ako-devthings.o
+
+###
+
+build ./objects/tools/akoenc.o: ToolCompile ./tools/akoenc.c
+build ./objects/tools/akodec.o: ToolCompile ./tools/akodec.c
+
+build akoenc: ToolLink $
+ ./objects/tools/akoenc.o $
+ ./libako.a
+
+build akodec: ToolLink $
+ ./objects/tools/akodec.o $
+ ./libako.a
