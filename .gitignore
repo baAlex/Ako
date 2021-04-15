@@ -1,8 +1,13 @@
 /akoenc
 /akodec
 
+/resources/prob
+
 /*.a
 /*.so
+
+*.ako
+*.pgm
 
 /.ninja_log
 /.ninja_deps
