@@ -185,7 +185,7 @@ static void sUnLiftPlane(size_t dimension, uint8_t* buffer_a, uint8_t* buffer_b)
 #endif
 
 
-uint8_t* AkoDecode(size_t input_size, const uint8_t* input, size_t* out_dimension, size_t* out_channels)
+uint8_t* AkoDecode(size_t input_size, const void* input, size_t* out_dimension, size_t* out_channels)
 {
 	size_t dimension = 0;
 	size_t channels = 0;
@@ -206,7 +206,7 @@ uint8_t* AkoDecode(size_t input_size, const uint8_t* input, size_t* out_dimensio
 
 	// Decompress
 	{
-		const uint8_t* input_data = input + sizeof(struct AkoHead);
+		const uint8_t* input_data = (uint8_t*)input + sizeof(struct AkoHead);
 
 #if (AKO_COMPRESSION == 1)
 		DevBenchmarkStart("DecompressLZ4");
