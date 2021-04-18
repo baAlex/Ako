@@ -130,7 +130,6 @@ static int sReadArguments(int argc, const char* argv[], const char** out_input_f
                           const char** out_output_filename, struct AkoSettings* out_settings)
 {
 	int setting_set = 0;
-	float quality_ratio = 0.0f;
 
 	for (int i = 1; i < argc; i++)
 	{
@@ -239,7 +238,7 @@ int main(int argc, const char* argv[])
 	DevBenchmarkTotal();
 
 	// Save Ako
-	uint8_t* blob = NULL;
+	void* blob = NULL;
 	size_t blob_size = 0;
 
 	blob_size = AkoEncode(dimension, channels, &settings, png, &blob);

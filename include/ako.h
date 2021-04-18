@@ -22,8 +22,10 @@
 
 
 #define AKO_VER_MAJOR 0 // Library version
-#define AKO_VER_MINOR 1 // Ditto
-#define AKO_FORMAT 1    // Format version this library handles
+#define AKO_VER_MINOR 1
+#define AKO_VER_PATCH 0
+
+#define AKO_FORMAT 1 // Format version this library handles
 
 
 struct AkoSettings
@@ -46,9 +48,13 @@ struct AkoHead
 
 
 AKO_EXPORT size_t AkoEncode(size_t dimension, size_t channels, const struct AkoSettings*, const uint8_t* input,
-                            uint8_t** output);
-AKO_EXPORT uint8_t* AkoDecode(size_t input_size, const uint8_t* input, size_t* out_dimension, size_t* out_channels);
+                            void** output);
+AKO_EXPORT uint8_t* AkoDecode(size_t input_size, const void* input, size_t* out_dimension, size_t* out_channels);
 
+AKO_EXPORT int AkoVersionMajor();
+AKO_EXPORT int AkoVersionMinor();
+AKO_EXPORT int AkoVersionPatch();
+AKO_EXPORT const char* AkoVersionString();
 
 // ######## Static-library only ########
 
@@ -56,7 +62,7 @@ AKO_EXPORT uint8_t* AkoDecode(size_t input_size, const uint8_t* input, size_t* o
 #define AKO_COLOR_TRANSFORMATION 1   // 0 = None, 1 = YCoCg
 #define AKO_WAVELET_TRANSFORMATION 1 // 0,1 = Activate/desactivate
 
-#define AKO_DEV_TINY_BENCHMARK 1
+#define AKO_DEV_TINY_BENCHMARK 0
 #define AKO_DEV_SAVE_IMAGES 0
 
 #endif

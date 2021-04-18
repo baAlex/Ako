@@ -420,7 +420,7 @@ static void sMipizePlane(size_t dimension, const uint8_t* in, uint8_t* out)
 
 
 size_t AkoEncode(size_t dimension, size_t channels, const struct AkoSettings* settings, const uint8_t* input,
-                 uint8_t** output)
+                 void** output)
 {
 	assert(input != NULL);
 	assert(channels <= 4);

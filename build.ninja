@@ -33,13 +33,15 @@ build ./objects/shared/lz4hc.o: SharedCompile ./source/thirdparty/lz4hc.c
 build ./objects/shared/ako-decode.o:    SharedCompile ./source/ako-decode.c
 build ./objects/shared/ako-encode.o:    SharedCompile ./source/ako-encode.c
 build ./objects/shared/ako-devthings.o: SharedCompile ./source/ako-devthings.c
+build ./objects/shared/ako-version.o:   SharedCompile ./source/ako-version.c
 
 build libako.so: SharedLink $
  ./objects/shared/lz4.o $
  ./objects/shared/lz4hc.o $
  ./objects/shared/ako-decode.o $
  ./objects/shared/ako-encode.o $
- ./objects/shared/ako-devthings.o
+ ./objects/shared/ako-devthings.o $
+ ./objects/shared/ako-version.o
 
 ###
 
@@ -48,13 +50,15 @@ build ./objects/static/lz4hc.o: StaticCompile ./source/thirdparty/lz4hc.c
 build ./objects/static/ako-decode.o:    StaticCompile ./source/ako-decode.c
 build ./objects/static/ako-encode.o:    StaticCompile ./source/ako-encode.c
 build ./objects/static/ako-devthings.o: StaticCompile ./source/ako-devthings.c
+build ./objects/static/ako-version.o:   StaticCompile ./source/ako-version.c
 
 build libako.a: StaticLink $
  ./objects/static/lz4.o $
  ./objects/static/lz4hc.o $
  ./objects/static/ako-decode.o $
  ./objects/static/ako-encode.o $
- ./objects/static/ako-devthings.o
+ ./objects/static/ako-devthings.o $
+ ./objects/static/ako-version.o
 
 ###
 
