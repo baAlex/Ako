@@ -65,27 +65,6 @@ static void sLift(size_t len, size_t total_len, const float* in, float* out)
 		// since values on the right halve ends being too big to actually be
 		// details. Or **I'm doing this wrong** (Nope, see the update).
 
-		// To reproduce the error is matter of change the halves,
-		// here and in the Unlift function:
-		// - 'out[len + i]' to out[i]'
-		// - 'out[i]' to out[len + 1]'
-
-		// Is not something serious since a proper inversion function
-		// works anyway, but, ends being a transformation without any
-		// kind of useful decorrelation to compress it afterwards.
-
-		// Poorly decorrelated lifts, note the 'lowpass' at the left with values near to zero:
-		// > +16.0  +32.0  +48.0  +64.0  +80.0  +96.0  +112.0  +128.0  +143.0  +159.0  +175.0  +191.0  +207.0  +223.0  +239.0  +255.0
-		// > +0.0   +0.0   +0.0   +0.5   +0.0   +0.0   +16.0   +16.0   +16.0   +48.0   +80.0   +112.1  +143.1  +175.0  +211.0  +247.0
-		// > +0.0   +0.5   +0.0   +0.0   +0.0   +0.1   +0.1    16.0    +16.0   +48.0   +80.0   +112.1  +143.1  +175.0  +211.0  +247.0
-		// > +0.5   +0.0   +0.2   +0.1   +0.0   +0.1   +0.1    16.0    +16.0   +48.0   +80.0   +112.1  +143.1  +175.0  +211.0  +247.0
-
-		// Fix by treating high as low, and vice versa. Now the lowpass looks like an x0.5 scaled copy of the input:
-		// > +16.0  +32.0  +48.0  +64.0  +80.0  +96.0  +112.0  +128.0  +143.0  +159.0  +175.0  +191.0  +207.0  +223.0  +239.0  +255.0
-		// > +16.0  +48.0  +80.0  +112.1 +143.1 +175.0 +211.0  +247.0  +0.0    +0.0    +0.0    +0.5    +0.0    +0.0    +16.0   +16.0
-		// > +16.0  +80.1  +151.2 +228.0 +0.0   +0.6   +31.9   +36.0   +0.0    +0.0    +0.0    +0.5    +0.0    +0.0    +16.0   +16.0
-		// > +48.1  +186.5 +64.1  +76.7  +0.0   +0.6   +31.9   +36.0   +0.0    +0.0    +0.0    +0.5    +0.0    +0.0    +16.0   +16.0
-
 		// UPDATE: Hedge & Ramachandran [2] seems to be on my side.
 		// UPDATE: Angelopoulou Et Al. [3] the same.
 		// UPDATE: Fixed formulas below.
