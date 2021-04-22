@@ -42,7 +42,7 @@ struct AkoHead
 	uint8_t minor;
 	uint8_t format;
 
-	uint32_t compressed_size;
+	uint32_t compressed_data_size;
 	uint32_t info; // Bits 0-4 = Dimension, Bits 5-6 = Channels
 };
 
@@ -60,9 +60,9 @@ AKO_EXPORT const char* AkoVersionString();
 
 #define AKO_COMPRESSION 1            // 0 = None, 1 = LZ4
 #define AKO_COLOR_TRANSFORMATION 1   // 0 = None, 1 = YCoCg
-#define AKO_WAVELET_TRANSFORMATION 1 // 0,1 = Activate/desactivate
+#define AKO_WAVELET_TRANSFORMATION 0 // 0,1 = Activate/desactivate
 
-#define AKO_DEV_TINY_BENCHMARK 0
+#define AKO_DEV_TINY_BENCHMARK 1
 #define AKO_DEV_SAVE_IMAGES 0
 
 #endif
