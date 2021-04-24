@@ -29,6 +29,8 @@ SOFTWARE.
 -----------------------------*/
 
 #include <assert.h>
+#include <math.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -49,7 +51,7 @@ static void sPngErrorHandler(png_structp pngs, png_const_charp msg)
 {
 	(void)pngs;
 	printf("LibPng error: \"%s\"\n", msg);
-	exit(1); // Bye cruel world!
+	exit(EXIT_FAILURE); // Bye cruel world!
 }
 
 
@@ -127,13 +129,17 @@ static uint8_t* sImageLoadPng(const char* filename, size_t* out_dimension, size_
 
 
 static int sReadArguments(int argc, const char* argv[], const char** out_input_filename,
-                          const char** out_output_filename, struct AkoSettings* out_settings)
+                          const char** out_output_filename, bool* version, bool* quiet,
+                          struct AkoSettings* out_codec_settings)
 {
-	int setting_set = 0;
+	bool gate_set = false;
+	bool ratio_set = false;
+	float ratio = 1.0f;
 
+	// Read/set arguments
 	for (int i = 1; i < argc; i++)
 	{
-		if (strcmp(argv[i], "-i") == 0 || strcmp(argv[i], "-input") == 0)
+		if (strcmp(argv[i], "-i") == 0 || strcmp(argv[i], "--input") == 0)
 		{
 			if ((i = i + 1) == argc)
 			{
@@ -143,7 +149,7 @@ static int sReadArguments(int argc, const char* argv[], const char** out_input_f
 
 			*out_input_filename = argv[i];
 		}
-		else if (strcmp(argv[i], "-o") == 0 || strcmp(argv[i], "-output") == 0)
+		else if (strcmp(argv[i], "-o") == 0 || strcmp(argv[i], "--output") == 0)
 		{
 			if ((i = i + 1) == argc)
 			{
@@ -153,41 +159,42 @@ static int sReadArguments(int argc, const char* argv[], const char** out_input_f
 
 			*out_output_filename = argv[i];
 		}
-		else if (strcmp(argv[i], "-g") == 0 || strcmp(argv[i], "-gate") == 0 || strcmp(argv[i], "-detailgate") == 0)
+		else if (strcmp(argv[i], "-g") == 0 || strcmp(argv[i], "--gate") == 0)
 		{
 			if ((i = i + 1) == argc)
 			{
-				fprintf(stderr, "Missing detail gate value\n");
+				fprintf(stderr, "Missing gate threshold\n");
 				return 1;
 			}
 
-			unsigned long temp = strtoul(argv[i], NULL, 10);
-			temp = (temp > UINT32_MAX) ? UINT32_MAX : temp;
-			out_settings->detail_gate[0] = (float)temp;
-			out_settings->detail_gate[1] = (float)temp;
-			out_settings->detail_gate[2] = (float)temp;
-			out_settings->detail_gate[3] = (float)temp;
-			setting_set++;
+			gate_set = true;
 
-			printf("Detail gate: %lu px\n", temp);
+			float temp = truncf(strtof(argv[i], NULL));
+			out_codec_settings->detail_gate[0] = temp;
+			out_codec_settings->detail_gate[1] = temp;
+			out_codec_settings->detail_gate[2] = temp;
+			out_codec_settings->detail_gate[3] = temp;
 		}
-		else if (strcmp(argv[i], "-u") == 0 || strcmp(argv[i], "-uniform") == 0 || strcmp(argv[i], "-uniformgate") == 0)
+		else if (strcmp(argv[i], "-r") == 0 || strcmp(argv[i], "--ratio") == 0)
 		{
 			if ((i = i + 1) == argc)
 			{
-				fprintf(stderr, "Missing uniform gate value\n");
+				fprintf(stderr, "Missing luma/chroma gate ratio\n");
 				return 1;
 			}
 
-			unsigned long temp = strtoul(argv[i], NULL, 10);
-			temp = (temp > UINT32_MAX) ? UINT32_MAX : temp;
-			out_settings->uniform_gate[0] = (float)temp;
-			out_settings->uniform_gate[1] = (float)temp;
-			out_settings->uniform_gate[2] = (float)temp;
-			out_settings->uniform_gate[3] = (float)temp;
-			setting_set++;
+			ratio_set = true;
 
-			printf("Uniform gate: %lu px\n", temp);
+			if (fabsf(ratio = strtof(argv[i], NULL)) < 1.0f)
+				ratio = 1.0f;
+		}
+		else if (strcmp(argv[i], "-v") == 0 || strcmp(argv[i], "--version") == 0)
+		{
+			*version = true;
+		}
+		else if (strcmp(argv[i], "-q") == 0 || strcmp(argv[i], "--quiet") == 0)
+		{
+			*quiet = true;
 		}
 		else
 		{
@@ -196,35 +203,110 @@ static int sReadArguments(int argc, const char* argv[], const char** out_input_f
 		}
 	}
 
-	if (*out_input_filename == NULL)
+	// These two are mandatory!
+	if (*version == false)
 	{
-		fprintf(stderr, "No input filename specified\n");
-		return 1;
+		if (*out_input_filename == NULL)
+		{
+			fprintf(stderr, "No input filename specified\n");
+			return 1;
+		}
+
+		if (*out_output_filename == NULL)
+		{
+			fprintf(stderr, "No output filename specified\n");
+			return 1;
+		}
 	}
 
-	if (*out_output_filename == NULL)
+	// Print settings
+	if (*quiet == false)
 	{
-		fprintf(stderr, "No output filename specified\n");
-		return 1;
+		if (gate_set == true)
+			printf("Gate threshold: %.0f\n", out_codec_settings->detail_gate[0]);
+
+		if (ratio_set == true)
+		{
+			if (ratio > 0.0f)
+				printf("Luma/chroma gate ratio: 1:%.2f\n", ratio);
+			else
+				printf("Luma/chroma gate ratio: %.2f:1\n", fabsf(ratio));
+		}
+
+		if (gate_set || ratio_set)
+			printf("\n");
 	}
 
-	if (setting_set != 0)
-		printf("\n");
+	// Ratio is not part of the codec settings,
+	// is manufactured by us (the encoder)
+	if (ratio > 0.0f)
+	{
+		out_codec_settings->detail_gate[1] = out_codec_settings->detail_gate[1] * ratio;
+		out_codec_settings->detail_gate[2] = out_codec_settings->detail_gate[2] * ratio;
+	}
+	else
+	{
+		out_codec_settings->detail_gate[0] = out_codec_settings->detail_gate[0] * fabsf(ratio);
+		out_codec_settings->detail_gate[3] = out_codec_settings->detail_gate[3] * fabsf(ratio);
+	}
 
 	return 0;
 }
 
 
+static const char* s_usage_message = "\
+Usage: akoenc [options] -i <input filename> -o <output filename>\n\
+\n\
+Ako encoding tool.\n\
+\n\
+General options:\n\
+ -v, --version      Show version information\n\
+ -q, --quiet        Quiet mode\n\
+\n\
+Encoding options:\n\
+ -g, --gate n       Gate threshold, controls quality/size by discarding\n\
+                    coefficients below the specified value.\n\
+                    Examples:\n\
+                    '-g 0'    Near lossless quality, poor compression\n\
+                    '-g 16'   Good quality/size compromise (default)\n\
+\n\
+ -r, --ratio n      Luma/chroma gate ratio, controls how the gate threshold\n\
+                    affects components independently. Can be used to emulate\n\
+                    a form of chroma subsampling.\n\
+                    Examples:\n\
+                    '-r 1'    Luma/chroma with equal gate thresholds (default)\n\
+                    '-r 4'    Chroma gate threshold multiplied by four\n\
+                    '-r 2.5'  Chroma gate threshold multiplied by two and half\n\
+";
+
 int main(int argc, const char* argv[])
 {
 	const char* input_filename = NULL;
 	const char* output_filename = NULL;
+	bool version = false;
+	bool quiet = false;
 
-	struct AkoSettings settings = {.uniform_gate = {0.0f, 0.0f, 0.0f, 0.0f}, // Default settings
-	                               .detail_gate = {16.0f, 16.0f, 16.0f, 16.0f}};
+	struct AkoSettings codec_settings = {.uniform_gate = {0.0f, 0.0f, 0.0f, 0.0f}, // Default settings
+	                                     .detail_gate = {16.0f, 16.0f, 16.0f, 16.0f}};
 
-	if (sReadArguments(argc, argv, &input_filename, &output_filename, &settings) != 0)
+	if (argc == 1)
+	{
+		printf("%s\n", s_usage_message);
+		return EXIT_SUCCESS;
+	}
+
+	if (sReadArguments(argc, argv, &input_filename, &output_filename, &version, &quiet, &codec_settings) != 0)
 		return EXIT_FAILURE;
+
+	if (version == true)
+	{
+		printf("Ako encoding tool.\n");
+		printf(" - %s, format %u\n", AkoVersionString(), AKO_FORMAT);
+		printf(" - libpng %s (%u)\n", PNG_LIBPNG_VER_STRING, png_access_version_number());
+		printf("\n");
+		printf("Copyright (c) 2021 Alexander Brandt\n");
+		return EXIT_SUCCESS;
+	}
 
 	// Load Png
 	size_t dimension = 0;
@@ -241,16 +323,21 @@ int main(int argc, const char* argv[])
 	void* blob = NULL;
 	size_t blob_size = 0;
 
-	blob_size = AkoEncode(dimension, channels, &settings, png, &blob);
+	blob_size = AkoEncode(dimension, channels, &codec_settings, png, &blob);
 	assert(blob_size != 0);
 
 	FILE* fp = fopen(output_filename, "wb");
 	assert(fp != NULL);
 
 	fwrite(blob, blob_size, 1, fp);
-	printf("%.2f kB -> %.2f kB, %.2f%%\n\n",
-	       (double)(dimension * dimension * channels + sizeof(struct AkoHead)) / 1000.0f, (double)blob_size / 1000.0f,
-	       (double)(dimension * dimension * channels + sizeof(struct AkoHead)) / (double)blob_size);
+
+	if (quiet == false)
+	{
+		printf("%.2f kB -> %.2f kB, %.2f%%\n\n",
+		       (double)(dimension * dimension * channels + sizeof(struct AkoHead)) / 1000.0f,
+		       (double)blob_size / 1000.0f,
+		       (double)(dimension * dimension * channels + sizeof(struct AkoHead)) / (double)blob_size);
+	}
 
 	// Bye!
 	fclose(fp);
