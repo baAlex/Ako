@@ -29,6 +29,7 @@ SOFTWARE.
 -----------------------------*/
 
 #include <assert.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -44,7 +45,7 @@ static void sPngErrorHandler(png_structp pngs, png_const_charp msg)
 {
 	(void)pngs;
 	printf("LibPng error: \"%s\"\n", msg);
-	exit(1); // Bye cruel world!
+	exit(EXIT_FAILURE); // Bye cruel world!
 }
 
 
@@ -98,7 +99,7 @@ void ImageSavePng(size_t dimension, size_t channels, const uint8_t* data, const 
 
 
 static int sReadArguments(int argc, const char* argv[], const char** out_input_filename,
-                          const char** out_output_filename)
+                          const char** out_output_filename, bool* version)
 {
 	for (int i = 1; i < argc; i++)
 	{
@@ -122,6 +123,10 @@ static int sReadArguments(int argc, const char* argv[], const char** out_input_f
 
 			*out_output_filename = argv[i];
 		}
+		else if (strcmp(argv[i], "-v") == 0 || strcmp(argv[i], "--version") == 0)
+		{
+			*version = true;
+		}
 		else
 		{
 			fprintf(stderr, "Unknown argument '%s'\n", argv[i]);
@@ -129,29 +134,59 @@ static int sReadArguments(int argc, const char* argv[], const char** out_input_f
 		}
 	}
 
-	if (*out_input_filename == NULL)
+	// These two are mandatory!
+	if (*version == false)
 	{
-		fprintf(stderr, "No input filename specified\n");
-		return 1;
-	}
+		if (*out_input_filename == NULL)
+		{
+			fprintf(stderr, "No input filename specified\n");
+			return 1;
+		}
 
-	if (*out_output_filename == NULL)
-	{
-		fprintf(stderr, "No output filename specified\n");
-		return 1;
+		if (*out_output_filename == NULL)
+		{
+			fprintf(stderr, "No output filename specified\n");
+			return 1;
+		}
 	}
 
 	return 0;
 }
 
 
+static const char* s_usage_message = "\
+Usage: akodec [options] -i <input filename> -o <output filename>\n\
+\n\
+Ako decoding tool.\n\
+\n\
+General options:\n\
+ -v, --version      Show version information\n\
+";
+
 int main(int argc, const char* argv[])
 {
 	const char* input_filename = NULL;
 	const char* output_filename = NULL;
+	bool version = false;
 
-	if (sReadArguments(argc, argv, &input_filename, &output_filename) != 0)
+	if (argc == 1)
+	{
+		printf("%s\n", s_usage_message);
+		return EXIT_SUCCESS;
+	}
+
+	if (sReadArguments(argc, argv, &input_filename, &output_filename, &version) != 0)
 		return EXIT_FAILURE;
+
+	if (version == true)
+	{
+		printf("Ako decoding tool.\n");
+		printf(" - %s, format %u\n", AkoVersionString(), AKO_FORMAT);
+		printf(" - libpng %s (%u)\n", PNG_LIBPNG_VER_STRING, png_access_version_number());
+		printf("\n");
+		printf("Copyright (c) 2021 Alexander Brandt\n");
+		return EXIT_SUCCESS;
+	}
 
 	// Load file blob
 	FILE* fp = NULL;
