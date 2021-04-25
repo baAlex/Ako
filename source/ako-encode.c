@@ -213,46 +213,36 @@ static void sLift1d(const struct LiftSettings* s, size_t len, size_t initial_len
 static void sLift2d(const struct LiftSettings* s, size_t dimension, size_t initial_dimension, void* aux_buffer,
                     int16_t* inout)
 {
-	union
-	{
-		int16_t *row, *col;
-	} in;
-	union
-	{
-		int16_t *row, *col;
-	} out;
-
-	int16_t buffer_a[512]; // FIXME, Ahhh!
-	int16_t buffer_b[512]; // FIXME, Aaahhh!!!
+	int16_t* buffer_a = (int16_t*)aux_buffer;
+	int16_t* buffer_b = (int16_t*)aux_buffer + initial_dimension;
+	int16_t* temp = inout;
 
 	// Rows
-	in.row = inout;
-	out.row = (int16_t*)aux_buffer;
-
 	for (size_t i = 0; i < dimension; i++)
 	{
-		sLift1d(s, dimension / 2, initial_dimension, in.row, out.row);
-		in.row = in.row + initial_dimension;
-		out.row = out.row + initial_dimension;
+		memcpy(buffer_a, temp, sizeof(int16_t) * dimension);
+		sLift1d(s, dimension / 2, initial_dimension, buffer_a, temp);
+
+		temp = temp + initial_dimension;
 	}
 
 	// Columns
 	for (size_t i = 0; i < dimension; i++)
 	{
-		in.col = (int16_t*)aux_buffer + i;
-		for (size_t u = 0; u < dimension; u++) // TODO, think on something... better
+		temp = inout + i;
+		for (size_t u = 0; u < dimension; u++)
 		{
-			buffer_a[u] = *in.col;
-			in.col = in.col + initial_dimension;
+			buffer_a[u] = *temp;
+			temp = temp + initial_dimension;
 		}
 
 		sLift1d(s, dimension / 2, initial_dimension, buffer_a, buffer_b);
 
-		out.col = inout + i;
+		temp = inout + i;
 		for (size_t u = 0; u < dimension; u++)
 		{
-			*out.col = buffer_b[u];
-			out.col = out.col + initial_dimension;
+			*temp = buffer_b[u];
+			temp = temp + initial_dimension;
 		}
 	}
 }
@@ -262,7 +252,7 @@ static void sLiftPlane(const struct LiftSettings* s, size_t dimension, void** au
 	size_t current_dimension = dimension;
 	size_t initial_dimension = dimension;
 
-	*aux_buffer = realloc(*aux_buffer, sizeof(int16_t) * (dimension * dimension + dimension * 2));
+	*aux_buffer = realloc(*aux_buffer, sizeof(int16_t) * dimension * 2);
 	assert(*aux_buffer != NULL);
 
 	while (current_dimension != 2)
