@@ -8,6 +8,7 @@
 
 *.ako
 *.pgm
+/*.png
 
 /.ninja_log
 /.ninja_deps
