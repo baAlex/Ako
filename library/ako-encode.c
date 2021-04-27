@@ -172,6 +172,14 @@ static void sTransformColorFormat(size_t dimension, size_t channels, const uint8
 }
 
 
+#define AKO_DEV_EMPIRICAL_OBSERVATION 0
+
+#if (AKO_DEV_EMPIRICAL_OBSERVATION == 1)
+#include <stdio.h>
+static int16_t s_min_hp = INT16_MAX;
+static int16_t s_max_hp = INT16_MIN;
+#endif
+
 #if (AKO_ENCODER_WAVELET_TRANSFORMATION == 1)
 static void sLift1d(const struct LiftSettings* s, size_t len, size_t initial_len, const int16_t* in, int16_t* out)
 {
@@ -190,20 +198,22 @@ static void sLift1d(const struct LiftSettings* s, size_t len, size_t initial_len
 			out[i] = in[(i * 2)] + (out[len + i] + out[len + i - 1]) / 4;
 		else
 			out[i] = in[(i * 2)] + (out[len + i]) / 2; // Fake first value
+
+#if (AKO_DEV_EMPIRICAL_OBSERVATION == 1)
+		if (out[len + i] < s_min_hp)
+			s_min_hp = out[len + i];
+		if (out[len + i] > s_max_hp)
+			s_max_hp = out[len + i];
+#endif
 	}
 
 	// Degrade highpass
-	const int16_t gate = (int16_t)(s->detail_gate * ((float)len / (float)initial_len));
+	// const int16_t gate = (int16_t)(s->detail_gate * 2.0f * ((float)len / (float)initial_len));
+	const int16_t gate = (int16_t)(s->detail_gate * 2.0f * sqrtf((float)len / (float)initial_len));
+	// const int16_t gate = (int16_t)(s->detail_gate * 2.0f * log2f((float)len * (1024.0f / (float)initial_len)));
 
 	for (size_t i = 0; i < len; i++)
 	{
-		// Squish from [-255, 255] to [-128, 127]
-		out[len + i] = out[len + i] / 2;
-		if (out[len + i] < (int16_t)INT8_MIN)
-			out[len + i] = (int16_t)INT8_MIN;
-		if (out[len + i] > (int16_t)INT8_MAX)
-			out[len + i] = (int16_t)INT8_MAX;
-
 		// Gate
 		if (out[len + i] > -gate && out[len + i] < gate)
 			out[len + i] = 0;
@@ -259,7 +269,17 @@ static void sLiftPlane(const struct LiftSettings* s, size_t dimension, void** au
 	{
 		sLift2d(s, current_dimension, initial_dimension, *aux_buffer, inout);
 		current_dimension = current_dimension / 2;
+
+#if (AKO_DEV_EMPIRICAL_OBSERVATION == 1)
+		printf("%i\t%i\n", s_min_hp, s_max_hp);
+		s_min_hp = INT16_MAX;
+		s_max_hp = INT16_MIN;
+#endif
 	}
+
+#if (AKO_DEV_EMPIRICAL_OBSERVATION == 1)
+	printf("\n");
+#endif
 }
 #endif
 
