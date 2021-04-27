@@ -166,37 +166,44 @@ static inline void sUnlift1d(size_t len, const int16_t* in, int16_t* out)
 {
 #if 1
 	// Even
-	out[0] = in[0] - (in[len] * 2) / 2;
+	out[0] = in[0] - (in[len] >> 1);
 
 	for (size_t i = 1; i < len; i++)
 	{
-		const int16_t hp = in[len + i] * 2;          // De-squish
-		const int16_t hp_prev = in[len + i - 1] * 2; // Ditto
-		out[i << 1] = in[i] - (hp + hp_prev) / 4;
+		const int16_t lp = in[i];
+		const int16_t hp = in[len + i];
+		const int16_t hp_prev = in[len + i - 1];
+
+		out[i << 1] = lp - ((hp + hp_prev) >> 2);
 	}
 
 	// Odd
 	for (size_t i = 0; i < (len - 2); i++)
 	{
-		const int16_t hp = in[len + i] * 2;
-		out[(i << 1) + 1] = hp + (out[i << 1] + out[(i << 1) + 2]) / 2;
+		const int16_t hp = in[len + i];
+		const int16_t even = out[i << 1];
+		const int16_t even_next = out[(i << 1) + 2];
+
+		out[(i << 1) + 1] = hp + ((even + even_next) >> 1);
 	}
 
-	out[((len - 2) << 1) + 1] = (in[len + (len - 2)] * 2) + (out[(len - 2) << 1]);
-	out[((len - 1) << 1) + 1] = (in[len + (len - 1)] * 2) + (out[(len - 1) << 1]);
+	out[((len - 2) << 1) + 1] = in[len + (len - 2)] + out[(len - 2) << 1];
+	out[((len - 1) << 1) + 1] = in[len + (len - 1)] + out[(len - 1) << 1];
 #endif
 }
 
 static void sUnlift2d(size_t dimension, size_t final_dimension, int16_t* aux_buffer, int16_t* inout)
 {
+	int16_t* temp = NULL;
+
 	// Columns
 	for (size_t i = 0; i < dimension; i++)
 	{
-		int16_t* temp = inout + i;
+		temp = inout + i;
 		for (size_t u = 0; u < dimension; u++)
 			aux_buffer[u] = temp[u * final_dimension];
 
-		sUnlift1d(dimension / 2, aux_buffer, aux_buffer + dimension);
+		sUnlift1d(dimension >> 1, aux_buffer, aux_buffer + dimension);
 
 		temp = inout + i;
 		for (size_t u = 0; u < dimension; u++)
@@ -207,7 +214,7 @@ static void sUnlift2d(size_t dimension, size_t final_dimension, int16_t* aux_buf
 	for (size_t i = 0; i < dimension; i++)
 	{
 		memcpy(aux_buffer, inout, sizeof(int16_t) * dimension);
-		sUnlift1d(dimension / 2, aux_buffer, inout);
+		sUnlift1d(dimension >> 1, aux_buffer, inout);
 		inout = inout + final_dimension;
 	}
 }
