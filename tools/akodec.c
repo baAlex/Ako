@@ -44,16 +44,13 @@ SOFTWARE.
 static void sPngErrorHandler(png_structp pngs, png_const_charp msg)
 {
 	(void)pngs;
-	printf("LibPng error: \"%s\"\n", msg);
+	fprintf(stderr, "LibPng error: \"%s\"\n", msg);
 	exit(EXIT_FAILURE); // Bye cruel world!
 }
 
 
-void ImageSavePng(size_t dimension, size_t channels, const uint8_t* data, const char* filename)
+void ImageSavePng(size_t dimension, size_t channels, const uint8_t* data, FILE* fp)
 {
-	FILE* fp = fopen(filename, "wb");
-	assert(fp != NULL);
-
 	// Init things
 	png_struct* pngs = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, sPngErrorHandler, NULL);
 	assert(pngs != NULL);
@@ -94,12 +91,18 @@ void ImageSavePng(size_t dimension, size_t channels, const uint8_t* data, const 
 	png_free(pngs, row_pointers);
 	png_destroy_info_struct(pngs, &pngi);
 	png_destroy_write_struct(&pngs, NULL);
-	fclose(fp);
 }
 
 
-static int sReadArguments(int argc, const char* argv[], const char** out_input_filename,
-                          const char** out_output_filename, bool* version)
+struct DecoderSettings
+{
+	const char* input_filename;
+	const char* output_filename;
+	bool print_version;
+	bool use_stdout;
+};
+
+static int sReadArguments(int argc, const char* argv[], struct DecoderSettings* deco_s)
 {
 	for (int i = 1; i < argc; i++)
 	{
@@ -111,7 +114,7 @@ static int sReadArguments(int argc, const char* argv[], const char** out_input_f
 				return 1;
 			}
 
-			*out_input_filename = argv[i];
+			deco_s->input_filename = argv[i];
 		}
 		else if (strcmp(argv[i], "-o") == 0 || strcmp(argv[i], "-output") == 0)
 		{
@@ -121,11 +124,15 @@ static int sReadArguments(int argc, const char* argv[], const char** out_input_f
 				return 1;
 			}
 
-			*out_output_filename = argv[i];
+			deco_s->output_filename = argv[i];
 		}
 		else if (strcmp(argv[i], "-v") == 0 || strcmp(argv[i], "--version") == 0)
 		{
-			*version = true;
+			deco_s->print_version = true;
+		}
+		else if (strcmp(argv[i], "-stdout") == 0 || strcmp(argv[i], "--stdout") == 0)
+		{
+			deco_s->use_stdout = true;
 		}
 		else
 		{
@@ -135,15 +142,15 @@ static int sReadArguments(int argc, const char* argv[], const char** out_input_f
 	}
 
 	// These two are mandatory!
-	if (*version == false)
+	if (deco_s->print_version == false)
 	{
-		if (*out_input_filename == NULL)
+		if (deco_s->input_filename == NULL)
 		{
 			fprintf(stderr, "No input filename specified\n");
 			return 1;
 		}
 
-		if (*out_output_filename == NULL)
+		if (deco_s->output_filename == NULL && deco_s->use_stdout == false)
 		{
 			fprintf(stderr, "No output filename specified\n");
 			return 1;
@@ -156,6 +163,7 @@ static int sReadArguments(int argc, const char* argv[], const char** out_input_f
 
 static const char* s_usage_message = "\
 Usage: akodec [options] -i <input filename> -o <output filename>\n\
+Usage: akodec [options] -i <input filename> -stdout\n\
 \n\
 Ako decoding tool.\n\
 \n\
@@ -165,9 +173,7 @@ General options:\n\
 
 int main(int argc, const char* argv[])
 {
-	const char* input_filename = NULL;
-	const char* output_filename = NULL;
-	bool version = false;
+	struct DecoderSettings deco_s = {0};
 
 	if (argc == 1)
 	{
@@ -175,10 +181,10 @@ int main(int argc, const char* argv[])
 		return EXIT_SUCCESS;
 	}
 
-	if (sReadArguments(argc, argv, &input_filename, &output_filename, &version) != 0)
+	if (sReadArguments(argc, argv, &deco_s) != 0)
 		return EXIT_FAILURE;
 
-	if (version == true)
+	if (deco_s.print_version == true)
 	{
 		printf("Ako decoding tool.\n");
 		printf(" - %s, format %u\n", AkoVersionString(), AKO_FORMAT);
@@ -193,7 +199,7 @@ int main(int argc, const char* argv[])
 	long blob_size = 0;
 	void* blob = NULL;
 
-	fp = fopen(input_filename, "rb");
+	fp = fopen(deco_s.input_filename, "rb");
 	assert(fp != NULL);
 
 	fseek(fp, 0, SEEK_END);
@@ -203,6 +209,7 @@ int main(int argc, const char* argv[])
 
 	fseek(fp, 0, SEEK_SET);
 	fread(blob, (size_t)blob_size, 1, fp);
+	fclose(fp);
 
 	// Decode Ako
 	size_t dimension = 0;
@@ -213,10 +220,18 @@ int main(int argc, const char* argv[])
 	assert(ako != NULL);
 
 	// Save Png
-	ImageSavePng(dimension, channels, ako, output_filename);
+	if (deco_s.use_stdout == false)
+	{
+		fp = fopen(deco_s.output_filename, "wb");
+		assert(fp != NULL);
+
+		ImageSavePng(dimension, channels, ako, fp);
+		fclose(fp);
+	}
+	else
+		ImageSavePng(dimension, channels, ako, stdout);
 
 	// Bye!
-	fclose(fp);
 	free(ako);
 	free(blob);
 
