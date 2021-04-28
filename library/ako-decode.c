@@ -166,7 +166,7 @@ static inline void sUnlift1d(size_t len, const int16_t* in, int16_t* out)
 {
 #if 1
 	// Even
-	out[0] = in[0] - (in[len] >> 1);
+	out[0] = in[0] - (in[len] / 2);
 
 	for (size_t i = 1; i < len; i++)
 	{
@@ -174,7 +174,7 @@ static inline void sUnlift1d(size_t len, const int16_t* in, int16_t* out)
 		const int16_t hp = in[len + i];
 		const int16_t hp_prev = in[len + i - 1];
 
-		out[i << 1] = lp - ((hp + hp_prev) >> 2);
+		out[i << 1] = lp - ((hp + hp_prev) / 4);
 	}
 
 	// Odd
@@ -184,7 +184,7 @@ static inline void sUnlift1d(size_t len, const int16_t* in, int16_t* out)
 		const int16_t even = out[i << 1];
 		const int16_t even_next = out[(i << 1) + 2];
 
-		out[(i << 1) + 1] = hp + ((even + even_next) >> 1);
+		out[(i << 1) + 1] = hp + ((even + even_next) / 2);
 	}
 
 	out[((len - 2) << 1) + 1] = in[len + (len - 2)] + out[(len - 2) << 1];
