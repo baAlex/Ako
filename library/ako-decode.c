@@ -41,7 +41,7 @@ SOFTWARE.
 extern void DevBenchmarkStart(const char* name);
 extern void DevBenchmarkStop();
 extern void DevBenchmarkTotal();
-extern void DevSaveGrayPgm(size_t dimension, const uint8_t* data, const char* prefix);
+extern void DevSaveGrayPgm(size_t dimension, const int16_t* data, const char* filename_format, ...);
 
 
 #if (AKO_COMPRESSION == 1)
@@ -80,7 +80,7 @@ static inline void sReadHead(const void* blob, size_t* dimension, size_t* channe
 }
 
 
-static void sDeTransformColorFormat(size_t dimension, size_t channels, int16_t* input, uint8_t* out)
+static void sDeTransformColorFormat(size_t dimension, size_t channels, int16_t* input, uint8_t* output)
 {
 	// Color transformation, YCoCg to sRgb
 	// https://en.wikipedia.org/wiki/YCoCg
@@ -146,25 +146,28 @@ static void sDeTransformColorFormat(size_t dimension, size_t channels, int16_t* 
 	{
 	case 4:
 		for (size_t i = 0; i < (dimension * dimension); i++)
-			out[i * channels + 3] = (uint8_t)input[(dimension * dimension * 3) + i];
+			output[i * channels + 3] = (uint8_t)input[(dimension * dimension * 3) + i];
 	case 3:
 		for (size_t i = 0; i < (dimension * dimension); i++)
-			out[i * channels + 2] = (uint8_t)input[(dimension * dimension * 2) + i];
+			output[i * channels + 2] = (uint8_t)input[(dimension * dimension * 2) + i];
 	case 2:
 		for (size_t i = 0; i < (dimension * dimension); i++)
-			out[i * channels + 1] = (uint8_t)input[(dimension * dimension * 1) + i];
+			output[i * channels + 1] = (uint8_t)input[(dimension * dimension * 1) + i];
 	case 1:
 		for (size_t i = 0; i < (dimension * dimension); i++)
-			out[i * channels] = (uint8_t)input[i];
+			output[i * channels] = (uint8_t)input[i];
 	}
 	DevBenchmarkStop();
 }
 
 
 #if (AKO_DECODER_WAVELET_TRANSFORMATION == 1)
-static inline void sUnlift1d(size_t len, const int16_t* in, int16_t* out)
+__attribute__((always_inline)) static inline void sUnlift1d(size_t len, const int16_t* in, int16_t* out)
 {
-#if 1
+#if 0 // Half of the CPU usage comes from memory management in sUnlift2d()
+	memset(out, 0, sizeof(int16_t) * (len << 1));
+#else
+
 	// Even
 	out[0] = in[0] - (in[len] / 2);
 
@@ -192,37 +195,140 @@ static inline void sUnlift1d(size_t len, const int16_t* in, int16_t* out)
 #endif
 }
 
-static void sUnlift2d(size_t dimension, size_t final_dimension, int16_t* aux_buffer, int16_t* inout)
+static void sUnlift2d(size_t dimension, size_t channels, int16_t* aux_buffer, const int16_t* input, int16_t* output)
 {
-	int16_t* temp = NULL;
+	// I'm deviating from papers nomenclature, so:
 
-	// Columns
-	for (size_t i = 0; i < dimension; i++)
+	// | ---- | ---- |      | ---- | ---- |
+	// | LL   | LH   |      | LP   | B    |
+	// | ---- | ---- |  ->  | ---- | ---- |
+	// | HL   | HH   |      | C    | D    |
+	// | ---- | ---- |      | ---- | ---- |
+
+	// - LP as lowpass
+	// - B, C, D as 'highpasses' or HP
+
+	// --------
+
+	// The encoder saves in this order:
+	// [LP0 (2x2 px)], [C1, B1, D1], [C2, B2, D2], [C3, B3, D3]... etc.
+
+	// Such bizarre thing because I'm resolving columns first.
+	// LP with C, then B with D. Finally rows.
+
+	// Even better, columns in C, B and D are packed as rows. Left
+	// to right, ready to be consumed in a linear way with memcpy().
+
+	// And finally, columns in B and D are bundled (or interleaved):
+	// [Column 0B, Column 0D], [Column 1B, Column 1D]... etc.
+
+	// --------
+
+#define ITS_1993 1 // Dude wake up it's 1993!, let's unroll loops!.
+
+	// Being serious, not only I'm unrolling loops, but also removing
+	// multiplications, doing 64 bits reads and interleaving/ordering
+	// operations that work on areas close each other in RAM... this
+	// help the cache usage?, right?.
+
+	// Nothing more than what a modern compiler already does.
+	// And incredible, this kind of 90s optimizations saves 7 ms
+	// on my old Celeron. So yeahh...
+
+	// --------
+
+	// Copy initial lowpass (2x2 px)
+	for (size_t ch = 0; ch < channels; ch++)
+		memcpy(output + dimension * dimension * ch, input + 2 * 2 * ch, sizeof(int16_t) * 2 * 2);
+
+	// Unlift steps, aka: apply highpasses
+	const int16_t* hp = input + (2 * 2 * channels); // HP starts after the initial 2x2 px LP
+
+	for (size_t current = 2; current < dimension; current = current * 2)
 	{
-		temp = inout + i;
-		for (size_t u = 0; u < dimension; u++)
-			aux_buffer[u] = temp[u * final_dimension];
+		const size_t current_x2 = current * 2; // Doesn't help the compiler, is just for legibility
+		int16_t* lp = output;
 
-		sUnlift1d(dimension >> 1, aux_buffer, aux_buffer + dimension);
+		for (size_t ch = 0; ch < channels; ch++)
+		{
+			// Columns
+			for (size_t col = 0; col < current; col++)
+			{
+#if (ITS_1993 == 1)
+				int16_t* temp = lp + col;
+				for (size_t i = 0; i < current; i = i + 2) // LP is a column
+				{
+					aux_buffer[i + 0] = *(temp);
+					aux_buffer[i + 1] = *(temp + current);
+					temp = temp + current_x2;
+				}
+#else
+				int16_t* temp = lp + col;
+				for (size_t i = 0; i < current; i++)
+					aux_buffer[i] = temp[i * current];
+#endif
 
-		temp = inout + i;
-		for (size_t u = 0; u < dimension; u++)
-			temp[u * final_dimension] = aux_buffer[dimension + u];
+				memcpy(aux_buffer + current, (hp + current * col),
+				       sizeof(int16_t) * current); // Encoder packed C as a row, no weird loops here
+
+				// Unlift LP and C (first halve)
+				// Input first half of the buffer, output in the last half
+				sUnlift1d(current, aux_buffer, aux_buffer + current_x2);
+
+				// Unlift B and D (second halve)
+				// - '(hp + current * current)' is C, we skip it
+				// - '(current_x2 * col)' is the counterpart of '(hp + current * col)' above in C
+				//   except that B and D are bundled together by the encoder, thus the x2
+				sUnlift1d(current, (hp + current * current) + (current_x2 * col), aux_buffer);
+
+				// Write unlift results back to LP
+#if (ITS_1993 == 1)
+				temp = lp + col;
+				for (size_t i = 0; i < current_x2; i = i + 4)
+				{
+					// Hopefully the compiler will notice that the intention of my
+					// bitshifts is to translate those into 'MOV [MEM], REG16' of a REG64
+					const uint64_t data = *(uint64_t*)((uint16_t*)aux_buffer + i + current_x2);
+					const uint64_t data2 = *(uint64_t*)((uint16_t*)aux_buffer + i);
+
+					*(temp) = (int16_t)((data >> 0) & 0xFFFF);
+					*(temp + current) = (int16_t)((data2 >> 0) & 0xFFFF);
+
+					*(temp + current_x2) = (int16_t)((data >> 16) & 0xFFFF);
+					*(temp + current_x2 + current) = (int16_t)((data2 >> 16) & 0xFFFF);
+
+					*(temp + current_x2 * 2) = (int16_t)((data >> 32) & 0xFFFF);
+					*(temp + current_x2 * 2 + current) = (int16_t)((data2 >> 32) & 0xFFFF);
+
+					*(temp + current_x2 * 3) = (int16_t)((data >> 48));
+					*(temp + current_x2 * 3 + current) = (int16_t)((data2 >> 48));
+
+					temp = temp + (current_x2 << 2);
+				}
+#else
+				temp = lp + col;
+				for (size_t i = 0; i < current_x2; i++)
+					temp[i * current_x2] = aux_buffer[current_x2 + i];
+
+				temp = lp + current + col;
+				for (size_t i = 0; i < current_x2; i++)
+					temp[i * current_x2] = aux_buffer[i];
+#endif
+			}
+
+			// Rows, operates just in LP
+			for (size_t row = 0; row < current_x2; row++)
+			{
+				memcpy(aux_buffer, lp + row * current_x2, sizeof(int16_t) * current_x2);
+				sUnlift1d(current, aux_buffer, lp + row * current_x2);
+			}
+
+			// Done with this channel
+			DevSaveGrayPgm(current_x2, lp, "d-ch%zu", ch);
+			hp = hp + current * current * 3; // Move from current B, C and D
+			lp = lp + dimension * dimension;
+		}
 	}
-
-	// Rows
-	for (size_t i = 0; i < dimension; i++)
-	{
-		memcpy(aux_buffer, inout, sizeof(int16_t) * dimension);
-		sUnlift1d(dimension >> 1, aux_buffer, inout);
-		inout = inout + final_dimension;
-	}
-}
-
-static inline void sUnliftPlane(size_t dimension, void** aux_buffer, void* inout)
-{
-	for (size_t current = 4; current <= dimension; current = current * 2)
-		sUnlift2d(current, dimension, *aux_buffer, inout);
 }
 #endif
 
@@ -235,46 +341,47 @@ uint8_t* AkoDecode(size_t input_size, const void* input, size_t* out_dimension, 
 	size_t compressed_data_size = 0;
 
 	int16_t* buffer_a = NULL;
-	uint8_t* buffer_b = NULL;
+	int16_t* buffer_b = NULL;
+	int16_t* aux_buffer = NULL;
 
 	assert(input_size >= sizeof(struct AkoHead));
 	sReadHead(input, &dimension, &channels, &compressed_data_size);
 
 	data_len = dimension * dimension * channels;
 	buffer_a = calloc(1, sizeof(int16_t) * data_len);
-	buffer_b = calloc(1, sizeof(uint8_t) * data_len);
+	buffer_b = calloc(1, sizeof(int16_t) * data_len);
+	aux_buffer = calloc(1, sizeof(int16_t) * dimension * 2);
+
 	assert(buffer_a != NULL);
 	assert(buffer_b != NULL);
+	assert(aux_buffer != NULL);
 
 	// Decompress
 	{
-		const int16_t* data = (int16_t*)((uint8_t*)input + sizeof(struct AkoHead));
+		const int16_t* temp = (int16_t*)((uint8_t*)input + sizeof(struct AkoHead));
 
 #if (AKO_COMPRESSION == 1)
 		DevBenchmarkStart("DecompressLZ4");
-		sDecompressLZ4(compressed_data_size, sizeof(int16_t) * data_len, data, buffer_a);
+		sDecompressLZ4(compressed_data_size, sizeof(int16_t) * data_len, temp, buffer_a);
 		DevBenchmarkStop();
 #else
 		for (size_t i = 0; i < data_len; i++)
-			buffer_a[i] = data[i];
+			buffer_a[i] = temp[i];
 #endif
 	}
 
 	// Unlift
 #if (AKO_DECODER_WAVELET_TRANSFORMATION != 0)
-	DevBenchmarkStart("Unlift");
-	switch (channels)
-	{
-	case 4: sUnliftPlane(dimension, (void**)&buffer_b, buffer_a + (dimension * dimension * 3));
-	case 3: sUnliftPlane(dimension, (void**)&buffer_b, buffer_a + (dimension * dimension * 2));
-	case 2: sUnliftPlane(dimension, (void**)&buffer_b, buffer_a + (dimension * dimension * 1));
-	case 1: sUnliftPlane(dimension, (void**)&buffer_b, buffer_a); break;
-	}
+	DevBenchmarkStart("Unpack/Unlift");
+	sUnlift2d(dimension, channels, aux_buffer, buffer_a, buffer_b);
 	DevBenchmarkStop();
+#else
+	for (size_t i = 0; i < data_len; i++)
+		buffer_b[i] = buffer_a[i];
 #endif
 
 	// DeTransform color-format
-	sDeTransformColorFormat(dimension, channels, buffer_a, buffer_b); // HACK!
+	sDeTransformColorFormat(dimension, channels, buffer_b, (uint8_t*)buffer_a); // HACK!
 
 	// Bye!
 	DevBenchmarkTotal();
@@ -284,6 +391,7 @@ uint8_t* AkoDecode(size_t input_size, const void* input, size_t* out_dimension, 
 	if (out_channels != NULL)
 		*out_channels = channels;
 
-	free(buffer_a);
-	return (uint8_t*)buffer_b;
+	free(aux_buffer);
+	free(buffer_b);
+	return (uint8_t*)buffer_a;
 }
