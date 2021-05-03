@@ -41,7 +41,7 @@ SOFTWARE.
 extern void DevBenchmarkStart(const char* name);
 extern void DevBenchmarkStop();
 extern void DevBenchmarkTotal();
-extern void DevSaveGrayPgm(size_t dimension, const uint8_t* data, const char* prefix);
+extern void DevSaveGrayPgm(size_t dimension, const int16_t* data, const char* filename_format, ...);
 
 
 struct LiftSettings
@@ -208,13 +208,15 @@ static void sLift1d(const struct LiftSettings* s, size_t len, size_t initial_len
 	}
 
 	// Degrade highpass
-	// const int16_t gate = (int16_t)(s->detail_gate * 2.0f * ((float)len / (float)initial_len)); // A
-	// const int16_t gate = (int16_t)(s->detail_gate * 2.0f * sqrtf((float)len / (float)initial_len)); // B
-	const int16_t gate =
-	    (int16_t)(s->detail_gate * 2.0f *
-	              ((sqrtf((float)len / (float)initial_len) + (float)len / (float)initial_len) / 2.0f)); // (A + B) / 2
+	// const int16_t gate = (int16_t)(s->detail_gate * 2.0f * ((float)len / (float)initial_len)); // Type A
+	const int16_t gate = (int16_t)(s->detail_gate * 2.0f * sqrtf((float)len / (float)initial_len)); // Type B
+	// const int16_t gate =
+	//    (int16_t)(s->detail_gate * 2.0f *
+	//              ((sqrtf((float)len / (float)initial_len) + (float)len / (float)initial_len) / 2.0f)); // Type (A +
+	//              B) / 2
 
-	// const int16_t gate = (int16_t)(s->detail_gate * 2.0f * log2f((float)len * (1024.0f / (float)initial_len))); // C
+	// const int16_t gate = (int16_t)(s->detail_gate * 2.0f * log2f((float)len * (1024.0f / (float)initial_len))); //
+	// Type C
 
 	for (size_t i = 0; i < len; i++)
 	{
@@ -288,6 +290,92 @@ static void sLiftPlane(const struct LiftSettings* s, size_t dimension, void** au
 #endif
 
 
+#define MAX_STEPS 99 // TODO
+
+static void s2dToLinearH(size_t w, size_t h, size_t pitch, const int16_t* in, int16_t* out)
+{
+	for (size_t r = 0; r < h; r++)
+	{
+		for (size_t c = 0; c < w; c++)
+		{
+			*out = in[(r * pitch) + c];
+			out = out + 1;
+		}
+	}
+}
+
+static void s2dToLinearV(size_t w, size_t h, size_t pitch, const int16_t* in, int16_t* out)
+{
+	for (size_t c = 0; c < w; c++)
+	{
+		for (size_t r = 0; r < h; r++)
+		{
+			*out = in[c + (r * pitch)];
+			out = out + 1;
+		}
+	}
+}
+
+static void sPack(size_t dimension, size_t channels, int16_t* inout)
+{
+	int16_t* lp = NULL;
+	int16_t* step[MAX_STEPS] = {NULL};
+	size_t s = 0;
+
+	// Initial lowpass (2x2 px)
+	lp = calloc(1, sizeof(int16_t) * 2 * 2 * channels);
+
+	for (size_t ch = 0; ch < channels; ch++)
+	{
+		const int16_t* in_plane = inout + dimension * dimension * ch;
+		s2dToLinearH(2, 2, dimension, in_plane, lp + 2 * 2 * ch);
+	}
+
+	// Highpasses (from 4x4 to 8x8, to 16x16, to 32x32...)
+	for (size_t current = 2; current < dimension; current = current * 2)
+	{
+		const size_t length = current * current * channels * 3; // Space for B, C and D
+		step[s] = calloc(1, sizeof(int16_t) * length);
+
+#if 1
+		for (size_t ch = 0; ch < channels; ch++)
+		{
+			const int16_t* in_plane = inout + dimension * dimension * ch;
+
+			s2dToLinearV(current, current, dimension,
+			             in_plane + dimension * current, // Higpass C
+			             (step[s] + current * current * 3 * ch) + (current * current * 0));
+			s2dToLinearV(current, current * 2, dimension,
+			             in_plane + current, // Highpasses B and D
+			             (step[s] + current * current * 3 * ch) + (current * current * 1));
+		}
+#else
+		const int16_t color = s * 32;
+		for (size_t i = 0; i < length; i++)
+			step[s][i] = color; // To inspect it visually
+#endif
+		s = s + 1;
+	}
+
+	// Output!
+	memset(inout, 0, sizeof(int16_t) * dimension * dimension * channels);
+	memcpy(inout, lp, sizeof(int16_t) * 2 * 2 * channels);
+
+	inout = inout + 2 * 2 * channels;
+	s = 0;
+
+	for (size_t current = 2; current < dimension; current = current * 2)
+	{
+		const size_t length = current * current * channels * 3;
+		memcpy(inout, step[s], sizeof(int16_t) * length);
+		free(step[s]);
+
+		inout = inout + length;
+		s = s + 1;
+	}
+}
+
+
 size_t AkoEncode(size_t dimension, size_t channels, const struct AkoSettings* settings, const uint8_t* input,
                  void** output)
 {
@@ -332,6 +420,10 @@ size_t AkoEncode(size_t dimension, size_t channels, const struct AkoSettings* se
 		sLiftPlane(&s, dimension, (void**)&aux_buffer, data);
 		break;
 	}
+	DevBenchmarkStop();
+
+	DevBenchmarkStart("Pack");
+	sPack(dimension, channels, data);
 	DevBenchmarkStop();
 #else
 	(void)settings;

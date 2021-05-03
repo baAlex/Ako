@@ -86,26 +86,34 @@ void DevBenchmarkTotal() {}
 
 
 #if (AKO_DEV_SAVE_IMAGES == 1)
-void DevSaveGrayPgm(size_t dimension, const uint8_t* data, const char* prefix)
+void DevSaveGrayPgm(size_t dimension, const int16_t* data, const char* filename_format, ...)
 {
-	char filename[256];
-	sprintf(filename, "%s%zu.pgm", prefix, dimension);
+	char filename1[256];
+	char filename2[256];
+	va_list args;
 
-	FILE* fp = fopen(filename, "wb");
-	assert(fp != NULL);
+	va_start(args, filename_format);
+	vsprintf(filename1, filename_format, args);
+	va_end(args);
 
+	sprintf(filename2, "%s-%zu.pgm", filename1, dimension);
+
+	FILE* fp = fopen(filename2, "wb");
 	fprintf(fp, "P5\n%zu\n%zu\n255\n", dimension, dimension);
 
 	for (size_t i = 0; i < (dimension * dimension); i++)
-		fwrite(data + i, 1, 1, fp);
+	{
+		uint8_t p = (data[i] > 0) ? (data[i] < 255) ? (uint8_t)data[i] : 255 : 0;
+		fwrite(&p, 1, 1, fp);
+	}
 
 	fclose(fp);
 }
 #else
-void DevSaveGrayPgm(size_t dimension, const uint8_t* data, const char* prefix)
+void DevSaveGrayPgm(size_t dimension, const int16_t* data, const char* filename_format, ...)
 {
 	(void)dimension;
 	(void)data;
-	(void)prefix;
+	(void)filename_format;
 }
 #endif
