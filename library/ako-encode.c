@@ -208,8 +208,8 @@ static void sLift1d(const struct LiftSettings* s, size_t len, size_t initial_len
 	}
 
 	// Degrade highpass
-	// const int16_t gate = (int16_t)(s->detail_gate * 2.0f * ((float)len / (float)initial_len)); // Type A
-	const int16_t gate = (int16_t)(s->detail_gate * 2.0f * sqrtf((float)len / (float)initial_len)); // Type B
+	const int16_t gate = (int16_t)(s->detail_gate * 2.0f * ((float)len / (float)initial_len)); // Type A
+	// const int16_t gate = (int16_t)(s->detail_gate * 2.0f * sqrtf((float)len / (float)initial_len)); // Type B
 	// const int16_t gate =
 	//    (int16_t)(s->detail_gate * 2.0f *
 	//              ((sqrtf((float)len / (float)initial_len) + (float)len / (float)initial_len) / 2.0f)); // Type (A +
