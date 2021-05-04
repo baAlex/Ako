@@ -1,4 +1,9 @@
 
+cc = clang
+link = clang -fuse-ld=lld
+
+#cc = gcc
+#link = gcc
 
 # Release flags:
 cflags = -flto -O3 -fvisibility=hidden -DAKO_EXPORT_SYMBOLS -DLZ4LIB_VISIBILITY="" -fdiagnostics-color=always -I./include
@@ -12,19 +17,19 @@ lflags = -fdiagnostics-color=always
 ###
 
 rule SharedCompile
- command = clang -c -fpic $cflags $in -o $out
+ command = $cc -c -fpic $in $cflags -o $out
 rule SharedLink
- command = clang -fuse-ld=lld -shared $lflags $in -o $out
+ command = $link $in -shared $lflags -o $out
 
 rule StaticCompile
- command = clang -c $cflags $in -o $out
+ command = $cc -c $in $cflags -o $out
 rule StaticLink
  command = ar rcs $out $in
 
 rule ToolCompile
- command = clang -c $cflags $in -o $out
+ command = $cc -c $in $cflags -o $out
 rule ToolLink
- command = clang -fuse-ld=lld -lpng -lm $lflags $in -o $out
+ command = $link $in -lpng -lm $lflags -o $out
 
 ###
 
