@@ -48,10 +48,10 @@ extern void DevSaveGrayPgm(size_t dimension, const int16_t* data, const char* fi
 #include "lz4.h"
 #include "lz4hc.h"
 
-static inline void sDecompressLZ4(size_t input_size, size_t output_size, const void* input, void* output)
+static inline void sDecompressLZ4(size_t input_size, size_t output_size, const void* in, void* out)
 {
 	int decompressed_data_size = 0;
-	decompressed_data_size = LZ4_decompress_safe(input, output, (int)input_size, (int)output_size);
+	decompressed_data_size = LZ4_decompress_safe(in, out, (int)input_size, (int)output_size);
 	assert((size_t)decompressed_data_size == output_size);
 }
 #endif
@@ -80,7 +80,7 @@ static inline void sReadHead(const void* blob, size_t* dimension, size_t* channe
 }
 
 
-static void sDeTransformColorFormat(size_t dimension, size_t channels, int16_t* input, uint8_t* output)
+static void sDeTransformColorFormat(size_t dimension, size_t channels, int16_t* in, uint8_t* out)
 {
 	// Color transformation, YCoCg to sRgb
 	// https://en.wikipedia.org/wiki/YCoCg
@@ -91,52 +91,52 @@ static void sDeTransformColorFormat(size_t dimension, size_t channels, int16_t* 
 	{
 		for (size_t i = 0; i < (dimension * dimension); i++)
 		{
-			const int16_t y = input[(dimension * dimension * 0) + i];
-			const int16_t co = input[(dimension * dimension * 1) + i] - 128;
-			const int16_t cg = input[(dimension * dimension * 2) + i] - 128;
+			const int16_t y = in[(dimension * dimension * 0) + i];
+			const int16_t co = in[(dimension * dimension * 1) + i] - 128;
+			const int16_t cg = in[(dimension * dimension * 2) + i] - 128;
 
 			const int16_t r = (y - cg + co);
 			const int16_t g = (y + cg);
 			const int16_t b = (y - cg - co);
 
-			input[(dimension * dimension * 0) + i] = (r > 0) ? (r < 255) ? r : 255 : 0;
-			input[(dimension * dimension * 1) + i] = (g > 0) ? (g < 255) ? g : 255 : 0;
-			input[(dimension * dimension * 2) + i] = (b > 0) ? (b < 255) ? b : 255 : 0;
+			in[(dimension * dimension * 0) + i] = (r > 0) ? (r < 255) ? r : 255 : 0;
+			in[(dimension * dimension * 1) + i] = (g > 0) ? (g < 255) ? g : 255 : 0;
+			in[(dimension * dimension * 2) + i] = (b > 0) ? (b < 255) ? b : 255 : 0;
 		}
 	}
 	else if (channels == 4)
 	{
 		for (size_t i = 0; i < (dimension * dimension); i++)
 		{
-			const int16_t y = input[(dimension * dimension * 0) + i];
-			const int16_t co = input[(dimension * dimension * 1) + i] - 128;
-			const int16_t cg = input[(dimension * dimension * 2) + i] - 128;
-			const int16_t a = input[(dimension * dimension * 3) + i];
+			const int16_t y = in[(dimension * dimension * 0) + i];
+			const int16_t co = in[(dimension * dimension * 1) + i] - 128;
+			const int16_t cg = in[(dimension * dimension * 2) + i] - 128;
+			const int16_t a = in[(dimension * dimension * 3) + i];
 
 			const int16_t r = (y - cg + co);
 			const int16_t g = (y + cg);
 			const int16_t b = (y - cg - co);
 
-			input[(dimension * dimension * 0) + i] = (r > 0) ? (r < 255) ? r : 255 : 0;
-			input[(dimension * dimension * 1) + i] = (g > 0) ? (g < 255) ? g : 255 : 0;
-			input[(dimension * dimension * 2) + i] = (b > 0) ? (b < 255) ? b : 255 : 0;
-			input[(dimension * dimension * 3) + i] = (a > 0) ? (a < 255) ? a : 255 : 0;
+			in[(dimension * dimension * 0) + i] = (r > 0) ? (r < 255) ? r : 255 : 0;
+			in[(dimension * dimension * 1) + i] = (g > 0) ? (g < 255) ? g : 255 : 0;
+			in[(dimension * dimension * 2) + i] = (b > 0) ? (b < 255) ? b : 255 : 0;
+			in[(dimension * dimension * 3) + i] = (a > 0) ? (a < 255) ? a : 255 : 0;
 		}
 	}
 	else
 	{
 		for (size_t i = 0; i < (dimension * dimension * channels); i++)
 		{
-			const int16_t c = input[i];
-			input[i] = (c > 0) ? (c < 255) ? c : 255 : 0;
+			const int16_t c = in[i];
+			in[i] = (c > 0) ? (c < 255) ? c : 255 : 0;
 		}
 	}
 	DevBenchmarkStop();
 #else
 	for (size_t i = 0; i < (dimension * dimension * channels); i++)
 	{
-		const int16_t c = input[i];
-		input[i] = (c > 0) ? (c < 255) ? c : 255 : 0;
+		const int16_t c = in[i];
+		in[i] = (c > 0) ? (c < 255) ? c : 255 : 0;
 	}
 #endif
 
@@ -146,16 +146,19 @@ static void sDeTransformColorFormat(size_t dimension, size_t channels, int16_t* 
 	{
 	case 4:
 		for (size_t i = 0; i < (dimension * dimension); i++)
-			output[i * channels + 3] = (uint8_t)input[(dimension * dimension * 3) + i];
+			out[i * channels + 3] = (uint8_t)in[(dimension * dimension * 3) + i];
+		// fallthrough
 	case 3:
 		for (size_t i = 0; i < (dimension * dimension); i++)
-			output[i * channels + 2] = (uint8_t)input[(dimension * dimension * 2) + i];
+			out[i * channels + 2] = (uint8_t)in[(dimension * dimension * 2) + i];
+		// fallthrough
 	case 2:
 		for (size_t i = 0; i < (dimension * dimension); i++)
-			output[i * channels + 1] = (uint8_t)input[(dimension * dimension * 1) + i];
+			out[i * channels + 1] = (uint8_t)in[(dimension * dimension * 1) + i];
+		// fallthrough
 	case 1:
 		for (size_t i = 0; i < (dimension * dimension); i++)
-			output[i * channels] = (uint8_t)input[i];
+			out[i * channels] = (uint8_t)in[i];
 	}
 	DevBenchmarkStop();
 }
@@ -195,7 +198,7 @@ __attribute__((always_inline)) static inline void sUnlift1d(size_t len, const in
 #endif
 }
 
-static void sUnlift2d(size_t dimension, size_t channels, int16_t* aux_buffer, const int16_t* input, int16_t* output)
+static void sUnlift2d(size_t dimension, size_t channels, int16_t* aux_buffer, const int16_t* in, int16_t* out)
 {
 	// I'm deviating from papers nomenclature, so:
 
@@ -239,15 +242,15 @@ static void sUnlift2d(size_t dimension, size_t channels, int16_t* aux_buffer, co
 
 	// Copy initial lowpass (2x2 px)
 	for (size_t ch = 0; ch < channels; ch++)
-		memcpy(output + dimension * dimension * ch, input + 2 * 2 * ch, sizeof(int16_t) * 2 * 2);
+		memcpy(out + dimension * dimension * ch, in + 2 * 2 * ch, sizeof(int16_t) * 2 * 2);
 
 	// Unlift steps, aka: apply highpasses
-	const int16_t* hp = input + (2 * 2 * channels); // HP starts after the initial 2x2 px LP
+	const int16_t* hp = in + (2 * 2 * channels); // HP starts after the initial 2x2 px LP
 
 	for (size_t current = 2; current < dimension; current = current * 2)
 	{
 		const size_t current_x2 = current * 2; // Doesn't help the compiler, is just for legibility
-		int16_t* lp = output;
+		int16_t* lp = out;
 
 		for (size_t ch = 0; ch < channels; ch++)
 		{
@@ -333,7 +336,7 @@ static void sUnlift2d(size_t dimension, size_t channels, int16_t* aux_buffer, co
 #endif
 
 
-uint8_t* AkoDecode(size_t input_size, const void* input, size_t* out_dimension, size_t* out_channels)
+uint8_t* AkoDecode(size_t input_size, const void* in, size_t* out_dimension, size_t* out_channels)
 {
 	size_t dimension = 0;
 	size_t channels = 0;
@@ -345,7 +348,7 @@ uint8_t* AkoDecode(size_t input_size, const void* input, size_t* out_dimension, 
 	int16_t* aux_buffer = NULL;
 
 	assert(input_size >= sizeof(struct AkoHead));
-	sReadHead(input, &dimension, &channels, &compressed_data_size);
+	sReadHead(in, &dimension, &channels, &compressed_data_size);
 
 	data_len = dimension * dimension * channels;
 	buffer_a = calloc(1, sizeof(int16_t) * data_len);
@@ -358,7 +361,7 @@ uint8_t* AkoDecode(size_t input_size, const void* input, size_t* out_dimension, 
 
 	// Decompress
 	{
-		const int16_t* temp = (int16_t*)((uint8_t*)input + sizeof(struct AkoHead));
+		const int16_t* temp = (int16_t*)((uint8_t*)in + sizeof(struct AkoHead));
 
 #if (AKO_COMPRESSION == 1)
 		DevBenchmarkStart("DecompressLZ4");
