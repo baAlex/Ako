@@ -9,11 +9,11 @@
 
 
 #include <math.h>
+#include <stdarg.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
 
 #define WIDTH 512
 #define GATE 48.0f
@@ -71,13 +71,6 @@ static void sLift1d(size_t len, size_t initial_len, const float* in, float* out)
 
 	for (size_t i = 0; i < len; i++)
 	{
-		// Squish from [-255, 255] to [-128, 127]
-		out[len + i] = roundf(out[len + i] / 2.0f);
-		if (out[len + i] < (float)INT8_MIN)
-			out[len + i] = (float)INT8_MIN;
-		if (out[len + i] > (float)INT8_MAX)
-			out[len + i] = (float)INT8_MAX;
-
 		// Gate
 		if (out[len + i] > -gate && out[len + i] < gate)
 			out[len + i] = 0.0f;
@@ -90,8 +83,8 @@ static void sUnlift1d(size_t len, const float* in, float* out)
 	// Even
 	for (size_t i = 0; i < len; i++)
 	{
-		const float hp = in[len + i] * 2.0f;          // De-squish
-		const float hp_prev = in[len + i - 1] * 2.0f; // Ditto
+		const float hp = in[len + i];
+		const float hp_prev = in[len + i - 1];
 
 		if (i > 0)
 			out[i * 2] = in[i] - (1.0f / 4.0f) * (hp + hp_prev);
@@ -102,7 +95,7 @@ static void sUnlift1d(size_t len, const float* in, float* out)
 	// Odd
 	for (size_t i = 0; i < len; i++)
 	{
-		const float hp = in[len + i] * 2.0f;
+		const float hp = in[len + i];
 
 		if (i < len - 2)
 			out[i * 2 + 1] = hp + (1.0f / 2.0f) * (out[i * 2] + out[(i + 1) * 2]);
@@ -141,7 +134,7 @@ static void sLift2d(size_t dimension, size_t initial_dimension, float* input, fl
 	for (size_t i = 0; i < dimension; i++)
 	{
 		in.col = output + i;
-		for (size_t u = 0; u < dimension; u++) // TODO, think on something... better
+		for (size_t u = 0; u < dimension; u++)
 		{
 			buffer_a[u] = *in.col;
 			in.col = in.col + initial_dimension;
@@ -223,13 +216,13 @@ int main()
 		a[i] = truncf(((float)(i + 1) / (float)LEN) * 255.0f);
 		a[i] = a[i] + ((float)rand() / (float)RAND_MAX) * 48.0f;
 
-		if (sqrtf(powf(((float)WIDTH / 2.0f - (float)col), 2.0f) + powf(((float)WIDTH / 2.0 - (float)row), 2.0f)) <
+		if (sqrtf(powf(((float)WIDTH / 2.0f - (float)col), 2.0f) + powf(((float)WIDTH / 2.0f - (float)row), 2.0f)) <
 		    (float)WIDTH / 4.0f)
 		{
 			a[i] = 0.0f;
 		}
 
-		if (sqrtf(powf(((float)WIDTH / 2.0f - (float)col), 2.0f) + powf(((float)WIDTH / 2.0 - (float)row), 2.0f)) <
+		if (sqrtf(powf(((float)WIDTH / 2.0f - (float)col), 2.0f) + powf(((float)WIDTH / 2.0f - (float)row), 2.0f)) <
 		    (float)WIDTH / 8.0f)
 		{
 			if ((col > WIDTH / 2 - 2 && col < WIDTH / 2 + 2) || (row > WIDTH / 2 - 2 && row < WIDTH / 2 + 2))

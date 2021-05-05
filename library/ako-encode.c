@@ -105,7 +105,7 @@ static void sWriteHead(void* blob, size_t dimension, size_t channels, size_t com
 }
 
 
-static void sTransformColorFormat(size_t dimension, size_t channels, const uint8_t* input, int16_t* out)
+static void sTransformColorFormat(size_t dimension, size_t channels, const uint8_t* in, int16_t* out)
 {
 	// De-interlace into planes
 	// If there is an alpha channel, the pixels are copied (or not) accordingly
@@ -114,34 +114,36 @@ static void sTransformColorFormat(size_t dimension, size_t channels, const uint8
 	{
 	case 4: // Alpha channel
 		for (size_t i = 0; i < (dimension * dimension); i++)
-			out[(dimension * dimension * 3) + i] = (int16_t)input[i * channels + 3];
+			out[(dimension * dimension * 3) + i] = (int16_t)in[i * channels + 3];
+		// fallthrough
 	case 3:
 		for (size_t i = 0; i < (dimension * dimension); i++)
 		{
-			if (channels < 4 || input[i * channels + 3] != 0)
-				out[(dimension * dimension * 2) + i] = (int16_t)input[i * channels + 2];
+			if (channels < 4 || in[i * channels + 3] != 0)
+				out[(dimension * dimension * 2) + i] = (int16_t)in[i * channels + 2];
 			else
 				out[(dimension * dimension * 2) + i] = 0;
 		}
+		// fallthrough
 	case 2: // Alpha channel if 'channels == 2'
 		for (size_t i = 0; i < (dimension * dimension); i++)
 		{
-			if (channels < 4 || input[i * channels + 3] != 0)
-				out[(dimension * dimension * 1) + i] = (int16_t)input[i * channels + 1];
+			if (channels < 4 || in[i * channels + 3] != 0)
+				out[(dimension * dimension * 1) + i] = (int16_t)in[i * channels + 1];
 			else
 				out[(dimension * dimension * 1) + i] = 0;
 		}
+		// fallthrough
 	case 1:
 		for (size_t i = 0; i < (dimension * dimension); i++)
 		{
-			if (channels == 1 || (channels == 2 && input[i * channels + 1] != 0))
-				out[i] = (int16_t)input[i * channels];
-			else if (channels < 4 || input[i * channels + 3] != 0)
-				out[i] = (int16_t)input[i * channels];
+			if (channels == 1 || (channels == 2 && in[i * channels + 1] != 0))
+				out[i] = (int16_t)in[i * channels];
+			else if (channels < 4 || in[i * channels + 3] != 0)
+				out[i] = (int16_t)in[i * channels];
 			else
 				out[i] = 0;
 		}
-		break;
 	}
 	DevBenchmarkStop();
 
@@ -376,10 +378,9 @@ static void sPack(size_t dimension, size_t channels, int16_t* inout)
 }
 
 
-size_t AkoEncode(size_t dimension, size_t channels, const struct AkoSettings* settings, const uint8_t* input,
-                 void** output)
+size_t AkoEncode(size_t dimension, size_t channels, const struct AkoSettings* settings, const uint8_t* in, void** out)
 {
-	assert(input != NULL);
+	assert(in != NULL);
 	assert(channels <= 4);
 	assert(sEncodeDimension(dimension) != UINT16_MAX);
 
@@ -394,7 +395,7 @@ size_t AkoEncode(size_t dimension, size_t channels, const struct AkoSettings* se
 	int16_t* data = (int16_t*)((uint8_t*)main_buffer + sizeof(struct AkoHead));
 
 	// Transform color-format
-	sTransformColorFormat(dimension, channels, input, data);
+	sTransformColorFormat(dimension, channels, in, data);
 
 	// Lift
 #if (AKO_ENCODER_WAVELET_TRANSFORMATION != 0)
@@ -406,19 +407,21 @@ size_t AkoEncode(size_t dimension, size_t channels, const struct AkoSettings* se
 		s.uniform_gate = settings->uniform_gate[3];
 		s.detail_gate = settings->detail_gate[3];
 		sLiftPlane(&s, dimension, (void**)&aux_buffer, data + (dimension * dimension * 3));
+		// fallthrough
 	case 3:
 		s.uniform_gate = settings->uniform_gate[2];
 		s.detail_gate = settings->detail_gate[2];
 		sLiftPlane(&s, dimension, (void**)&aux_buffer, data + (dimension * dimension * 2));
+		// fallthrough
 	case 2:
 		s.uniform_gate = settings->uniform_gate[1];
 		s.detail_gate = settings->detail_gate[1];
 		sLiftPlane(&s, dimension, (void**)&aux_buffer, data + (dimension * dimension * 1));
+		// fallthrough
 	case 1:
 		s.uniform_gate = settings->uniform_gate[0];
 		s.detail_gate = settings->detail_gate[0];
 		sLiftPlane(&s, dimension, (void**)&aux_buffer, data);
-		break;
 	}
 	DevBenchmarkStop();
 
@@ -445,8 +448,8 @@ size_t AkoEncode(size_t dimension, size_t channels, const struct AkoSettings* se
 	sWriteHead(main_buffer, dimension, channels, compressed_data_size);
 	DevBenchmarkTotal();
 
-	if (output != NULL)
-		*output = main_buffer;
+	if (out != NULL)
+		*out = main_buffer;
 	else
 		free(main_buffer);
 
