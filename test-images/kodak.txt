@@ -1,0 +1,238 @@
+
+
+                          FINAL VERSION 2.0
+
+                       About the Kodak Photo CD
+                            Photo Sampler
+
+The Images
+
+This compact disc is a sample KODAK Photo CD containing 24 photographic
+quality images of a variety of subjects in many locations, and under a
+variety of lighting conditions.  Thumbnail size replicas of these images
+are printed on the cover of the Photo CD case.  Some of the images were
+created by Kodak's professional photographers; others were selected from
+the winners of the Kodak International Newspaper Snapshot Awards (KINSA),
+an annual amateur photo competition sponsored by Kodak and participating
+newspapers in several countries.  As with any image, your possession of
+a physical copy of these digitized images does not in itself mean you
+have unlimited rights to use the images.  Most images, including those
+on this disc, are protected by copyright, and use requires the permission
+of the copyright owner.  For the images on this sampler disc, Kodak 
+grants the following rights:
+
+  Authorized holders of the Photo CD sampler disc may use, manipulate,
+  store, transmit, reproduce and display the recorded images for any
+  purpose associated with electronic imaging.  Unless otherwise agreed,
+  a picture credit identifying the photographer must accompany each
+  reproduction of an image, but no picture credits may be used for
+  images altered or manipulated other than by cropping, enlarging,
+  "dodging and burning" or changing overall color balance.
+
+The Format
+
+Images on the Photo CD are encoded in five uniquely formatted resolu-
+tions.  Users can select the resolution on the basis of intended use:
+
+  o  Thumbnail, for selecting and previewing (Base/16, 128x192 pixels)
+  o  Snapshot, for low-resolution image manipulation (Base/4, 256x384
+     pixels)
+  o  TV-comparable, for moderate resolution (Base, 512x768 pixels)
+  o  HDTV, for high-resolution image handling (Base X4, 1024x1536 pixels)
+  o  Full detail, for photographic-quality printing and enlargement
+     (Base X16, 2048x3072 pixels)
+
+The Access
+
+You can view these images on a KODAK Photo CD Player or a Philips CD-I
+player connected to any standard home television set.
+
+Alternatively, if you have a computer with a Photo CD compatible CD ROM
+drive (Mode 2 and Form 1), you can also display these images using KODAK
+Photo CD Access software.  This software converts the images to popular
+file formats and exports to most image enabled software products.
+
+Application software that has been developed using the Kodak Photo CD
+Access software is capable of accessing the Photo CD images from within
+their menus for more convenient use of the images.  Look for the Photo
+CD logo on packaging to indicate this capability.
+
+To achieve the full impact and quality of these images you should use a
+full color 24-bit display system on your computer.
+
+
+Index of pictures
+
+
+
+Image #1:            Ref#JN1206
+Description:         Stone building
+Photographer:        Don Cochran
+Usage Restrictions:  As stated on Photo CD
+Location:            Bahamas
+Film:                KODAK EKTAR 25 (35mm)
+
+Image #2:            Ref#R900841 (Frame #14)
+Description:         Red door
+Photographer:        Don Cochran
+Usage Restrictions:  As stated on Photo CD
+Location:            Bahamas
+Film:                KODAK EKTAR 25 Professional (35mm)
+
+Image #3:            Ref#JN2330
+Description:         Hats
+Photographer:        Don Cochran
+Usage Restrictions:  As stated on Photo CD
+Location:            Bahamas
+Film:                KODAK EKTAR 25 (35mm)
+
+Image #4:            Ref#P008630
+Description:         Portrait of girl in red
+Photographer:        Bob Clemens
+Usage Restrictions:  As stated on Photo CD
+Location:            Studio
+Film:                KODAK EKTAR 25 (35mm)
+
+Image #5:            Ref#R890365
+Description:         Motocross bikes
+Photographer:        Steve Kelly
+Usage Restrictions:  As stated on Photo CD
+Location:            Palmyra, NY, USA
+Film:                KODAK EKTAR 25 Professional (35mm)
+
+Image #6:            Ref#JN0089
+Description:         Sailboat at anchor
+Photographer:        Don Cochran
+Usage Restrictions:  As stated on Photo CD
+Location:            Bahamas
+Film:                KODAK EKTAR 25 (35mm)
+
+Image #7:            Ref#JN1413
+Description:         Shuttered windows
+Photographer:        Don Cochran
+Usage Restrictions:  As stated on Photo CD
+Location:            Bahamas
+Film:                KODAK EKTAR 25 (35mm)
+
+
+Image #8:            Ref#JN0290
+Description:         Market place
+Photographer:        Alfons Rudolph
+Usage Restrictions:  As stated on Photo CD
+Location:            Essligen, GERMANY
+Film:                KODAK VR 100 (35mm)
+
+Image #9:            Ref#JN0090
+Description:         Sailboats under spinnakers
+Photographer:        John Menihan
+Usage Restrictions:  As stated on Photo CD
+Location:            Anapolis, MD, USA
+Film:                KODAK EKTAR 25 (35mm)
+
+Image #10:           Ref#JN0190
+Description:         Off-shore sailboat race
+Photographer:        John Menihan
+Usage Restrictions:  As stated on Photo CD
+Location:            Chesapeake Bay, USA
+Film:                KODAK EKTAR 25 (35mm)
+
+Image #11:           Ref#JN0189
+Description:         Sailboat at pier
+Photographer:        Don Cochran
+Usage Restrictions:  As stated on Photo CD
+Location:            Bahamas
+Film:                KODAK EKTAR 25 (35mm)
+
+Image #12:           Ref#JN2017
+Description:         Couple on beach
+Photographer:        Don Cochran
+Usage Restrictions:  As stated on Photo CD
+Location:            Bahamas
+Film:                KODAK EKTAR 25 (35mm)
+
+Image #13:           Ref#JN0028
+Description:         Mountain stream
+Photographer:        Norm Kerr
+Usage Restrictions:  As stated on Photo CD
+Location:            Colorado, USA
+Film:                KODACOLOR Gold 100 (35mm)
+
+Image #14:           Ref#JN0024
+Description:         White water rafters
+Photographer:        Norm Kerr
+Usage Restrictions:  As stated on Photo CD
+Location:            Colorado River, USA
+Film:                KODAK EKTAR 25 (35mm)
+
+
+Image #15:           Ref#JN0026
+Description:         Girl with painted face
+Photographer:        Steve Kelly
+Usage Restrictions:  As stated on Photo CD
+Location:            Studio
+Film:                KODAK EKTAR 25 (35mm)
+
+Image #16:           Ref#JN0022
+Description:         Tropical Key
+Photographer:        Don Cochran
+Usage Restrictions:  As stated on Photo CD
+Location:            Bahamas
+Film:                KODAK EKTAR 25 (35mm)
+
+Image #17:           Ref#JN0291
+Description:         Monument
+Photographer:        Stephen Wolf
+Usage Restrictions:  As stated on Photo CD
+Location:            Cologne, GERMANY
+Film:                KODACOLOR Gold 100 (35mm)
+
+Image #18:           Ref#SP91322
+Description:         Model in black dress
+Photographer:        Alan Fink
+Usage Restrictions:  As stated on Photo CD
+Location:            Rochester, NY, USA
+Film:                KODACOLOR Gold 400 (35mm)
+
+Image #19:           Ref#R914108
+Description:         Lighthouse in Maine
+Photographer:        Alan Fink
+Usage Restrictions:  As stated on Photo CD
+Location:            Maine, USA
+Film:                KODAK EKTACHROME 64 Professional (35mm)
+
+Image #20:           Ref#AF0091
+Description:         P51 Mustang
+Photographer:        Alan Fink
+Usage Restrictions:  As stated on Photo CD
+Location:            Geneseo, NY, USA
+Film:                KODACOLOR GOLD 100 (35mm)
+
+Image #21:           Ref#SP91052
+Description:         Portland Head Light
+Photographer:        Alan Fink
+Usage Restrictions:  As stated on Photo CD
+Location:            Maine, USA
+Film:                KODAK EKTAR 25 (35mm)
+
+
+Image #22:           Ref#R908553
+Description:         Barn and pond (KINSA Photo Contest)
+Photographer:        Cindy Branham
+Usage Restrictions:  As stated on Photo CD
+Location:            Oxford, New York, USA
+Film:                KODACOLOR Gold 100 (35mm)
+
+Image #23:           Ref#JN1033
+Description:         Tow macaws
+Photographer:        Steve Kelly
+Usage Restrictions:  As stated on Photo CD
+Location:            Maui, Hawaii, USA
+Film:                KODACOLOR Gold 100 Plus (35mm)
+
+Image #24:           Ref#SK0090
+Description:         Mountain chalet
+Photographer:        Alfons Rudolph
+Usage Restrictions:  As stated on Photo CD
+Location:            GERMANY
+Film:                KODACOLOR Gold 100 (35mm)
+
