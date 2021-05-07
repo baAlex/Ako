@@ -200,6 +200,49 @@ static void sLift1d(const struct LiftSettings* s, size_t len, size_t initial_len
 			out[i] = in[(i * 2)] + (out[len + i] + out[len + i - 1]) / 4;
 		else
 			out[i] = in[(i * 2)] + (out[len + i]) / 2; // Fake first value
+	}
+
+	// Degrade highpass
+#define QUANTIZE 1
+#define GATE 1
+
+	for (size_t i = 0; i < len; i++)
+	{
+#if (QUANTIZE == 1)
+		// Quantize
+		// At the end, is nothing more than a gate applied uniformly
+		// through the lift steps, plus some cost on the decoder side
+		const unsigned q = (len > 32) ? 2 : 0; // (more conditions can be added)
+		const int16_t rounding = (1 << (q - 1));
+
+		out[len + i] = (out[len + i] + rounding) >> q; // The clever part is the shift, this helps compression! :D
+
+		// Borrowed from:
+		// Hans-Kristian Arntzen (2014).
+		// «Linelet, an Ultra-Low Complexity, Ultra-Low Latency Video Codec for Adaptation of HD-SDI to Ethernet»
+		// Norwegian University of Science and Technology
+#endif
+
+#if (GATE == 1)
+		// Gate
+		int16_t gate = 0;
+
+#if (QUANTIZE == 0)
+		gate = (int16_t)(s->detail_gate * 4.0f * ((float)len / (float)initial_len));
+#else
+		if (len > 32)
+			// No by 4 multiplication because the quantizer already did it by shifting by 2
+			// (of course we add the gate threshold on top of that)
+			gate = (int16_t)(s->detail_gate * ((float)len / (float)initial_len));
+		else
+			gate = (int16_t)(s->detail_gate * 4.0f * ((float)len / (float)initial_len));
+#endif
+
+		if (out[len + i] > -gate && out[len + i] < gate)
+			out[len + i] = 0;
+#endif
+
+			// ----
 
 #if (AKO_DEV_EMPIRICAL_OBSERVATION == 1)
 		if (out[len + i] < s_min_hp)
@@ -207,24 +250,6 @@ static void sLift1d(const struct LiftSettings* s, size_t len, size_t initial_len
 		if (out[len + i] > s_max_hp)
 			s_max_hp = out[len + i];
 #endif
-	}
-
-	// Degrade highpass
-	const int16_t gate = (int16_t)(s->detail_gate * 2.0f * ((float)len / (float)initial_len)); // Type A
-	// const int16_t gate = (int16_t)(s->detail_gate * 2.0f * sqrtf((float)len / (float)initial_len)); // Type B
-	// const int16_t gate =
-	//    (int16_t)(s->detail_gate * 2.0f *
-	//              ((sqrtf((float)len / (float)initial_len) + (float)len / (float)initial_len) / 2.0f)); // Type (A +
-	//              B) / 2
-
-	// const int16_t gate = (int16_t)(s->detail_gate * 2.0f * log2f((float)len * (1024.0f / (float)initial_len))); //
-	// Type C
-
-	for (size_t i = 0; i < len; i++)
-	{
-		// Gate
-		if (out[len + i] > -gate && out[len + i] < gate)
-			out[len + i] = 0;
 	}
 }
 
