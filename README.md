@@ -4,14 +4,15 @@ Ako
 
 Image codec using discrete wavelet transform (CDF 5/3), on top of [LZ4][12] compression (a Lempel-Ziv based algorithm).
 
-**A toy-project/experiment**. It is me learning how image codecs works, having some fun following a bunch of papers. :)
+**A toy-project**. It is me learning how image codecs works, having fun following a bunch of papers. :)
 
 It supports/implements:
 - Image sizes power of two (4, 8, ..., 256, 512, 1024, etc.)
 - Up to 4 channels
+- 8 bits per component
 - YCoCg colorspace (can be disabled at compilation time)
-- Configurable quality loss (some examples below)
-- A Lempel-Ziv based compression is not the ideal, nonetheless the codec can handle ratios of **1:10** before artifacts became obvious
+- Configurable quality loss (examples below)
+- A Lempel-Ziv compression is not ideal, nonetheless the codec can handle ratios of **1:10** before artifacts became obvious
 - A "good" performance. Except some care on cache and memory usage, there is no optimization done at the moment
 
 
@@ -32,12 +33,12 @@ ninja
 
 Usage
 -----
-The two executables `akoenc` and `akodec` will let you try the codec. Execute them whitout any argument to read the full usage help. But is mostly:
+The two executables `akoenc` and `akodec` will let you try the codec. Execute them whitout any argument to read the usage help. But is mostly:
 
 ```
 akoenc -g 16 -i "input.png" -o "out.ako"
 ```
-Where `-g 16` is the threshold of a noise gate that controls the loss.
+Where `-g 16` is the threshold of a noise gate that controls loss.
 
 
 Examples
