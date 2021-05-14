@@ -49,7 +49,7 @@ static void sPngErrorHandler(png_structp pngs, png_const_charp msg)
 }
 
 
-void ImageSavePng(size_t dimension, size_t channels, const uint8_t* data, FILE* fp)
+void ImageSavePng(bool fast, size_t dimension, size_t channels, const uint8_t* data, FILE* fp)
 {
 	// Init things
 	png_struct* pngs = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, sPngErrorHandler, NULL);
@@ -60,8 +60,16 @@ void ImageSavePng(size_t dimension, size_t channels, const uint8_t* data, FILE* 
 	png_init_io(pngs, fp);
 
 	// Configure
-	png_set_filter(pngs, 0, PNG_ALL_FILTERS);
-	png_set_compression_level(pngs, Z_BEST_COMPRESSION);
+	if (fast == false)
+	{
+		png_set_filter(pngs, 0, PNG_ALL_FILTERS);
+		png_set_compression_level(pngs, Z_BEST_COMPRESSION);
+	}
+	else
+	{
+		png_set_filter(pngs, 0, PNG_NO_FILTERS);
+		png_set_compression_level(pngs, 0);
+	}
 
 	int bit_depth = 8;
 	int color_type = 0;
@@ -100,6 +108,8 @@ struct DecoderSettings
 	const char* output_filename;
 	bool print_version;
 	bool use_stdout;
+	bool use_nullout;
+	bool fastpng;
 };
 
 static int sReadArguments(int argc, const char* argv[], struct DecoderSettings* deco_s)
@@ -134,6 +144,14 @@ static int sReadArguments(int argc, const char* argv[], struct DecoderSettings* 
 		{
 			deco_s->use_stdout = true;
 		}
+		else if (strcmp(argv[i], "-nullout") == 0 || strcmp(argv[i], "--nullout") == 0)
+		{
+			deco_s->use_nullout = true;
+		}
+		else if (strcmp(argv[i], "-fastpng") == 0 || strcmp(argv[i], "--fastpng") == 0)
+		{
+			deco_s->fastpng = true;
+		}
 		else
 		{
 			fprintf(stderr, "Unknown argument '%s'\n", argv[i]);
@@ -150,7 +168,7 @@ static int sReadArguments(int argc, const char* argv[], struct DecoderSettings* 
 			return 1;
 		}
 
-		if (deco_s->output_filename == NULL && deco_s->use_stdout == false)
+		if (deco_s->output_filename == NULL && deco_s->use_stdout == false && deco_s->use_nullout == false)
 		{
 			fprintf(stderr, "No output filename specified\n");
 			return 1;
@@ -164,6 +182,7 @@ static int sReadArguments(int argc, const char* argv[], struct DecoderSettings* 
 static const char* s_usage_message = "\
 Usage: akodec [options] -i <input filename> -o <output filename>\n\
 Usage: akodec [options] -i <input filename> -stdout\n\
+Usage: akodec [options] -i <input filename> -nullout\n\
 \n\
 Ako decoding tool.\n\
 \n\
@@ -220,16 +239,16 @@ int main(int argc, const char* argv[])
 	assert(ako != NULL);
 
 	// Save Png
-	if (deco_s.use_stdout == false)
+	if (deco_s.use_stdout == false && deco_s.use_nullout == false)
 	{
 		fp = fopen(deco_s.output_filename, "wb");
 		assert(fp != NULL);
 
-		ImageSavePng(dimension, channels, ako, fp);
+		ImageSavePng(deco_s.fastpng, dimension, channels, ako, fp);
 		fclose(fp);
 	}
-	else
-		ImageSavePng(dimension, channels, ako, stdout);
+	else if (deco_s.use_stdout == true)
+		ImageSavePng(deco_s.fastpng, dimension, channels, ako, stdout);
 
 	// Bye!
 	free(ako);
