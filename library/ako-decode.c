@@ -171,7 +171,7 @@ __attribute__((always_inline)) static inline void sUnlift1d(size_t len, const in
 	memset(out, 0, sizeof(int16_t) * (len << 1));
 #else
 
-#define QUANTIZE 1
+#define QUANTIZE 0
 #if (QUANTIZE == 1)
 	const unsigned q = (len > 32) ? 2 : 0;
 #else
@@ -179,29 +179,30 @@ __attribute__((always_inline)) static inline void sUnlift1d(size_t len, const in
 #endif
 
 	// Even
-	out[0] = in[0] - ((in[len] << q) / 2);
-
-	for (size_t i = 1; i < len; i++)
+	for (size_t i = 0; i < len; i++)
 	{
 		const int16_t lp = in[i];
 		const int16_t hp = in[len + i] << q;
 		const int16_t hp_prev = in[len + i - 1] << q;
 
-		out[i << 1] = lp - ((hp + hp_prev) / 4);
+		if (i > 0)
+			out[i << 1] = lp - ((hp + hp_prev) / 4);
+		else
+			out[i << 1] = lp - (hp / 2); // Fake first value
 	}
 
 	// Odd
-	for (size_t i = 0; i < (len - 2); i++)
+	for (size_t i = 0; i < len; i++)
 	{
 		const int16_t hp = in[len + i] << q;
 		const int16_t even = out[i << 1];
 		const int16_t even_next = out[(i << 1) + 2];
 
-		out[(i << 1) + 1] = hp + ((even + even_next) / 2);
+		if (i < len - 2)
+			out[(i << 1) + 1] = hp + ((even + even_next) / 2);
+		else
+			out[(i << 1) + 1] = hp + (even);
 	}
-
-	out[((len - 2) << 1) + 1] = (in[len + (len - 2)] << q) + out[(len - 2) << 1];
-	out[((len - 1) << 1) + 1] = (in[len + (len - 1)] << q) + out[(len - 1) << 1];
 #endif
 }
 
