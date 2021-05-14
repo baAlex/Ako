@@ -193,7 +193,10 @@ static void sLift1d(const struct LiftSettings* s, size_t len, size_t initial_len
 			out[len + i] = in[(i * 2) + 1] - (in[(i * 2)] + in[(i * 2) + 2]) / 2;
 		else
 			out[len + i] = in[(i * 2) + 1] - (in[(i * 2)]); // Fake last value
+	}
 
+	for (size_t i = 0; i < len; i++)
+	{
 		// Lowpass
 		// lp[i] = even[i] + (1.0 / 4.0) * (hp[i] + hp[i - 1])
 		if (i > 0)
@@ -203,7 +206,7 @@ static void sLift1d(const struct LiftSettings* s, size_t len, size_t initial_len
 	}
 
 	// Degrade highpass
-#define QUANTIZE 1
+#define QUANTIZE 0
 #define GATE 1
 
 	for (size_t i = 0; i < len; i++)
@@ -298,6 +301,10 @@ static void sLiftPlane(const struct LiftSettings* s, size_t dimension, void** au
 	*aux_buffer = realloc(*aux_buffer, sizeof(int16_t) * dimension * 2);
 	assert(*aux_buffer != NULL);
 
+#if (AKO_DEV_EMPIRICAL_OBSERVATION == 1)
+	printf("\nNoise gate at %.2f:\n", s->detail_gate);
+#endif
+
 	while (current_dimension != 2)
 	{
 		sLift2d(s, current_dimension, initial_dimension, *aux_buffer, inout);
@@ -309,10 +316,6 @@ static void sLiftPlane(const struct LiftSettings* s, size_t dimension, void** au
 		s_max_hp = INT16_MIN;
 #endif
 	}
-
-#if (AKO_DEV_EMPIRICAL_OBSERVATION == 1)
-	printf("\n");
-#endif
 }
 #endif
 
@@ -448,6 +451,11 @@ size_t AkoEncode(size_t dimension, size_t channels, const struct AkoSettings* se
 		s.detail_gate = settings->detail_gate[0];
 		sLiftPlane(&s, dimension, (void**)&aux_buffer, data);
 	}
+
+#if (AKO_DEV_EMPIRICAL_OBSERVATION == 1)
+	printf("\n");
+#endif
+
 	DevBenchmarkStop();
 
 	DevBenchmarkStart("Pack");
@@ -458,6 +466,12 @@ size_t AkoEncode(size_t dimension, size_t channels, const struct AkoSettings* se
 #endif
 
 	// Compress
+#if (AKO_DEV_EMPIRICAL_OBSERVATION == 1)
+	FILE* raw_fp = fopen("raw.raw", "wb");
+	fwrite(data, sizeof(int16_t), data_len, raw_fp);
+	fclose(raw_fp);
+#endif
+
 #if (AKO_COMPRESSION == 1)
 	DevBenchmarkStart("CompressLZ4");
 	compressed_data_size = sCompressLZ4(sizeof(int16_t) * data_len, (void**)&aux_buffer, data);
