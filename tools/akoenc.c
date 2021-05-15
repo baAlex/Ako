@@ -294,8 +294,8 @@ Encoding options:\n\
 int main(int argc, const char* argv[])
 {
 	struct EncoderSettings enco_s = {0};
-	struct AkoSettings codec_s = {.uniform_gate = {0.0f, 0.0f, 0.0f, 0.0f}, // Default settings
-	                              .detail_gate = {16.0f, 16.0f, 16.0f, 16.0f}};
+	struct AkoSettings codec_s = {.detail_gate = {16.0f, 16.0f, 16.0f, 16.0f}, // Default settings
+	                              .limit = {0, 0, 0, 0}};
 
 	if (argc == 1)
 	{

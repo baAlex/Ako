@@ -30,8 +30,8 @@
 
 struct AkoSettings
 {
-	float uniform_gate[4];
 	float detail_gate[4]; // Applied on high frequencies
+	size_t limit[4];
 };
 
 struct AkoHead
@@ -68,5 +68,6 @@ AKO_EXPORT const char* AkoVersionString();
 
 #define AKO_DEV_TINY_BENCHMARK 0
 #define AKO_DEV_SAVE_IMAGES 0
+#define AKO_DEV_EMPIRICAL_OBSERVATION 0
 
 #endif
