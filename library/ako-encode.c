@@ -46,8 +46,8 @@ extern void DevSaveGrayPgm(size_t dimension, const int16_t* data, const char* fi
 
 struct LiftSettings
 {
-	float uniform_gate;
 	float detail_gate;
+	size_t limit;
 };
 
 
@@ -174,86 +174,60 @@ static void sTransformColorFormat(size_t dimension, size_t channels, const uint8
 }
 
 
-#define AKO_DEV_EMPIRICAL_OBSERVATION 0
-
 #if (AKO_DEV_EMPIRICAL_OBSERVATION == 1)
 #include <stdio.h>
 static int16_t s_min_hp = INT16_MAX;
 static int16_t s_max_hp = INT16_MIN;
 #endif
 
+
 #if (AKO_ENCODER_WAVELET_TRANSFORMATION == 1)
 static void sLift1d(const struct LiftSettings* s, size_t len, size_t initial_len, const int16_t* in, int16_t* out)
 {
+	// Highpass
+	// hp[i] = odd[i] - (even[i] + even[i + 1]) / 2
 	for (size_t i = 0; i < len; i++)
 	{
-		// Highpass
-		// hp[i] = odd[i] - (1.0 / 2.0) * (even[i] + even[i + 1])
 		if (i < len - 2)
 			out[len + i] = in[(i * 2) + 1] - (in[(i * 2)] + in[(i * 2) + 2]) / 2;
 		else
-			out[len + i] = in[(i * 2) + 1] - (in[(i * 2)]); // Fake last value
+			out[len + i] = in[(i * 2) + 1] - (in[(i * 2)] + in[(i * 2)]) / 2; // Fake last value
 	}
 
+	// Lowpass
+	// lp[i] = even[i] + (hp[i] + hp[i - 1]) / 4
 	for (size_t i = 0; i < len; i++)
 	{
-		// Lowpass
-		// lp[i] = even[i] + (1.0 / 4.0) * (hp[i] + hp[i - 1])
 		if (i > 0)
 			out[i] = in[(i * 2)] + (out[len + i] + out[len + i - 1]) / 4;
 		else
-			out[i] = in[(i * 2)] + (out[len + i]) / 2; // Fake first value
+			out[i] = in[(i * 2)] + (out[len + i] + out[len + i]) / 4; // Fake first value
 	}
 
 	// Degrade highpass
-#define QUANTIZE 0
-#define GATE 1
-
 	for (size_t i = 0; i < len; i++)
 	{
-#if (QUANTIZE == 1)
-		// Quantize
-		// At the end, is nothing more than a gate applied uniformly
-		// through the lift steps, plus some cost on the decoder side
-		const unsigned q = (len > 32) ? 2 : 0; // (more conditions can be added)
-		const int16_t rounding = (1 << (q - 1));
+		// Remove high frequency levels
+		if (s->limit != 0 && (len * 2) > s->limit)
+			out[len + i] = 0;
 
-		out[len + i] = (out[len + i] + rounding) >> q; // The clever part is the shift, this helps compression! :D
-
-		// Borrowed from:
-		// Hans-Kristian Arntzen (2014).
-		// «Linelet, an Ultra-Low Complexity, Ultra-Low Latency Video Codec for Adaptation of HD-SDI to Ethernet»
-		// Norwegian University of Science and Technology
-#endif
-
-#if (GATE == 1)
 		// Gate
-		int16_t gate = 0;
-
-#if (QUANTIZE == 0)
-		gate = (int16_t)(s->detail_gate * 4.0f * ((float)len / (float)initial_len));
-#else
-		if (len > 32)
-			// No by 4 multiplication because the quantizer already did it by shifting by 2
-			// (of course we add the gate threshold on top of that)
-			gate = (int16_t)(s->detail_gate * ((float)len / (float)initial_len));
-		else
-			gate = (int16_t)(s->detail_gate * 4.0f * ((float)len / (float)initial_len));
-#endif
+		const int16_t gate = (int16_t)(s->detail_gate * 4.0f * ((float)len / (float)initial_len));
 
 		if (out[len + i] > -gate && out[len + i] < gate)
 			out[len + i] = 0;
-#endif
-
-			// ----
+	}
 
 #if (AKO_DEV_EMPIRICAL_OBSERVATION == 1)
+	// Developers, developers, developers
+	for (size_t i = 0; i < len; i++)
+	{
 		if (out[len + i] < s_min_hp)
 			s_min_hp = out[len + i];
 		if (out[len + i] > s_max_hp)
 			s_max_hp = out[len + i];
-#endif
 	}
+#endif
 }
 
 static void sLift2d(const struct LiftSettings* s, size_t dimension, size_t initial_dimension, void* aux_buffer,
@@ -291,6 +265,8 @@ static void sLift2d(const struct LiftSettings* s, size_t dimension, size_t initi
 			temp = temp + initial_dimension;
 		}
 	}
+
+	DevSaveGrayPgm(initial_dimension, inout, "e%zu", dimension);
 }
 
 static void sLiftPlane(const struct LiftSettings* s, size_t dimension, void** aux_buffer, void* inout)
@@ -432,23 +408,23 @@ size_t AkoEncode(size_t dimension, size_t channels, const struct AkoSettings* se
 	switch (channels)
 	{
 	case 4:
-		s.uniform_gate = settings->uniform_gate[3];
 		s.detail_gate = settings->detail_gate[3];
+		s.limit = (settings->limit[3] < dimension) ? settings->limit[3] : dimension;
 		sLiftPlane(&s, dimension, (void**)&aux_buffer, data + (dimension * dimension * 3));
 		// fallthrough
 	case 3:
-		s.uniform_gate = settings->uniform_gate[2];
 		s.detail_gate = settings->detail_gate[2];
+		s.limit = (settings->limit[2] < dimension) ? settings->limit[2] : dimension;
 		sLiftPlane(&s, dimension, (void**)&aux_buffer, data + (dimension * dimension * 2));
 		// fallthrough
 	case 2:
-		s.uniform_gate = settings->uniform_gate[1];
 		s.detail_gate = settings->detail_gate[1];
+		s.limit = (settings->limit[1] < dimension) ? settings->limit[1] : dimension;
 		sLiftPlane(&s, dimension, (void**)&aux_buffer, data + (dimension * dimension * 1));
 		// fallthrough
 	case 1:
-		s.uniform_gate = settings->uniform_gate[0];
 		s.detail_gate = settings->detail_gate[0];
+		s.limit = (settings->limit[0] < dimension) ? settings->limit[0] : dimension;
 		sLiftPlane(&s, dimension, (void**)&aux_buffer, data);
 	}
 
