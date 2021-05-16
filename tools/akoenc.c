@@ -42,11 +42,6 @@ SOFTWARE.
 #include "ako.h"
 
 
-extern void DevBenchmarkStart(const char* name);
-extern void DevBenchmarkStop();
-extern void DevBenchmarkTotal();
-
-
 static void sPngErrorHandler(png_structp pngs, png_const_charp msg)
 {
 	(void)pngs;
@@ -176,7 +171,7 @@ static int sReadArguments(int argc, const char* argv[], struct EncoderSettings* 
 
 			gate_set = true;
 
-			float temp = truncf(strtof(argv[i], NULL));
+			float temp = strtof(argv[i], NULL);
 			codec_s->detail_gate[0] = temp;
 			codec_s->detail_gate[1] = temp;
 			codec_s->detail_gate[2] = temp;
@@ -321,11 +316,8 @@ int main(int argc, const char* argv[])
 	size_t channels = 0;
 	void* png = NULL;
 
-	DevBenchmarkStart("LibPng load (from file API)");
 	png = sImageLoadPng(enco_s.input_filename, &dimension, &channels);
 	assert(png != NULL);
-	DevBenchmarkStop();
-	DevBenchmarkTotal();
 
 	// Save Ako
 	void* blob = NULL;
