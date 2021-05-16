@@ -34,36 +34,46 @@ rule ToolLink
 ###
 
 build ./objects/shared/lz4.o:   SharedCompile ./library/thirdparty/lz4.c
-build ./objects/shared/lz4hc.o: SharedCompile ./library/thirdparty/lz4hc.c
-build ./objects/shared/ako-decode.o:    SharedCompile ./library/ako-decode.c
-build ./objects/shared/ako-encode.o:    SharedCompile ./library/ako-encode.c
-build ./objects/shared/ako-devthings.o: SharedCompile ./library/ako-devthings.c
-build ./objects/shared/ako-version.o:   SharedCompile ./library/ako-version.c
+
+build ./objects/shared/decode.o:        SharedCompile ./library/decode.c
+build ./objects/shared/encode.o:        SharedCompile ./library/encode.c
+build ./objects/shared/dwt-lift-pack.o: SharedCompile ./library/dwt-lift-pack.c
+build ./objects/shared/dwt-unlift.o:    SharedCompile ./library/dwt-unlift.c
+build ./objects/shared/format.o:        SharedCompile ./library/format.c
+build ./objects/shared/frame.o:         SharedCompile ./library/frame.c
+build ./objects/shared/version.o:       SharedCompile ./library/version.c
 
 build libako.so: SharedLink $
  ./objects/shared/lz4.o $
- ./objects/shared/lz4hc.o $
- ./objects/shared/ako-decode.o $
- ./objects/shared/ako-encode.o $
- ./objects/shared/ako-devthings.o $
- ./objects/shared/ako-version.o
+ ./objects/shared/decode.o $
+ ./objects/shared/encode.o $
+ ./objects/shared/dwt-lift-pack.o $
+ ./objects/shared/dwt-unlift.o $
+ ./objects/shared/format.o $
+ ./objects/shared/frame.o $
+ ./objects/shared/version.o
 
 ###
 
 build ./objects/static/lz4.o:   StaticCompile ./library/thirdparty/lz4.c
-build ./objects/static/lz4hc.o: StaticCompile ./library/thirdparty/lz4hc.c
-build ./objects/static/ako-decode.o:    StaticCompile ./library/ako-decode.c
-build ./objects/static/ako-encode.o:    StaticCompile ./library/ako-encode.c
-build ./objects/static/ako-devthings.o: StaticCompile ./library/ako-devthings.c
-build ./objects/static/ako-version.o:   StaticCompile ./library/ako-version.c
+
+build ./objects/static/decode.o:        StaticCompile ./library/decode.c
+build ./objects/static/encode.o:        StaticCompile ./library/encode.c
+build ./objects/static/dwt-lift-pack.o: StaticCompile ./library/dwt-lift-pack.c
+build ./objects/static/dwt-unlift.o:    StaticCompile ./library/dwt-unlift.c
+build ./objects/static/format.o:        StaticCompile ./library/format.c
+build ./objects/static/frame.o:         StaticCompile ./library/frame.c
+build ./objects/static/version.o:       StaticCompile ./library/version.c
 
 build libako.a: StaticLink $
  ./objects/static/lz4.o $
- ./objects/static/lz4hc.o $
- ./objects/static/ako-decode.o $
- ./objects/static/ako-encode.o $
- ./objects/static/ako-devthings.o $
- ./objects/static/ako-version.o
+ ./objects/static/decode.o $
+ ./objects/static/encode.o $
+ ./objects/static/dwt-lift-pack.o $
+ ./objects/static/dwt-unlift.o $
+ ./objects/static/format.o $
+ ./objects/static/frame.o $
+ ./objects/static/version.o
 
 ###
 

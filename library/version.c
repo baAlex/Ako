@@ -24,7 +24,7 @@ SOFTWARE.
 
 -------------------------------
 
- [ako-version.c]
+ [version.c]
  - Alexander Brandt 2021
 -----------------------------*/
 

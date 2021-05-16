@@ -24,153 +24,18 @@ SOFTWARE.
 
 -------------------------------
 
- [ako-decode.c]
+ [dwt-unlift.c]
  - Alexander Brandt 2021
 -----------------------------*/
 
 #include <assert.h>
-#include <limits.h>
-#include <math.h>
-#include <stdlib.h>
 #include <string.h>
 
-#include "ako-tables.h"
-#include "ako.h"
+#include "dwt.h"
 
 
-extern void DevBenchmarkStart(const char* name);
-extern void DevBenchmarkStop();
-extern void DevBenchmarkTotal();
-extern void DevSaveGrayPgm(size_t dimension, const int16_t* data, const char* filename_format, ...);
-
-
-#if (AKO_COMPRESSION == 1)
-#include "lz4.h"
-#include "lz4hc.h"
-
-static inline void sDecompressLZ4(size_t input_size, size_t output_size, const void* in, void* out)
+static inline void sUnlift1d(size_t len, const int16_t* in, int16_t* out)
 {
-	int decompressed_data_size = 0;
-	decompressed_data_size = LZ4_decompress_safe(in, out, (int)input_size, (int)output_size);
-	assert((size_t)decompressed_data_size == output_size);
-}
-#endif
-
-
-static inline size_t sDecodeDimension(uint32_t no)
-{
-	assert(no < VALID_DIMENSIONS_NO);
-	return s_valid_dimensions[no];
-}
-
-
-static inline void sReadHead(const void* blob, size_t* dimension, size_t* channels, size_t* compressed_data_size)
-{
-	const struct AkoHead* head = blob;
-
-	assert(memcmp(head->magic, "AkoIm", 5) == 0);
-
-	assert(head->major == AKO_VER_MAJOR);
-	assert(head->minor == AKO_VER_MINOR);
-	assert(head->format == AKO_FORMAT);
-
-	*dimension = (size_t)sDecodeDimension((head->info << (32 - 4)) >> (32 - 4));
-	*channels = (size_t)(head->info >> 4);
-	*compressed_data_size = (size_t)head->compressed_data_size;
-}
-
-
-static void sDeTransformColorFormat(size_t dimension, size_t channels, int16_t* in, uint8_t* out)
-{
-	// Color transformation, YCoCg to sRgb
-	// https://en.wikipedia.org/wiki/YCoCg
-
-#if (AKO_DECODER_COLOR_TRANSFORMATION == 1)
-	DevBenchmarkStart("DeTransform - Color");
-	if (channels == 3)
-	{
-		for (size_t i = 0; i < (dimension * dimension); i++)
-		{
-			const int16_t y = in[(dimension * dimension * 0) + i];
-			const int16_t co = in[(dimension * dimension * 1) + i] - 128;
-			const int16_t cg = in[(dimension * dimension * 2) + i] - 128;
-
-			const int16_t r = (y - cg + co);
-			const int16_t g = (y + cg);
-			const int16_t b = (y - cg - co);
-
-			in[(dimension * dimension * 0) + i] = (r > 0) ? (r < 255) ? r : 255 : 0;
-			in[(dimension * dimension * 1) + i] = (g > 0) ? (g < 255) ? g : 255 : 0;
-			in[(dimension * dimension * 2) + i] = (b > 0) ? (b < 255) ? b : 255 : 0;
-		}
-	}
-	else if (channels == 4)
-	{
-		for (size_t i = 0; i < (dimension * dimension); i++)
-		{
-			const int16_t y = in[(dimension * dimension * 0) + i];
-			const int16_t co = in[(dimension * dimension * 1) + i] - 128;
-			const int16_t cg = in[(dimension * dimension * 2) + i] - 128;
-			const int16_t a = in[(dimension * dimension * 3) + i];
-
-			const int16_t r = (y - cg + co);
-			const int16_t g = (y + cg);
-			const int16_t b = (y - cg - co);
-
-			in[(dimension * dimension * 0) + i] = (r > 0) ? (r < 255) ? r : 255 : 0;
-			in[(dimension * dimension * 1) + i] = (g > 0) ? (g < 255) ? g : 255 : 0;
-			in[(dimension * dimension * 2) + i] = (b > 0) ? (b < 255) ? b : 255 : 0;
-			in[(dimension * dimension * 3) + i] = (a > 0) ? (a < 255) ? a : 255 : 0;
-		}
-	}
-	else
-	{
-		for (size_t i = 0; i < (dimension * dimension * channels); i++)
-		{
-			const int16_t c = in[i];
-			in[i] = (c > 0) ? (c < 255) ? c : 255 : 0;
-		}
-	}
-	DevBenchmarkStop();
-#else
-	for (size_t i = 0; i < (dimension * dimension * channels); i++)
-	{
-		const int16_t c = in[i];
-		in[i] = (c > 0) ? (c < 255) ? c : 255 : 0;
-	}
-#endif
-
-	// Interlace from planes
-	DevBenchmarkStart("DeTransform - Format");
-	switch (channels)
-	{
-	case 4:
-		for (size_t i = 0; i < (dimension * dimension); i++)
-			out[i * channels + 3] = (uint8_t)in[(dimension * dimension * 3) + i];
-		// fallthrough
-	case 3:
-		for (size_t i = 0; i < (dimension * dimension); i++)
-			out[i * channels + 2] = (uint8_t)in[(dimension * dimension * 2) + i];
-		// fallthrough
-	case 2:
-		for (size_t i = 0; i < (dimension * dimension); i++)
-			out[i * channels + 1] = (uint8_t)in[(dimension * dimension * 1) + i];
-		// fallthrough
-	case 1:
-		for (size_t i = 0; i < (dimension * dimension); i++)
-			out[i * channels] = (uint8_t)in[i];
-	}
-	DevBenchmarkStop();
-}
-
-
-#if (AKO_DECODER_WAVELET_TRANSFORMATION == 1)
-__attribute__((always_inline)) static inline void sUnlift1d(size_t len, const int16_t* in, int16_t* out)
-{
-#if 0 // Half of the CPU usage comes from memory management in sUnlift2d()
-	memset(out, 0, sizeof(int16_t) * (len << 1));
-#else
-
 	// Even
 	// even[i] = lp[i] - (hp[i] + hp[i - 1]) / 4
 	for (size_t i = 0; i < len; i++)
@@ -190,11 +55,10 @@ __attribute__((always_inline)) static inline void sUnlift1d(size_t len, const in
 		else
 			out[(i * 2) + 1] = in[len + i] + (out[(i * 2)] + out[(i * 2)]) / 2; // Fake last value
 	}
-
-#endif
 }
 
-static void sUnlift2d(size_t dimension, size_t channels, int16_t* aux_buffer, const int16_t* in, int16_t* out)
+
+void DwtUnpackUnliftImage(size_t dimension, size_t channels, int16_t* aux_buffer, const int16_t* in, int16_t* out)
 {
 	// I'm deviating from papers nomenclature, so:
 
@@ -323,74 +187,8 @@ static void sUnlift2d(size_t dimension, size_t channels, int16_t* aux_buffer, co
 			}
 
 			// Done with this channel
-			DevSaveGrayPgm(current_x2, lp, "d-ch%zu", ch);
 			hp = hp + current * current * 3; // Move from current B, C and D
 			lp = lp + dimension * dimension;
 		}
 	}
-}
-#endif
-
-
-uint8_t* AkoDecode(size_t input_size, const void* in, size_t* out_dimension, size_t* out_channels)
-{
-	size_t dimension = 0;
-	size_t channels = 0;
-	size_t data_len = 0;
-	size_t compressed_data_size = 0;
-
-	int16_t* buffer_a = NULL;
-	int16_t* buffer_b = NULL;
-	int16_t* aux_buffer = NULL;
-
-	assert(input_size >= sizeof(struct AkoHead));
-	sReadHead(in, &dimension, &channels, &compressed_data_size);
-
-	data_len = dimension * dimension * channels;
-	buffer_a = calloc(1, sizeof(int16_t) * data_len);
-	buffer_b = calloc(1, sizeof(int16_t) * data_len);
-	aux_buffer = calloc(1, sizeof(int16_t) * dimension * 2);
-
-	assert(buffer_a != NULL);
-	assert(buffer_b != NULL);
-	assert(aux_buffer != NULL);
-
-	// Decompress
-	{
-		const int16_t* temp = (int16_t*)((uint8_t*)in + sizeof(struct AkoHead));
-
-#if (AKO_COMPRESSION == 1)
-		DevBenchmarkStart("DecompressLZ4");
-		sDecompressLZ4(compressed_data_size, sizeof(int16_t) * data_len, temp, buffer_a);
-		DevBenchmarkStop();
-#else
-		for (size_t i = 0; i < data_len; i++)
-			buffer_a[i] = temp[i];
-#endif
-	}
-
-	// Unlift
-#if (AKO_DECODER_WAVELET_TRANSFORMATION != 0)
-	DevBenchmarkStart("Unpack/Unlift");
-	sUnlift2d(dimension, channels, aux_buffer, buffer_a, buffer_b);
-	DevBenchmarkStop();
-#else
-	for (size_t i = 0; i < data_len; i++)
-		buffer_b[i] = buffer_a[i];
-#endif
-
-	// DeTransform color-format
-	sDeTransformColorFormat(dimension, channels, buffer_b, (uint8_t*)buffer_a); // HACK!
-
-	// Bye!
-	DevBenchmarkTotal();
-
-	if (out_dimension != NULL)
-		*out_dimension = dimension;
-	if (out_channels != NULL)
-		*out_channels = channels;
-
-	free(aux_buffer);
-	free(buffer_b);
-	return (uint8_t*)buffer_a;
 }
