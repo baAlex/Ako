@@ -22,9 +22,9 @@ endif ()
 
 
 set(AKO_SOURCES
-	"./library/thirdparty/lz4.c"
 	"./library/decode.c"
 	"./library/encode.c"
+	"./library/entropy.c"
 	"./library/dwt-lift-pack.c"
 	"./library/dwt-unlift.c"
 	"./library/format.c"

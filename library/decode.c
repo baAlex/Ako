@@ -31,20 +31,12 @@ SOFTWARE.
 #include <assert.h>
 #include <string.h>
 
-#include "lz4.h"
 #include "ako.h"
 
 #include "dwt.h"
+#include "entropy.h"
 #include "format.h"
 #include "frame.h"
-
-
-static inline void sDecompressLZ4(size_t input_size, size_t output_size, const void* in, void* out)
-{
-	int decompressed_data_size = 0;
-	decompressed_data_size = LZ4_decompress_safe(in, out, (int)input_size, (int)output_size);
-	assert((size_t)decompressed_data_size == output_size);
-}
 
 
 uint8_t* AkoDecode(size_t input_size, const void* in, size_t* out_dimension, size_t* out_channels)
@@ -73,7 +65,7 @@ uint8_t* AkoDecode(size_t input_size, const void* in, size_t* out_dimension, siz
 	// Decompress, Unlift, toRgb
 	{
 		const int16_t* skip_head = (int16_t*)((uint8_t*)in + sizeof(struct AkoHead));
-		sDecompressLZ4(compressed_data_size, sizeof(int16_t) * data_len, skip_head, buffer_a);
+		EntropyDecompress(compressed_data_size, data_len, skip_head, buffer_a);
 
 		DwtUnpackUnliftImage(dimension, channels, aux_buffer, buffer_a, buffer_b);
 		FormatToInterlacedU8RGB(dimension, channels, buffer_b, (uint8_t*)buffer_a); // HACK!
