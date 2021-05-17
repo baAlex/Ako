@@ -31,28 +31,18 @@ SOFTWARE.
 #include <assert.h>
 #include <string.h>
 
-#include "lz4.h"
 #include "ako.h"
 
 #include "dwt.h"
+#include "entropy.h"
 #include "format.h"
 #include "frame.h"
 
 
-static size_t sCompressLZ4(size_t size, void** aux_buffer, void* inout)
-{
-	assert(size <= LZ4_MAX_INPUT_SIZE);
-	const int worst_size = LZ4_compressBound((int)size);
-
-	*aux_buffer = realloc(*aux_buffer, (size_t)worst_size);
-	assert(*aux_buffer != NULL);
-
-	const int cdata_size = LZ4_compress_default(inout, *aux_buffer, (int)size, worst_size);
-	assert(cdata_size != 0);
-
-	memcpy(inout, *aux_buffer, (size_t)cdata_size);
-	return (size_t)cdata_size;
-}
+#define DUMP_RAW 0
+#if (DUMP_RAW == 1)
+#include <stdio.h>
+#endif
 
 
 size_t AkoEncode(size_t dimension, size_t channels, const struct AkoSettings* settings, const uint8_t* in, void** out)
@@ -101,8 +91,15 @@ size_t AkoEncode(size_t dimension, size_t channels, const struct AkoSettings* se
 	// Pack
 	DwtPackImage(dimension, channels, data);
 
+#if (DUMP_RAW == 1)
+	FILE* fp = fopen("/tmp/ako.raw", "wb");
+	assert(fp != NULL);
+	fwrite(data, sizeof(int16_t), data_len, fp);
+	fclose(fp);
+#endif
+
 	// Compress
-	compressed_data_size = sCompressLZ4(sizeof(int16_t) * data_len, (void**)&aux_buffer, data);
+	compressed_data_size = EntropyCompress(data_len, (void**)&aux_buffer, data);
 	main_buffer = realloc(main_buffer, (sizeof(struct AkoHead) + compressed_data_size));
 	assert(main_buffer != NULL);
 
