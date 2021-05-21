@@ -18,7 +18,7 @@ It supports/implements:
 
 Compilation
 -----------
-The build requirements are [git][13], [ninja][14] or [cmake][15]. As runtime dependency [libpng][16].
+The build requirements are [git][14], [ninja][15] or [cmake][16]. As runtime dependency [libpng][17].
 
 On Ubuntu you can install all them with:
 ```
@@ -61,17 +61,17 @@ Please consider the following examples as mere illustrations, the codec is const
 - In the picture using noise gate thresholds: 16 and 64 (center and right)
 
 ![](./resources/kodak8-readme.png)
-- [Uncompressed][4] (786.45 kB), [**1:9**][5] (84.58 kB), [**1:17**][6] (45.48 kB), [**1:40**][7] (19.52 kB)
-- In the picture using noise gate thresholds: 16 and 64 (center and right)
+- [Uncompressed][5] (786.45 kB), [**1:9**][6] (84.58 kB), [**1:17**][7] (45.48 kB), [**1:40**][8] (19.52 kB)
+- In the picture using noise gate thresholds: 16 and 64 (center and right)6
 
 ![](./resources/cafe-readme.png)
-- [Uncompressed][7] (12.6 MB), [**1:7**][8] (1821.75 kB), [**1:13**][8] (997.12 kB), [**1:26**][9] (470.88 kB)
+- [Uncompressed][9] (12.6 MB), [**1:7**][10] (1821.75 kB), [**1:13**][11] (997.12 kB), [**1:26**][12] (470.88 kB)
 - In the picture using noise gate thresholds: 16 and 64 (center and right)
 
 
 License
 -------
-Source code under MIT License. Terms specified in [LICENSE][12].
+Source code under MIT License. Terms specified in [LICENSE][13].
 
 Each file includes the respective notice at the beginning.
 
@@ -87,14 +87,14 @@ ____
 [7]: ./resources/kodak8.ako32.png
 [8]: ./resources/kodak8.ako64.png
 
-[8]: ./test-images/cafe-crop.png
-[9]: ./resources/cafe-crop.ako16.png
-[10]: ./resources/cafe-crop.ako32.png
-[11]: ./resources/cafe-crop.ako64.png
+[9]: ./test-images/cafe-crop.png
+[10]: ./resources/cafe-crop.ako16.png
+[11]: ./resources/cafe-crop.ako32.png
+[12]: ./resources/cafe-crop.ako64.png
 
-[12]: ./LICENSE
+[13]: ./LICENSE
 
-[13]: https://git-scm.com/
-[14]: https://ninja-build.org/
-[15]: https://cmake.org/
-[16]: http://www.libpng.org/pub/png/libpng.html
+[14]: https://git-scm.com/
+[15]: https://ninja-build.org/
+[16]: https://cmake.org/
+[17]: http://www.libpng.org/pub/png/libpng.html
