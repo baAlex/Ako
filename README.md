@@ -2,38 +2,49 @@
 Ako
 ===
 
-Image codec using discrete wavelet transform (CDF 5/3), on top of [LZ4][12] compression (a Lempel-Ziv based algorithm).
+Image codec using discrete wavelet transform (CDF 5/3).
 
 **A toy-project**. It is me learning how image codecs works, having fun following a bunch of papers. :)
 
 It supports/implements:
 - Image sizes power of two (4, 8, ..., 256, 512, 1024, etc.)
-- Up to 4 channels
-- 8 bits per component
-- YCoCg colorspace (can be disabled at compilation time)
-- Configurable quality loss (examples below)
-- A Lempel-Ziv compression is not ideal, nonetheless the codec can handle ratios of **1:10** before artifacts became obvious
-- A "good" performance. Except some care on cache and memory usage, there is no optimization done at the moment
+- Up to 4 channels.
+- 8 bits per component.
+- YCoCg colorspace (can be disabled at compilation time).
+- Configurable quality loss (examples below).
+- Simple Elias-gamma entropy compression, nonetheless the codec can handle ratios of 1:10 before artifacts became obvious.
+- A "good" performance. There is some care on cache and memory usage, the CDF 5/3 wavelet is incredible simple, and almost everything is done with integers... still there is space for improvement (a lot).
 
 
 Compilation
 -----------
-The requirements are [libpng][13] and [ninja][14]. On Ubuntu you can install them with:
+The build requirements are [git][13], [ninja][14] or [cmake][15]. As runtime dependency [libpng][16].
+
+On Ubuntu you can install all them with:
 ```
-sudo apt install ninja-build libpng-dev
+sudo apt install git ninja-build cmake libpng-dev
 ```
 
-To compile with:
+### With Ninja
 ```
 git clone https://github.com/baAlex/Ako
 cd Ako
 ninja
 ```
 
+### With Cmake
+```
+git clone https://github.com/baAlex/Ako
+cd Ako
+mkdir build
+cd build
+cmake -DCMAKE_BUILD_TYPE=Release ..
+cmake --build .
+```
 
 Usage
 -----
-The two executables `akoenc` and `akodec` will let you try the codec. Execute them whitout any argument to read the usage help. But is mostly:
+The two executables `akoenc` and `akodec` will let you try the codec. Run them whitout any argument to read the usage help. But is mostly:
 
 ```
 akoenc -g 16 -i "input.png" -o "out.ako"
@@ -46,42 +57,44 @@ Examples
 Please consider the following examples as mere illustrations, the codec is constantly improving.
 
 ![](./resources/guanaco-readme.png)
-- [Uncompressed][1] (3.14 MB), [**1:17**][2] (183.84 kB), [**1:30**][3] (102.85 kB)
-- Using noise gate thresholds: 16 and 32
+- [Uncompressed][1] (3.14 MB), [**1:16**][2] (198.76 kB), [**1:33**][3] (96.02 kB), [**1:77**][4] (40.42 kB)
+- In the picture using noise gate thresholds: 16 and 64 (center and right)
 
 ![](./resources/kodak8-readme.png)
-- [Uncompressed][4] (786.45 kB), [**1:10**][5] (78.73 kB), [**1:17**][6] (46.41 kB)
-- Using noise gate thresholds: 16 and 32
+- [Uncompressed][4] (786.45 kB), [**1:9**][5] (84.58 kB), [**1:17**][6] (45.48 kB), [**1:40**][7] (19.52 kB)
+- In the picture using noise gate thresholds: 16 and 64 (center and right)
 
 ![](./resources/cafe-readme.png)
-- [Uncompressed][7] (12.6 MB), [**1:17**][8] (700.57 kB), [**1:29**][9] (430.95 kB)
-- Using noise gate thresholds: 40 and 70
+- [Uncompressed][7] (12.6 MB), [**1:7**][8] (1821.75 kB), [**1:13**][8] (997.12 kB), [**1:26**][9] (470.88 kB)
+- In the picture using noise gate thresholds: 16 and 64 (center and right)
 
 
 License
 -------
-- Copyright (c) 2021 Alexander Brandt. Source code under **MIT License**.
-- Copyright (c) 2011-2020, Yann Collet. Under **BSD 2-Clause license**.
+Source code under MIT License. Terms specified in [LICENSE][12].
 
-Terms specified in [LICENSE][10] and [THIRDPARTY_NOTICES][11]. Files in folder "library" under a combination of MIT and BSD 2-Clause licences. Each file includes the respective notice at the beginning.
+Each file includes the respective notice at the beginning.
 
 ____
 
 [1]: ./test-images/guanaco.png
-[2]: ./resources/guanaco-g16.png
-[3]: ./resources/guanaco-g32.png
+[2]: ./resources/guanaco.ako16.png
+[3]: ./resources/guanaco.ako32.png
+[4]: ./resources/guanaco.ako64.png
 
-[4]: ./test-images/kodak8.png
-[5]: ./resources/kodak8-g16.png
-[6]: ./resources/kodak8-g32.png
+[5]: ./test-images/kodak8.png
+[6]: ./resources/kodak8.ako16.png
+[7]: ./resources/kodak8.ako32.png
+[8]: ./resources/kodak8.ako64.png
 
-[7]: ./test-images/cafe.png
-[8]: ./resources/cafe-g40.png
-[9]: ./resources/cafe-g70.png
+[8]: ./test-images/cafe-crop.png
+[9]: ./resources/cafe-crop.ako16.png
+[10]: ./resources/cafe-crop.ako32.png
+[11]: ./resources/cafe-crop.ako64.png
 
-[10]: ./LICENSE
-[11]: ./THIRDPARTY_NOTICES
+[12]: ./LICENSE
 
-[12]: https://github.com/lz4/lz4
-[13]: http://www.libpng.org/pub/png/libpng.html
+[13]: https://git-scm.com/
 [14]: https://ninja-build.org/
+[15]: https://cmake.org/
+[16]: http://www.libpng.org/pub/png/libpng.html
