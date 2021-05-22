@@ -39,6 +39,11 @@ SOFTWARE.
 #include "frame.h"
 
 
+extern void DevBenchmarkStart(const char* name);
+extern void DevBenchmarkStop();
+extern void DevBenchmarkTotal();
+
+
 uint8_t* AkoDecode(size_t input_size, const void* in, size_t* out_dimension, size_t* out_channels)
 {
 	size_t dimension = 0;
@@ -65,13 +70,23 @@ uint8_t* AkoDecode(size_t input_size, const void* in, size_t* out_dimension, siz
 	// Decompress, Unlift, toRgb
 	{
 		const int16_t* skip_head = (int16_t*)((uint8_t*)in + sizeof(struct AkoHead));
-		EntropyDecompress(compressed_data_size, data_len, skip_head, buffer_a);
 
+		DevBenchmarkStart("Decompress");
+		EntropyDecompress(compressed_data_size, data_len, skip_head, buffer_a);
+		DevBenchmarkStop();
+
+		DevBenchmarkStart("Unpack/Unlift");
 		DwtUnpackUnliftImage(dimension, channels, aux_buffer, buffer_a, buffer_b);
+		DevBenchmarkStop();
+
+		DevBenchmarkStart("Format");
 		FormatToInterlacedU8RGB(dimension, channels, buffer_b, (uint8_t*)buffer_a); // HACK!
+		DevBenchmarkStop();
 	}
 
 	// Bye!
+	DevBenchmarkTotal();
+
 	if (out_dimension != NULL)
 		*out_dimension = dimension;
 	if (out_channels != NULL)

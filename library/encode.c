@@ -39,6 +39,11 @@ SOFTWARE.
 #include "frame.h"
 
 
+extern void DevBenchmarkStart(const char* name);
+extern void DevBenchmarkStop();
+extern void DevBenchmarkTotal();
+
+
 #define DUMP_RAW 0
 #if (DUMP_RAW == 1)
 #include <stdio.h>
@@ -53,7 +58,7 @@ size_t AkoEncode(size_t dimension, size_t channels, const struct AkoSettings* se
 	size_t data_len = dimension * dimension * channels;
 	size_t compressed_data_size = 0;
 
-	int16_t* main_buffer = malloc(sizeof(struct AkoHead) + sizeof(int16_t) * (dimension * dimension * channels));
+	int16_t* main_buffer = malloc(sizeof(struct AkoHead) + sizeof(int16_t) * (dimension * dimension * channels) * 4);
 	int16_t* aux_buffer = malloc(sizeof(int16_t) * (dimension * dimension));
 	assert(main_buffer != NULL);
 	assert(aux_buffer != NULL);
@@ -61,35 +66,43 @@ size_t AkoEncode(size_t dimension, size_t channels, const struct AkoSettings* se
 	int16_t* data = (int16_t*)((uint8_t*)main_buffer + sizeof(struct AkoHead));
 
 	// To internal format
+	DevBenchmarkStart("Format");
 	FormatToPlanarI16YUV(dimension, channels, in, data);
+	DevBenchmarkStop();
 
 	// Lift
-	struct DwtLiftSettings s = {0};
-	switch (channels)
+	DevBenchmarkStart("Lift");
 	{
-	case 4:
-		s.detail_gate = settings->detail_gate[3];
-		s.limit = (settings->limit[3] < dimension) ? settings->limit[3] : dimension;
-		DwtLiftPlane(&s, dimension, (void**)&aux_buffer, data + (dimension * dimension * 3));
-		// fallthrough
-	case 3:
-		s.detail_gate = settings->detail_gate[2];
-		s.limit = (settings->limit[2] < dimension) ? settings->limit[2] : dimension;
-		DwtLiftPlane(&s, dimension, (void**)&aux_buffer, data + (dimension * dimension * 2));
-		// fallthrough
-	case 2:
-		s.detail_gate = settings->detail_gate[1];
-		s.limit = (settings->limit[1] < dimension) ? settings->limit[1] : dimension;
-		DwtLiftPlane(&s, dimension, (void**)&aux_buffer, data + (dimension * dimension * 1));
-		// fallthrough
-	case 1:
-		s.detail_gate = settings->detail_gate[0];
-		s.limit = (settings->limit[0] < dimension) ? settings->limit[0] : dimension;
-		DwtLiftPlane(&s, dimension, (void**)&aux_buffer, data);
+		struct DwtLiftSettings s = {0};
+		switch (channels)
+		{
+		case 4:
+			s.detail_gate = settings->detail_gate[3];
+			s.limit = (settings->limit[3] < dimension) ? settings->limit[3] : dimension;
+			DwtLiftPlane(&s, dimension, (void**)&aux_buffer, data + (dimension * dimension * 3));
+			// fallthrough
+		case 3:
+			s.detail_gate = settings->detail_gate[2];
+			s.limit = (settings->limit[2] < dimension) ? settings->limit[2] : dimension;
+			DwtLiftPlane(&s, dimension, (void**)&aux_buffer, data + (dimension * dimension * 2));
+			// fallthrough
+		case 2:
+			s.detail_gate = settings->detail_gate[1];
+			s.limit = (settings->limit[1] < dimension) ? settings->limit[1] : dimension;
+			DwtLiftPlane(&s, dimension, (void**)&aux_buffer, data + (dimension * dimension * 1));
+			// fallthrough
+		case 1:
+			s.detail_gate = settings->detail_gate[0];
+			s.limit = (settings->limit[0] < dimension) ? settings->limit[0] : dimension;
+			DwtLiftPlane(&s, dimension, (void**)&aux_buffer, data);
+		}
 	}
+	DevBenchmarkStop();
 
 	// Pack
+	DevBenchmarkStart("Pack");
 	DwtPackImage(dimension, channels, data);
+	DevBenchmarkStop();
 
 #if (DUMP_RAW == 1)
 	FILE* fp = fopen("/tmp/ako.raw", "wb");
@@ -99,12 +112,17 @@ size_t AkoEncode(size_t dimension, size_t channels, const struct AkoSettings* se
 #endif
 
 	// Compress
-	compressed_data_size = EntropyCompress(data_len, (void**)&aux_buffer, data);
-	main_buffer = realloc(main_buffer, (sizeof(struct AkoHead) + compressed_data_size));
-	assert(main_buffer != NULL);
+	DevBenchmarkStart("Compress");
+	{
+		compressed_data_size = EntropyCompress(data_len, (void**)&aux_buffer, data);
+		main_buffer = realloc(main_buffer, (sizeof(struct AkoHead) + compressed_data_size));
+		assert(main_buffer != NULL);
+	}
+	DevBenchmarkStop();
 
 	// Bye!
 	FrameWrite(dimension, channels, compressed_data_size, main_buffer);
+	DevBenchmarkTotal();
 
 	if (out != NULL)
 		*out = main_buffer;

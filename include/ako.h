@@ -56,4 +56,9 @@ AKO_EXPORT int AkoVersionMinor();
 AKO_EXPORT int AkoVersionPatch();
 AKO_EXPORT const char* AkoVersionString();
 
+//
+
+#define AKO_DEV_TINY_BENCHMARK 0
+#define AKO_DEV_SAVE_IMAGES 0
+
 #endif

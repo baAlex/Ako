@@ -33,6 +33,7 @@ rule ToolLink
 
 ###
 
+build ./objects/shared/developer.o:     SharedCompile ./library/developer.c
 build ./objects/shared/decode.o:        SharedCompile ./library/decode.c
 build ./objects/shared/encode.o:        SharedCompile ./library/encode.c
 build ./objects/shared/entropy.o:       SharedCompile ./library/entropy.c
@@ -43,6 +44,7 @@ build ./objects/shared/frame.o:         SharedCompile ./library/frame.c
 build ./objects/shared/version.o:       SharedCompile ./library/version.c
 
 build libako.so: SharedLink $
+ ./objects/shared/developer.o $
  ./objects/shared/decode.o $
  ./objects/shared/encode.o $
  ./objects/shared/entropy.o $
@@ -54,6 +56,7 @@ build libako.so: SharedLink $
 
 ###
 
+build ./objects/static/developer.o:     StaticCompile ./library/developer.c
 build ./objects/static/decode.o:        StaticCompile ./library/decode.c
 build ./objects/static/encode.o:        StaticCompile ./library/encode.c
 build ./objects/static/entropy.o:       StaticCompile ./library/entropy.c
@@ -64,6 +67,7 @@ build ./objects/static/frame.o:         StaticCompile ./library/frame.c
 build ./objects/static/version.o:       StaticCompile ./library/version.c
 
 build libako.a: StaticLink $
+ ./objects/static/developer.o $
  ./objects/static/decode.o $
  ./objects/static/encode.o $
  ./objects/static/entropy.o $
