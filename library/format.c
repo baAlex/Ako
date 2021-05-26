@@ -29,6 +29,62 @@ SOFTWARE.
 -----------------------------*/
 
 #include "format.h"
+#include "ako.h"
+
+
+static inline void sToYuv(int16_t r, int16_t g, int16_t b, int16_t* y, int16_t* u, int16_t* v)
+{
+#if (AKO_COLORSPACE == 0)
+	// Rgb
+	*y = r;
+	*u = g;
+	*v = b;
+#endif
+
+#if (AKO_COLORSPACE == 1)
+	// YCoCg
+	// https://en.wikipedia.org/wiki/YCoCg#Conversion_with_the_RGB_color_model
+	*y = (r / 4) + (g / 2) + (b / 4);
+	*u = (r / 2) - (b / 2);
+	*v = -(r / 4) + (g / 2) - (b / 4);
+#endif
+
+#if (AKO_COLORSPACE == 2)
+	// YCoCg-R (reversible)
+	// https://en.wikipedia.org/wiki/YCoCg#The_lifting-based_YCoCg-R_variation
+	*u = r - b;
+	int16_t tmp = b + *u / 2;
+	*v = g - tmp;
+	*y = tmp + *v / 2;
+#endif
+}
+
+
+static inline void sToRgb(int16_t y, int16_t u, int16_t v, int16_t* r, int16_t* g, int16_t* b)
+{
+#if (AKO_COLORSPACE == 0)
+	// Rgb
+	*r = y;
+	*g = u;
+	*b = v;
+#endif
+
+#if (AKO_COLORSPACE == 1)
+	// YCoCg
+	int16_t tmp = y - v;
+	*r = tmp + u;
+	*g = y + v;
+	*b = tmp - u;
+#endif
+
+#if (AKO_COLORSPACE == 2)
+	// YCoCg-R (reversible)
+	int16_t tmp = y - v / 2;
+	*g = v + tmp;
+	*b = tmp - u / 2;
+	*r = *b + u;
+#endif
+}
 
 
 void FormatToPlanarI16YUV(size_t dimension, size_t channels, const uint8_t* in, int16_t* out)
@@ -71,23 +127,18 @@ void FormatToPlanarI16YUV(size_t dimension, size_t channels, const uint8_t* in, 
 		}
 	}
 
-	// Color transformation, sRgb to YCoCg
-	// https://en.wikipedia.org/wiki/YCoCg
+	// Color transformation
 	if (channels == 3 || channels == 4)
 	{
 		for (size_t i = 0; i < (dimension * dimension); i++)
 		{
-			const int16_t r = out[i];
-			const int16_t g = out[(dimension * dimension * 1) + i];
-			const int16_t b = out[(dimension * dimension * 2) + i];
+			int16_t y, u, v;
 
-			const int16_t y = r / 4 + g / 2 + b / 4;
-			const int16_t co = 128 + r / 2 - b / 2;
-			const int16_t cg = 128 - (r / 4) + g / 2 - b / 4;
+			sToYuv(out[i], out[(dimension * dimension * 1) + i], out[(dimension * dimension * 2) + i], &y, &u, &v);
 
 			out[i] = y;
-			out[(dimension * dimension * 1) + i] = co;
-			out[(dimension * dimension * 2) + i] = cg;
+			out[(dimension * dimension * 1) + i] = u;
+			out[(dimension * dimension * 2) + i] = v;
 		}
 	}
 }
@@ -95,20 +146,16 @@ void FormatToPlanarI16YUV(size_t dimension, size_t channels, const uint8_t* in, 
 
 void FormatToInterlacedU8RGB(size_t dimension, size_t channels, int16_t* in, uint8_t* out)
 {
-	// Color transformation, YCoCg to sRgb
-	// https://en.wikipedia.org/wiki/YCoCg
+	// Color transformation
 	if (channels == 4)
 	{
 		for (size_t i = 0; i < (dimension * dimension); i++)
 		{
-			const int16_t y = in[(dimension * dimension * 0) + i];
-			const int16_t co = in[(dimension * dimension * 1) + i] - 128;
-			const int16_t cg = in[(dimension * dimension * 2) + i] - 128;
 			const int16_t a = in[(dimension * dimension * 3) + i];
+			int16_t r, g, b;
 
-			const int16_t r = (y - cg + co);
-			const int16_t g = (y + cg);
-			const int16_t b = (y - cg - co);
+			sToRgb(in[(dimension * dimension * 0) + i], in[(dimension * dimension * 1) + i],
+			       in[(dimension * dimension * 2) + i], &r, &g, &b);
 
 			in[(dimension * dimension * 0) + i] = (r > 0) ? (r < 255) ? r : 255 : 0;
 			in[(dimension * dimension * 1) + i] = (g > 0) ? (g < 255) ? g : 255 : 0;
@@ -120,13 +167,10 @@ void FormatToInterlacedU8RGB(size_t dimension, size_t channels, int16_t* in, uin
 	{
 		for (size_t i = 0; i < (dimension * dimension); i++)
 		{
-			const int16_t y = in[(dimension * dimension * 0) + i];
-			const int16_t co = in[(dimension * dimension * 1) + i] - 128;
-			const int16_t cg = in[(dimension * dimension * 2) + i] - 128;
+			int16_t r, g, b;
 
-			const int16_t r = (y - cg + co);
-			const int16_t g = (y + cg);
-			const int16_t b = (y - cg - co);
+			sToRgb(in[(dimension * dimension * 0) + i], in[(dimension * dimension * 1) + i],
+			       in[(dimension * dimension * 2) + i], &r, &g, &b);
 
 			in[(dimension * dimension * 0) + i] = (r > 0) ? (r < 255) ? r : 255 : 0;
 			in[(dimension * dimension * 1) + i] = (g > 0) ? (g < 255) ? g : 255 : 0;
