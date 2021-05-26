@@ -31,29 +31,82 @@ SOFTWARE.
 #include <assert.h>
 #include <string.h>
 
+#include "ako.h"
 #include "dwt.h"
 
 
 static void sLift1d(const struct DwtLiftSettings* s, size_t len, size_t initial_len, const int16_t* in, int16_t* out)
 {
 	// Highpass
-	// hp[i] = odd[i] - (even[i] + even[i + 1]) / 2
+	// Haar:  hp[i] = odd[i] - (even[i] + odd[i]) / 2
+	// CDF53: hp[i] = odd[i] - (even[i] + even[i + 1]) / 2
+	// 97DD:  hp[i] = odd[i] - (-even[i - 1] + 9 * even[i] + 9 * even[i + 1] - even[i + 2] + 8) / 16)
+
+#if (AKO_WAVELET == 0)
+	// Haar
+	for (size_t i = 0; i < len; i++)
+		out[len + i] = in[(i * 2) + 1] - ((in[(i * 2)] + in[(i * 2) + 1] + 1) >> 1);
+#endif
+
+#if (AKO_WAVELET == 1)
+	// CDF53
 	for (size_t i = 0; i < len; i++)
 	{
 		if (i < len - 2)
-			out[len + i] = in[(i * 2) + 1] - (in[(i * 2)] + in[(i * 2) + 2]) / 2;
+			out[len + i] = in[(i * 2) + 1] - ((in[(i * 2)] + in[(i * 2) + 2] + 1) >> 1);
 		else
-			out[len + i] = in[(i * 2) + 1] - (in[(i * 2)] + in[(i * 2)]) / 2; // Fake last value
+			out[len + i] = in[(i * 2) + 1] - ((in[(i * 2)] + in[(i * 2)] + 1) >> 1); // Fake last value
 	}
+#endif
+
+#if (AKO_WAVELET == 2)
+	// 97DD
+	if (len > 4) // Needs 4 samples
+	{
+		for (size_t i = 0; i < len; i++)
+		{
+			int16_t even_il1 = in[(i * 2) - 2];
+			int16_t even_i = in[(i * 2)];
+			int16_t even_ip1 = in[(i * 2) + 2];
+			int16_t even_ip2 = in[(i * 2) + 4];
+
+			if (i < 1)
+				even_il1 = even_i;
+			if (i > len - 2)
+				even_ip1 = even_i;
+			if (i > len - 4)
+				even_ip2 = even_ip1;
+
+			out[len + i] = in[(i * 2) + 1] - ((-even_il1 + 9 * even_i + 9 * even_ip1 - even_ip2 + 8) >> 4);
+		}
+	}
+	else // Fallback to CDF53
+	{
+		for (size_t i = 0; i < len; i++)
+		{
+			if (i < len - 2)
+				out[len + i] = in[(i * 2) + 1] - ((in[(i * 2)] + in[(i * 2) + 2] + 1) >> 1);
+			else
+				out[len + i] = in[(i * 2) + 1] - ((in[(i * 2)] + in[(i * 2)] + 1) >> 1); // Fake last value
+		}
+	}
+#endif
 
 	// Lowpass
-	// lp[i] = even[i] + (hp[i] + hp[i - 1]) / 4
+	// CDF53, 97DD: lp[i] = even[i] + (hp[i] + hp[i - 1]) / 4
+	// Haar:        lp[i] = (even[i] + odd[i]) / 2
 	for (size_t i = 0; i < len; i++)
 	{
+#if (AKO_WAVELET != 0)
+		// CD53, 97DD
 		if (i > 0)
-			out[i] = in[(i * 2)] + (out[len + i] + out[len + i - 1]) / 4;
+			out[i] = in[(i * 2)] + ((out[len + i] + out[len + i - 1] + 2) >> 2);
 		else
-			out[i] = in[(i * 2)] + (out[len + i] + out[len + i]) / 4; // Fake first value
+			out[i] = in[(i * 2)] + ((out[len + i] + out[len + i] + 2) >> 2); // Fake first value
+#else
+		// Haar
+		out[i] = (in[(i * 2)] + in[(i * 2) + 1] + 1) >> 1;
+#endif
 	}
 
 	// Degrade highpass
@@ -64,9 +117,11 @@ static void sLift1d(const struct DwtLiftSettings* s, size_t len, size_t initial_
 			out[len + i] = 0;
 
 		// Gate
-		const int16_t gate = (int16_t)(s->detail_gate * 4.0f * ((float)len / (float)initial_len));
+		const float gate_mk1 = (s->detail_gate * 4.0f * ((float)len / (float)initial_len));
+		// const float gate_mk2 = (s->detail_gate * 1.0f * sqrtf((float)len / (float)initial_len));
+		const float gate = gate_mk1;
 
-		if (out[len + i] > -gate && out[len + i] < gate)
+		if ((float)out[len + i] > -gate && (float)out[len + i] < gate)
 			out[len + i] = 0;
 	}
 }

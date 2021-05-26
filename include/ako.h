@@ -58,6 +58,26 @@ AKO_EXPORT const char* AkoVersionString();
 
 //
 
+#define AKO_COLORSPACE 1 // 0 = RGB, 1 = YCOCG, 2 = YCOCG-R (reversible)
+#define AKO_WAVELET 2    // 0 = Haar, 1 = CDF53, 2 = 97DD
+
+// Haar: Haar wavelet
+// The traditional one not suitable for integer arithmetics (lossy)
+// Lowpass is '(a + b) / 2', a box filter.
+
+// CDF53: Cohen–Daubechies–Feauveau 5/3.
+// Used in JPEG2000 in lossless mode... should be lossless assuming that
+// I'm doing everything right. A cost of this is that the lowpass pixels
+// are not centre-aligned (as in a box filter) but at a tiny bit to the
+// top-left corner.
+
+// 97DD: Deslauriers-Dubuc 9/7
+// Used in Dirac/VC-2. Lossy, the lowpass is the same as CDF53. The
+// highpass carry extra samples in a smoothstep fashion... maybe it´s
+// just me, but the functions and the image they produce looks similar.
+
+//
+
 #define AKO_DEV_TINY_BENCHMARK 0
 #define AKO_DEV_SAVE_IMAGES 0
 
