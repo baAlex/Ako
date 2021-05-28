@@ -42,8 +42,46 @@ SOFTWARE.
 extern void DevBenchmarkStart(const char* name);
 extern void DevBenchmarkStop();
 extern void DevBenchmarkTotal();
+extern void DevPrintf(const char* format, ...);
 
 
+static inline size_t sTilesNo(size_t width, size_t height, size_t tile_size)
+{
+	size_t w = (width / tile_size);
+	size_t h = (height / tile_size);
+	w = (width % tile_size != 0) ? (w + 1) : w;
+	h = (height % tile_size != 0) ? (h + 1) : h;
+
+	return (w * h);
+}
+
+
+uint8_t* AkoDecode(size_t input_size, const void* in, size_t* out_width, size_t* out_height, size_t* out_channels)
+{
+	size_t width = 0;
+	size_t height = 0;
+	size_t channels = 0;
+	size_t tiles_size = 0;
+
+	FrameRead(in, input_size, &width, &height, &channels, &tiles_size);
+	DevPrintf("### [%zux%zu px , %zu channels, %zu px tiles size]\n", width, height, channels, tiles_size);
+	DevPrintf("### [%zu tiles]\n", sTilesNo(width, height, tiles_size));
+
+	size_t image_buffer_size = sizeof(uint8_t) * width * height * channels;
+	void* image_buffer = calloc(1, image_buffer_size);
+
+	// Do the thing
+	// TODO
+
+	// Bye!
+	*out_width = width;
+	*out_height = height;
+	*out_channels = channels;
+	return image_buffer;
+}
+
+
+#if 0
 uint8_t* AkoDecode(size_t input_size, const void* in, size_t* out_dimension, size_t* out_channels)
 {
 	size_t dimension = 0;
@@ -96,3 +134,4 @@ uint8_t* AkoDecode(size_t input_size, const void* in, size_t* out_dimension, siz
 	free(buffer_b);
 	return (uint8_t*)buffer_a; // TODO, realloc!
 }
+#endif

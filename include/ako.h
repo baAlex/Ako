@@ -25,31 +25,34 @@
 #define AKO_VER_MINOR 1
 #define AKO_VER_PATCH 0
 
-#define AKO_FORMAT 1 // Format version this library handles
+#define AKO_FORMAT_VERSION 1 // Format version this library handles
 
 
 struct AkoSettings
 {
 	float detail_gate[4]; // Applied on high frequencies
 	size_t limit[4];
+	size_t tiles_size;
 };
 
 struct AkoHead
 {
-	char magic[5];
+	char magic[4];   // "AkoI"
+	uint8_t version; // AKO_FORMAT_VERSION
 
-	uint8_t major;
-	uint8_t minor;
+	uint8_t unused1;
+	uint8_t unused2;
+
 	uint8_t format;
-
-	uint32_t compressed_data_size;
-	uint32_t info; // Bits 0-4 = Dimension, Bits 5-6 = Channels
+	uint32_t width;
+	uint32_t height;
 };
 
 
-AKO_EXPORT size_t AkoEncode(size_t dimension, size_t channels, const struct AkoSettings*, const uint8_t* input,
-                            void** output);
-AKO_EXPORT uint8_t* AkoDecode(size_t input_size, const void* input, size_t* out_dimension, size_t* out_channels);
+AKO_EXPORT size_t AkoEncode(size_t width, size_t height, size_t channels, const struct AkoSettings*,
+                            const uint8_t* input, void** output);
+AKO_EXPORT uint8_t* AkoDecode(size_t input_size, const void* in, size_t* out_width, size_t* out_height,
+                              size_t* out_channels);
 
 AKO_EXPORT int AkoVersionMajor();
 AKO_EXPORT int AkoVersionMinor();
@@ -78,6 +81,7 @@ AKO_EXPORT const char* AkoVersionString();
 
 //
 
+#define AKO_DEV_PRINTF_DEBUG 1
 #define AKO_DEV_TINY_BENCHMARK 0
 #define AKO_DEV_SAVE_IMAGES 0
 

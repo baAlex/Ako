@@ -49,7 +49,7 @@ static void sPngErrorHandler(png_structp pngs, png_const_charp msg)
 }
 
 
-void ImageSavePng(bool fast, size_t dimension, size_t channels, const uint8_t* data, FILE* fp)
+void ImageSavePng(bool fast, size_t width, size_t height, size_t channels, const uint8_t* data, FILE* fp)
 {
 	// Init things
 	png_struct* pngs = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, sPngErrorHandler, NULL);
@@ -83,14 +83,14 @@ void ImageSavePng(bool fast, size_t dimension, size_t channels, const uint8_t* d
 	default: assert(1 == 0);
 	}
 
-	png_set_IHDR(pngs, pngi, (png_uint_32)dimension, (png_uint_32)dimension, bit_depth, color_type, PNG_INTERLACE_NONE,
+	png_set_IHDR(pngs, pngi, (png_uint_32)width, (png_uint_32)height, bit_depth, color_type, PNG_INTERLACE_NONE,
 	             PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT);
 
 	// Write
-	png_bytepp row_pointers = (png_bytepp)png_malloc(pngs, dimension * sizeof(png_bytep));
+	png_bytepp row_pointers = (png_bytepp)png_malloc(pngs, height * sizeof(png_bytep));
 
-	for (size_t i = 0; i < dimension; i++)
-		row_pointers[i] = (unsigned char*)(data + i * dimension * channels);
+	for (size_t i = 0; i < height; i++)
+		row_pointers[i] = (unsigned char*)(data + i * width * channels);
 
 	png_set_rows(pngs, pngi, row_pointers);
 	png_write_png(pngs, pngi, PNG_TRANSFORM_IDENTITY, NULL);
@@ -206,7 +206,7 @@ int main(int argc, const char* argv[])
 	if (deco_s.print_version == true)
 	{
 		printf("Ako decoding tool.\n");
-		printf(" - %s, format %u\n", AkoVersionString(), AKO_FORMAT);
+		printf(" - %s, format %u\n", AkoVersionString(), AKO_FORMAT_VERSION);
 		printf(" - libpng %s (%u)\n", PNG_LIBPNG_VER_STRING, png_access_version_number());
 		printf("\n");
 		printf("Copyright (c) 2021 Alexander Brandt\n");
@@ -231,11 +231,12 @@ int main(int argc, const char* argv[])
 	fclose(fp);
 
 	// Decode Ako
-	size_t dimension = 0;
+	size_t width = 0;
+	size_t height = 0;
 	size_t channels = 0;
 	void* ako = NULL;
 
-	ako = AkoDecode((size_t)blob_size, blob, &dimension, &channels);
+	ako = AkoDecode((size_t)blob_size, blob, &width, &height, &channels);
 	assert(ako != NULL);
 
 	// Save Png
@@ -244,11 +245,11 @@ int main(int argc, const char* argv[])
 		fp = fopen(deco_s.output_filename, "wb");
 		assert(fp != NULL);
 
-		ImageSavePng(deco_s.fastpng, dimension, channels, ako, fp);
+		ImageSavePng(deco_s.fastpng, width, height, channels, ako, fp);
 		fclose(fp);
 	}
 	else if (deco_s.use_stdout == true)
-		ImageSavePng(deco_s.fastpng, dimension, channels, ako, stdout);
+		ImageSavePng(deco_s.fastpng, width, height, channels, ako, stdout);
 
 	// Bye!
 	free(ako);

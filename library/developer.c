@@ -115,3 +115,19 @@ void DevSaveGrayPgm(size_t dimension, const int16_t* data, const char* filename_
 	(void)filename_format;
 }
 #endif
+
+
+#if (AKO_DEV_PRINTF_DEBUG == 1)
+void DevPrintf(const char* format, ...)
+{
+	va_list args;
+	va_start(args, format);
+	vprintf(format, args);
+	va_end(args);
+}
+#else
+void DevPrintf(const char* format, ...)
+{
+	(void)format;
+}
+#endif

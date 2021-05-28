@@ -42,6 +42,7 @@ SOFTWARE.
 extern void DevBenchmarkStart(const char* name);
 extern void DevBenchmarkStop();
 extern void DevBenchmarkTotal();
+extern void DevPrintf(const char* format, ...);
 
 
 #define DUMP_RAW 0
@@ -50,6 +51,38 @@ extern void DevBenchmarkTotal();
 #endif
 
 
+static inline size_t sTilesNo(size_t width, size_t height, size_t tile_size)
+{
+	size_t w = (width / tile_size);
+	size_t h = (height / tile_size);
+	w = (width % tile_size != 0) ? (w + 1) : w;
+	h = (height % tile_size != 0) ? (h + 1) : h;
+
+	return (w * h);
+}
+
+
+size_t AkoEncode(size_t width, size_t height, size_t channels, const struct AkoSettings* settings, const uint8_t* in,
+                 void** out)
+{
+	size_t main_buffer_size = sizeof(struct AkoHead);
+	void* main_buffer = calloc(1, main_buffer_size);
+
+	DevPrintf("### [%zux%zu px , %zu channels, %zu px tiles size]\n", width, height, channels, settings->tiles_size);
+	DevPrintf("### [%zu tiles]\n", sTilesNo(width, height, settings->tiles_size));
+	FrameWrite(width, height, channels, settings->tiles_size, main_buffer);
+
+	// Do the thing
+	// TODO
+	(void)in;
+
+	// Bye!
+	*out = main_buffer;
+	return main_buffer_size;
+}
+
+
+#if 0
 size_t AkoEncode(size_t dimension, size_t channels, const struct AkoSettings* settings, const uint8_t* in, void** out)
 {
 	assert(in != NULL);
@@ -132,3 +165,4 @@ size_t AkoEncode(size_t dimension, size_t channels, const struct AkoSettings* se
 	free(aux_buffer);
 	return (sizeof(struct AkoHead) + compressed_data_size);
 }
+#endif
