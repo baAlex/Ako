@@ -50,7 +50,7 @@ static void sPngErrorHandler(png_structp pngs, png_const_charp msg)
 }
 
 
-static uint8_t* sImageLoadPng(const char* filename, size_t* out_dimension, size_t* out_channels)
+static uint8_t* sImageLoadPng(const char* filename, size_t* out_width, size_t* out_height, size_t* out_channels)
 {
 	FILE* fp = fopen(filename, "rb");
 	assert(fp != NULL);
@@ -72,7 +72,6 @@ static uint8_t* sImageLoadPng(const char* filename, size_t* out_dimension, size_
 
 	png_read_info(pngs, pngi); // Reads everything except pixel data
 	png_get_IHDR(pngs, pngi, &width, &height, &bit_depth, &color_type, NULL, NULL, NULL);
-	assert(width == height);
 
 	switch (color_type)
 	{
@@ -96,14 +95,18 @@ static uint8_t* sImageLoadPng(const char* filename, size_t* out_dimension, size_
 
 	png_read_update_info(pngs, pngi); // Applies transformations?, configures the decoder? (?)
 
+	// Output what we have so far
+	assert(out_width != NULL);
+	assert(out_height != NULL);
+	assert(out_channels != NULL);
+
+	*out_width = (size_t)width;
+	*out_height = (size_t)height;
+	*out_channels = (size_t)channels;
+
 	// Alloc image
 	uint8_t* image = malloc(width * height * channels);
 	assert(image != NULL);
-
-	if (out_dimension != NULL)
-		*out_dimension = (size_t)width;
-	if (out_channels != NULL)
-		*out_channels = (size_t)channels;
 
 	// Read data
 	png_bytepp row_pointers = (png_bytepp)png_malloc(pngs, height * sizeof(png_bytep));
@@ -136,6 +139,7 @@ static int sReadArguments(int argc, const char* argv[], struct EncoderSettings* 
 {
 	bool gate_set = false;
 	bool ratio_set = false;
+	bool tiles_size_set = false;
 	float ratio = 1.0f;
 
 	// Read/set arguments
@@ -190,6 +194,20 @@ static int sReadArguments(int argc, const char* argv[], struct EncoderSettings* 
 			if (fabsf(ratio = strtof(argv[i], NULL)) < 1.0f)
 				ratio = 1.0f;
 		}
+		else if (strcmp(argv[i], "-t") == 0 || strcmp(argv[i], "--tiles") == 0)
+		{
+			if ((i = i + 1) == argc)
+			{
+				fprintf(stderr, "Missing tiles size\n");
+				return 1;
+			}
+
+			tiles_size_set = true;
+			long temp = atol(argv[i]);
+
+			if (temp > 0)
+				codec_s->tiles_size = (size_t)temp;
+		}
 		else if (strcmp(argv[i], "-v") == 0 || strcmp(argv[i], "--version") == 0)
 		{
 			enco_s->print_version = true;
@@ -226,7 +244,7 @@ static int sReadArguments(int argc, const char* argv[], struct EncoderSettings* 
 	}
 
 	// Print settings
-	if (enco_s->quiet == false && enco_s->use_stdout == false)
+	if (enco_s->print_version == false && enco_s->quiet == false && enco_s->use_stdout == false)
 	{
 		if (gate_set == true)
 			printf("Gate threshold: %.0f\n", codec_s->detail_gate[0]);
@@ -239,7 +257,10 @@ static int sReadArguments(int argc, const char* argv[], struct EncoderSettings* 
 				printf("Luma/chroma gate ratio: %.2f:1\n", fabsf(ratio));
 		}
 
-		if (gate_set || ratio_set)
+		if (tiles_size_set == true)
+			printf("Tiles size: %zux%zu px\n", codec_s->tiles_size, codec_s->tiles_size);
+
+		if (gate_set || ratio_set || tiles_size_set)
 			printf("\n");
 	}
 
@@ -290,7 +311,8 @@ int main(int argc, const char* argv[])
 {
 	struct EncoderSettings enco_s = {0};
 	struct AkoSettings codec_s = {.detail_gate = {16.0f, 16.0f, 16.0f, 16.0f}, // Default settings
-	                              .limit = {0, 0, 0, 0}};
+	                              .limit = {0, 0, 0, 0},
+	                              .tiles_size = 256};
 
 	if (argc == 1)
 	{
@@ -304,7 +326,7 @@ int main(int argc, const char* argv[])
 	if (enco_s.print_version == true)
 	{
 		printf("Ako encoding tool.\n");
-		printf(" - %s, format %u\n", AkoVersionString(), AKO_FORMAT);
+		printf(" - %s, format %u\n", AkoVersionString(), AKO_FORMAT_VERSION);
 		printf(" - libpng %s (%u)\n", PNG_LIBPNG_VER_STRING, png_access_version_number());
 		printf("\n");
 		printf("Copyright (c) 2021 Alexander Brandt\n");
@@ -312,18 +334,22 @@ int main(int argc, const char* argv[])
 	}
 
 	// Load Png
-	size_t dimension = 0;
+	size_t width = 0;
+	size_t height = 0;
 	size_t channels = 0;
 	void* png = NULL;
 
-	png = sImageLoadPng(enco_s.input_filename, &dimension, &channels);
+	png = sImageLoadPng(enco_s.input_filename, &width, &height, &channels);
 	assert(png != NULL);
+
+	if (enco_s.quiet == false)
+		printf("Input: '%s', %zux%zu px, %zu channels\n", enco_s.input_filename, width, height, channels);
 
 	// Save Ako
 	void* blob = NULL;
 	size_t blob_size = 0;
 
-	blob_size = AkoEncode(dimension, channels, &codec_s, png, &blob);
+	blob_size = AkoEncode(width, height, channels, &codec_s, png, &blob);
 	assert(blob_size != 0);
 
 	if (enco_s.use_stdout == false)
@@ -334,13 +360,19 @@ int main(int argc, const char* argv[])
 		fwrite(blob, blob_size, 1, fp);
 		fclose(fp);
 
-		// Print little info
+		// Print a little info
 		if (enco_s.quiet == false)
 		{
-			printf("%.2f kB -> %.2f kB, %.2f%%\n\n",
-			       (double)(dimension * dimension * channels + sizeof(struct AkoHead)) / 1000.0f,
-			       (double)blob_size / 1000.0f,
-			       (double)(dimension * dimension * channels + sizeof(struct AkoHead)) / (double)blob_size);
+			const double uncompressed_size = (double)(width * height * channels) / 1000.0;
+			const double compressed_size = (double)blob_size / 1000.0f;
+			double ratio = uncompressed_size / compressed_size;
+
+			if (ratio > 10) // Don't deal with decimals
+				printf("Output: '%s', 1:%.0f compressed (%.2f kB -> %.2f kB)\n\n", enco_s.output_filename, ratio,
+				       uncompressed_size, compressed_size);
+			else
+				printf("Output: '%s', 1:%.1f compressed (%.2f kB -> %.2f kB)\n\n", enco_s.output_filename, ratio,
+				       uncompressed_size, compressed_size);
 		}
 	}
 	else
