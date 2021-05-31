@@ -43,6 +43,7 @@ extern void DevBenchmarkStart(const char* name);
 extern void DevBenchmarkStop();
 extern void DevBenchmarkTotal();
 extern void DevPrintf(const char* format, ...);
+extern void DevSaveGrayPgm(size_t dimension, const int16_t* data, const char* filename_format, ...);
 
 
 static inline size_t sTilesNo(size_t width, size_t height, size_t tile_size)
@@ -58,26 +59,61 @@ static inline size_t sTilesNo(size_t width, size_t height, size_t tile_size)
 
 uint8_t* AkoDecode(size_t input_size, const void* in, size_t* out_width, size_t* out_height, size_t* out_channels)
 {
-	size_t width = 0;
-	size_t height = 0;
-	size_t channels = 0;
-	size_t tiles_size = 0;
+	size_t width, height, channels, tiles_size;
 
 	FrameRead(in, input_size, &width, &height, &channels, &tiles_size);
-	DevPrintf("### [%zux%zu px , %zu channels, %zu px tiles size]\n", width, height, channels, tiles_size);
-	DevPrintf("### [%zu tiles]\n", sTilesNo(width, height, tiles_size));
 
-	size_t image_buffer_size = sizeof(uint8_t) * width * height * channels;
-	void* image_buffer = calloc(1, image_buffer_size);
+	size_t tiles_no = sTilesNo(width, height, tiles_size);
+	DevPrintf("###\t[%zux%zu px , %zu channels, %zu px tiles size]\n", width, height, channels, tiles_size);
+	DevPrintf("###\t[%zu tiles]\n", tiles_no);
 
-	// Do the thing
-	// TODO
+	uint8_t* image_memory = calloc(1, sizeof(uint8_t) * width * height * channels);
+	assert(image_memory != NULL);
+
+	// Proccess tiles
+	{
+		size_t tile_memory_size = sizeof(int16_t) * tiles_size * tiles_size * channels;
+		int16_t* tile_memory = calloc(1, tile_memory_size);
+		assert(tile_memory != NULL);
+
+		size_t col = 0;
+		size_t row = 0;
+
+		const uint8_t* blob = (const uint8_t*)in + sizeof(struct AkoHead);
+
+		for (size_t i = 0; i < tiles_no; i++)
+		{
+			if ((col + tiles_size) > width || (row + tiles_size) > height)
+				goto next_tile;
+
+			// """Decompress"""
+			{
+				memcpy(tile_memory, blob, tile_memory_size);
+				blob = blob + tile_memory_size;
+			}
+
+			// Color transform
+			FormatToInterlacedU8RGB(tiles_size, channels, width, tile_memory,
+			                        image_memory + (width * row + col) * channels);
+
+			// Next tile
+		next_tile:
+			col = col + tiles_size;
+			if (col >= width)
+			{
+				col = 0;
+				row = row + tiles_size;
+			}
+		}
+
+		free(tile_memory);
+	}
 
 	// Bye!
 	*out_width = width;
 	*out_height = height;
 	*out_channels = channels;
-	return image_buffer;
+	return image_memory;
 }
 
 

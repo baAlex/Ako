@@ -43,6 +43,7 @@ extern void DevBenchmarkStart(const char* name);
 extern void DevBenchmarkStop();
 extern void DevBenchmarkTotal();
 extern void DevPrintf(const char* format, ...);
+extern void DevSaveGrayPgm(size_t dimension, const int16_t* data, const char* filename_format, ...);
 
 
 #define DUMP_RAW 0
@@ -62,28 +63,88 @@ static inline size_t sTilesNo(size_t width, size_t height, size_t tile_size)
 }
 
 
-size_t AkoEncode(size_t width, size_t height, size_t channels, const struct AkoSettings* settings, const uint8_t* in,
+static void sDevDumpTiles(size_t dimension, size_t channels, size_t tile_no, const int16_t* in)
+{
+	switch (channels)
+	{
+	case 4: DevSaveGrayPgm(dimension, in + (dimension * dimension) * 3, "/tmp/tile-%02zu-a.pgm", tile_no);
+	case 3: DevSaveGrayPgm(dimension, in + (dimension * dimension) * 2, "/tmp/tile-%02zu-v.pgm", tile_no);
+	case 2: DevSaveGrayPgm(dimension, in + (dimension * dimension) * 1, "/tmp/tile-%02zu-u.pgm", tile_no);
+	case 1: DevSaveGrayPgm(dimension, in + (dimension * dimension) * 0, "/tmp/tile-%02zu-y.pgm", tile_no);
+	}
+}
+
+
+size_t AkoEncode(size_t width, size_t height, size_t channels, const struct AkoSettings* s, const uint8_t* in,
                  void** out)
 {
-	size_t main_buffer_size = sizeof(struct AkoHead);
-	void* main_buffer = calloc(1, main_buffer_size);
+	size_t blob_memory_size = sizeof(struct AkoHead);
+	void* blob_memory = calloc(1, blob_memory_size);
+	assert(blob_memory != NULL);
 
-	DevPrintf("### [%zux%zu px , %zu channels, %zu px tiles size]\n", width, height, channels, settings->tiles_size);
-	DevPrintf("### [%zu tiles]\n", sTilesNo(width, height, settings->tiles_size));
-	FrameWrite(width, height, channels, settings->tiles_size, main_buffer);
+	size_t tiles_no = sTilesNo(width, height, s->tiles_size);
+	DevPrintf("###\t[%zux%zu px , %zu channels, %zu px tiles size]\n", width, height, channels, s->tiles_size);
+	DevPrintf("###\t[%zu tiles]\n", tiles_no);
 
-	// Do the thing
-	// TODO
-	(void)in;
+	FrameWrite(width, height, channels, s->tiles_size, blob_memory);
+
+	// Proccess tiles
+	{
+		size_t tile_memory_size = sizeof(int16_t) * s->tiles_size * s->tiles_size * channels;
+		int16_t* tile_memory = calloc(1, tile_memory_size);
+		assert(tile_memory != NULL);
+
+		size_t col = 0;
+		size_t row = 0;
+
+		for (size_t i = 0; i < tiles_no; i++)
+		{
+			if ((col + s->tiles_size) > width || (row + s->tiles_size) > height)
+			{
+				DevPrintf("###\t%4zu, %4zu (not emited)\n", col, row);
+				goto next_tile;
+			}
+
+			// Color transform
+			FormatToPlanarI16YUV(s->tiles_size, channels, width, in + (width * row + col) * channels, tile_memory);
+
+			// Resize blob
+			{
+				blob_memory_size = blob_memory_size + tile_memory_size;
+				blob_memory = realloc(blob_memory, blob_memory_size);
+				assert(blob_memory != NULL);
+			}
+
+			// """Compress"""
+			{
+				memcpy((uint8_t*)blob_memory + (blob_memory_size - tile_memory_size), tile_memory, tile_memory_size);
+			}
+
+			// Developers, developers, developers
+			DevPrintf("###\t%4zu, %4zu\n", col, row);
+			sDevDumpTiles(s->tiles_size, channels, i, tile_memory);
+
+			// Next tile
+		next_tile:
+			col = col + s->tiles_size;
+			if (col >= width)
+			{
+				col = 0;
+				row = row + s->tiles_size;
+			}
+		}
+
+		free(tile_memory);
+	}
 
 	// Bye!
-	*out = main_buffer;
-	return main_buffer_size;
+	*out = blob_memory;
+	return blob_memory_size;
 }
 
 
 #if 0
-size_t AkoEncode(size_t dimension, size_t channels, const struct AkoSettings* settings, const uint8_t* in, void** out)
+size_t AkoEncode(size_t dimension, size_t channels, const struct AkoSettings* s, const uint8_t* in, void** out)
 {
 	assert(in != NULL);
 	assert(channels <= 4);
@@ -110,23 +171,23 @@ size_t AkoEncode(size_t dimension, size_t channels, const struct AkoSettings* se
 		switch (channels)
 		{
 		case 4:
-			s.detail_gate = settings->detail_gate[3];
-			s.limit = (settings->limit[3] < dimension) ? settings->limit[3] : dimension;
+			s.detail_gate = s->detail_gate[3];
+			s.limit = (s->limit[3] < dimension) ? s->limit[3] : dimension;
 			DwtLiftPlane(&s, dimension, (void**)&aux_buffer, data + (dimension * dimension * 3));
 			// fallthrough
 		case 3:
-			s.detail_gate = settings->detail_gate[2];
-			s.limit = (settings->limit[2] < dimension) ? settings->limit[2] : dimension;
+			s.detail_gate = s->detail_gate[2];
+			s.limit = (s->limit[2] < dimension) ? s->limit[2] : dimension;
 			DwtLiftPlane(&s, dimension, (void**)&aux_buffer, data + (dimension * dimension * 2));
 			// fallthrough
 		case 2:
-			s.detail_gate = settings->detail_gate[1];
-			s.limit = (settings->limit[1] < dimension) ? settings->limit[1] : dimension;
+			s.detail_gate = s->detail_gate[1];
+			s.limit = (s->limit[1] < dimension) ? s->limit[1] : dimension;
 			DwtLiftPlane(&s, dimension, (void**)&aux_buffer, data + (dimension * dimension * 1));
 			// fallthrough
 		case 1:
-			s.detail_gate = settings->detail_gate[0];
-			s.limit = (settings->limit[0] < dimension) ? settings->limit[0] : dimension;
+			s.detail_gate = s->detail_gate[0];
+			s.limit = (s->limit[0] < dimension) ? s->limit[0] : dimension;
 			DwtLiftPlane(&s, dimension, (void**)&aux_buffer, data);
 		}
 	}

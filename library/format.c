@@ -87,43 +87,45 @@ static inline void sToRgb(int16_t y, int16_t u, int16_t v, int16_t* r, int16_t* 
 }
 
 
-void FormatToPlanarI16YUV(size_t dimension, size_t channels, const uint8_t* in, int16_t* out)
+void FormatToPlanarI16YUV(size_t dimension, size_t channels, size_t in_pitch, const uint8_t* in, int16_t* out)
 {
 	// De-interlace into planes
-	// If there is an alpha channel, the pixels are copied (or not) accordingly
-	switch (channels)
+	// From here 'out' is an image on his own, of size
+	// 'dimension * dimension' with no need of a pitch
 	{
-	case 4: // Alpha channel
-		for (size_t i = 0; i < (dimension * dimension); i++)
-			out[(dimension * dimension * 3) + i] = (int16_t)in[i * channels + 3];
-		// fallthrough
-	case 3:
-		for (size_t i = 0; i < (dimension * dimension); i++)
+		int16_t* planar_out = out;
+		in_pitch = in_pitch * channels;
+
+		for (size_t ch = 0; ch < channels; ch++)
 		{
-			if (channels < 4 || in[i * channels + 3] != 0)
-				out[(dimension * dimension * 2) + i] = (int16_t)in[i * channels + 2];
-			else
-				out[(dimension * dimension * 2) + i] = 0;
+			for (size_t row = 0; row < (dimension * in_pitch); row += in_pitch)
+				for (size_t col = 0; col < (dimension * channels); col += channels)
+				{
+					*planar_out = (int16_t)in[row + col + ch];
+					planar_out = planar_out + 1;
+				}
 		}
-		// fallthrough
-	case 2: // Alpha channel if 'channels == 2'
+	}
+
+	// Set to zero pixels behind an alpha of zero
+	if (channels == 4)
+	{
 		for (size_t i = 0; i < (dimension * dimension); i++)
 		{
-			if (channels < 4 || in[i * channels + 3] != 0)
-				out[(dimension * dimension * 1) + i] = (int16_t)in[i * channels + 1];
-			else
+			if (out[(dimension * dimension * 3) + i] == 0) // Alpha
+			{
+				out[(dimension * dimension * 0) + i] = 0; // RGB
 				out[(dimension * dimension * 1) + i] = 0;
+				out[(dimension * dimension * 2) + i] = 0;
+			}
 		}
-		// fallthrough
-	case 1:
+	}
+	else if (channels == 2)
+	{
 		for (size_t i = 0; i < (dimension * dimension); i++)
 		{
-			if (channels == 1 || (channels == 2 && in[i * channels + 1] != 0))
-				out[i] = (int16_t)in[i * channels];
-			else if (channels < 4 || in[i * channels + 3] != 0)
-				out[i] = (int16_t)in[i * channels];
-			else
-				out[i] = 0;
+			if (out[(dimension * dimension * 1) + i] == 1) // Alpha
+				out[(dimension * dimension * 0) + i] = 0;  // Gray
 		}
 	}
 
@@ -144,7 +146,7 @@ void FormatToPlanarI16YUV(size_t dimension, size_t channels, const uint8_t* in, 
 }
 
 
-void FormatToInterlacedU8RGB(size_t dimension, size_t channels, int16_t* in, uint8_t* out)
+void FormatToInterlacedU8RGB(size_t dimension, size_t channels, size_t out_pitch, int16_t* in, uint8_t* out)
 {
 	// Color transformation
 	if (channels == 4)
@@ -187,22 +189,50 @@ void FormatToInterlacedU8RGB(size_t dimension, size_t channels, int16_t* in, uin
 	}
 
 	// Interlace from planes
-	switch (channels)
 	{
-	case 4:
-		for (size_t i = 0; i < (dimension * dimension); i++)
-			out[i * channels + 3] = (uint8_t)in[(dimension * dimension * 3) + i];
-		// fallthrough
-	case 3:
-		for (size_t i = 0; i < (dimension * dimension); i++)
-			out[i * channels + 2] = (uint8_t)in[(dimension * dimension * 2) + i];
-		// fallthrough
-	case 2:
-		for (size_t i = 0; i < (dimension * dimension); i++)
-			out[i * channels + 1] = (uint8_t)in[(dimension * dimension * 1) + i];
-		// fallthrough
-	case 1:
-		for (size_t i = 0; i < (dimension * dimension); i++)
-			out[i * channels] = (uint8_t)in[i];
+		int16_t* planar_in = in;
+		out_pitch = out_pitch * channels;
+
+		switch (channels) // TODO?, early optimization?
+		{
+		case 4:
+			for (size_t row = 0; row < (dimension * out_pitch); row += out_pitch)
+				for (size_t col = 0; col < (dimension * channels); col += channels)
+				{
+					out[col + row + 3] = (uint8_t)planar_in[dimension * dimension * 3];
+					out[col + row + 2] = (uint8_t)planar_in[dimension * dimension * 2];
+					out[col + row + 1] = (uint8_t)planar_in[dimension * dimension * 1];
+					out[col + row + 0] = (uint8_t)planar_in[dimension * dimension * 0];
+					planar_in = planar_in + 1;
+				}
+			break;
+		case 3:
+			for (size_t row = 0; row < (dimension * out_pitch); row += out_pitch)
+				for (size_t col = 0; col < (dimension * channels); col += channels)
+				{
+					out[col + row + 2] = (uint8_t)planar_in[dimension * dimension * 2];
+					out[col + row + 1] = (uint8_t)planar_in[dimension * dimension * 1];
+					out[col + row + 0] = (uint8_t)planar_in[dimension * dimension * 0];
+					planar_in = planar_in + 1;
+				}
+			break;
+		case 2:
+			for (size_t row = 0; row < (dimension * out_pitch); row += out_pitch)
+				for (size_t col = 0; col < (dimension * channels); col += channels)
+				{
+					out[col + row + 1] = (uint8_t)planar_in[dimension * dimension * 1];
+					out[col + row + 0] = (uint8_t)planar_in[dimension * dimension * 0];
+					planar_in = planar_in + 1;
+				}
+			break;
+		case 1:
+			for (size_t row = 0; row < (dimension * out_pitch); row += out_pitch)
+				for (size_t col = 0; col < (dimension * channels); col += channels)
+				{
+					out[col + row + 0] = (uint8_t)planar_in[dimension * dimension * 0];
+					planar_in = planar_in + 1;
+				}
+			break;
+		}
 	}
 }
