@@ -16,7 +16,7 @@ struct DwtLiftSettings
 	size_t limit;
 };
 
-void DwtLiftPlane(const struct DwtLiftSettings* s, size_t dimension, void** aux_buffer, int16_t* inout);
+void DwtLiftPlane(const struct DwtLiftSettings* s, size_t dimension, int16_t* aux_buffer, int16_t* inout);
 void DwtPackImage(size_t dimension, size_t channels, int16_t* inout);
 
 void DwtUnpackUnliftImage(size_t dimension, size_t channels, int16_t* aux_buffer, const int16_t* in, int16_t* out);

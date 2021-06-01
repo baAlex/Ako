@@ -91,7 +91,11 @@ size_t AkoEncode(size_t width, size_t height, size_t channels, const struct AkoS
 	// Proccess tiles
 	{
 		size_t tile_memory_size = sizeof(int16_t) * s->tiles_size * s->tiles_size * channels;
+
+		void* aux_memory = calloc(1, sizeof(int16_t) * s->tiles_size * 2); // Two scanlines
 		int16_t* tile_memory = calloc(1, tile_memory_size);
+
+		assert(aux_memory != NULL);
 		assert(tile_memory != NULL);
 
 		size_t col = 0;
@@ -108,10 +112,39 @@ size_t AkoEncode(size_t width, size_t height, size_t channels, const struct AkoS
 			// Color transform
 			FormatToPlanarI16YUV(s->tiles_size, channels, width, in + (width * row + col) * channels, tile_memory);
 
+#if (AKO_WAVELET != 0)
+
+			// Lift
+			struct DwtLiftSettings dwt_s = {0};
+			switch (channels)
+			{
+			case 4:
+				dwt_s.detail_gate = s->detail_gate[3];
+				dwt_s.limit = (s->limit[3] < s->tiles_size) ? s->limit[3] : s->tiles_size;
+				DwtLiftPlane(&dwt_s, s->tiles_size, aux_memory, tile_memory + (s->tiles_size * s->tiles_size * 3));
+			case 3:
+				dwt_s.detail_gate = s->detail_gate[2];
+				dwt_s.limit = (s->limit[2] < s->tiles_size) ? s->limit[2] : s->tiles_size;
+				DwtLiftPlane(&dwt_s, s->tiles_size, aux_memory, tile_memory + (s->tiles_size * s->tiles_size * 2));
+			case 2:
+				dwt_s.detail_gate = s->detail_gate[1];
+				dwt_s.limit = (s->limit[1] < s->tiles_size) ? s->limit[1] : s->tiles_size;
+				DwtLiftPlane(&dwt_s, s->tiles_size, aux_memory, tile_memory + (s->tiles_size * s->tiles_size * 1));
+			case 1:
+				dwt_s.detail_gate = s->detail_gate[0];
+				dwt_s.limit = (s->limit[0] < s->tiles_size) ? s->limit[0] : s->tiles_size;
+				DwtLiftPlane(&dwt_s, s->tiles_size, aux_memory, tile_memory);
+			}
+
+			// Pack
+			// Aka: convert 2d memory to linear memory
+			DwtPackImage(s->tiles_size, channels, tile_memory); // FIXME, allocates lot of memory :(
+#endif
+
 			// Resize blob
 			{
 				blob_memory_size = blob_memory_size + tile_memory_size;
-				blob_memory = realloc(blob_memory, blob_memory_size);
+				blob_memory = realloc(blob_memory, blob_memory_size); // TODO, use a exponential-growth buffer thing
 				assert(blob_memory != NULL);
 			}
 
@@ -134,6 +167,7 @@ size_t AkoEncode(size_t width, size_t height, size_t channels, const struct AkoS
 			}
 		}
 
+		free(aux_memory);
 		free(tile_memory);
 	}
 
@@ -141,89 +175,3 @@ size_t AkoEncode(size_t width, size_t height, size_t channels, const struct AkoS
 	*out = blob_memory;
 	return blob_memory_size;
 }
-
-
-#if 0
-size_t AkoEncode(size_t dimension, size_t channels, const struct AkoSettings* s, const uint8_t* in, void** out)
-{
-	assert(in != NULL);
-	assert(channels <= 4);
-
-	size_t data_len = dimension * dimension * channels;
-	size_t compressed_data_size = 0;
-
-	int16_t* main_buffer = malloc(sizeof(struct AkoHead) + sizeof(int16_t) * (dimension * dimension * channels) * 4);
-	int16_t* aux_buffer = malloc(sizeof(int16_t) * (dimension * dimension));
-	assert(main_buffer != NULL);
-	assert(aux_buffer != NULL);
-
-	int16_t* data = (int16_t*)((uint8_t*)main_buffer + sizeof(struct AkoHead));
-
-	// To internal format
-	DevBenchmarkStart("Format");
-	FormatToPlanarI16YUV(dimension, channels, in, data);
-	DevBenchmarkStop();
-
-	// Lift
-	DevBenchmarkStart("Lift");
-	{
-		struct DwtLiftSettings s = {0};
-		switch (channels)
-		{
-		case 4:
-			s.detail_gate = s->detail_gate[3];
-			s.limit = (s->limit[3] < dimension) ? s->limit[3] : dimension;
-			DwtLiftPlane(&s, dimension, (void**)&aux_buffer, data + (dimension * dimension * 3));
-			// fallthrough
-		case 3:
-			s.detail_gate = s->detail_gate[2];
-			s.limit = (s->limit[2] < dimension) ? s->limit[2] : dimension;
-			DwtLiftPlane(&s, dimension, (void**)&aux_buffer, data + (dimension * dimension * 2));
-			// fallthrough
-		case 2:
-			s.detail_gate = s->detail_gate[1];
-			s.limit = (s->limit[1] < dimension) ? s->limit[1] : dimension;
-			DwtLiftPlane(&s, dimension, (void**)&aux_buffer, data + (dimension * dimension * 1));
-			// fallthrough
-		case 1:
-			s.detail_gate = s->detail_gate[0];
-			s.limit = (s->limit[0] < dimension) ? s->limit[0] : dimension;
-			DwtLiftPlane(&s, dimension, (void**)&aux_buffer, data);
-		}
-	}
-	DevBenchmarkStop();
-
-	// Pack
-	DevBenchmarkStart("Pack");
-	DwtPackImage(dimension, channels, data);
-	DevBenchmarkStop();
-
-#if (DUMP_RAW == 1)
-	FILE* fp = fopen("/tmp/ako.raw", "wb");
-	assert(fp != NULL);
-	fwrite(data, sizeof(int16_t), data_len, fp);
-	fclose(fp);
-#endif
-
-	// Compress
-	DevBenchmarkStart("Compress");
-	{
-		compressed_data_size = EntropyCompress(data_len, (void**)&aux_buffer, data);
-		main_buffer = realloc(main_buffer, (sizeof(struct AkoHead) + compressed_data_size));
-		assert(main_buffer != NULL);
-	}
-	DevBenchmarkStop();
-
-	// Bye!
-	FrameWrite(dimension, channels, compressed_data_size, main_buffer);
-	DevBenchmarkTotal();
-
-	if (out != NULL)
-		*out = main_buffer;
-	else
-		free(main_buffer);
-
-	free(aux_buffer);
-	return (sizeof(struct AkoHead) + compressed_data_size);
-}
-#endif

@@ -42,7 +42,7 @@ static inline void sUnlift1d(size_t len, const int16_t* in, int16_t* out)
 	// Haar:        even[i] = lp[i] - hp[i]
 	for (size_t i = 0; i < len; i++)
 	{
-#if (AKO_WAVELET != 0)
+#if (AKO_WAVELET != 1)
 		// CDF53, 97DD
 		if (i > 0)
 			out[(i * 2)] = in[i] - ((in[len + i] + in[len + i - 1] + 2) >> 2);
@@ -59,13 +59,13 @@ static inline void sUnlift1d(size_t len, const int16_t* in, int16_t* out)
 	// CDF53: odd[i] = hp[i] + (even[i] + even[i + 1]) / 2
 	// 97DD:  odd[i] = hp[i] + (-even[i - 1] + 9 * even[i] + 9 * even[i + 1] - even[i + 2] + 8) / 16)
 
-#if (AKO_WAVELET == 0)
+#if (AKO_WAVELET == 1)
 	// Haar
 	for (size_t i = 0; i < len; i++)
 		out[(i * 2) + 1] = in[i] + in[len + i];
 #endif
 
-#if (AKO_WAVELET == 1)
+#if (AKO_WAVELET == 2)
 	// CDF53
 	for (size_t i = 0; i < len; i++)
 	{
@@ -76,23 +76,16 @@ static inline void sUnlift1d(size_t len, const int16_t* in, int16_t* out)
 	}
 #endif
 
-#if (AKO_WAVELET == 2)
+#if (AKO_WAVELET == 3)
 	// 97DD
 	if (len > 4) // Needs 4 samples
 	{
 		for (size_t i = 0; i < len; i++)
 		{
-			int16_t even_il1 = out[(i * 2) - 2];
 			int16_t even_i = out[(i * 2)];
-			int16_t even_ip1 = out[(i * 2) + 2];
-			int16_t even_ip2 = out[(i * 2) + 4];
-
-			if (i < 1)
-				even_il1 = even_i;
-			if (i > len - 2)
-				even_ip1 = even_i;
-			if (i > len - 4)
-				even_ip2 = even_ip1;
+			int16_t even_il1 = (i >= 1) ? out[(i * 2) - 2] : even_i;
+			int16_t even_ip1 = (i <= len - 2) ? out[(i * 2) + 2] : even_i;
+			int16_t even_ip2 = (i <= len - 4) ? out[(i * 2) + 4] : even_ip1;
 
 			out[(i * 2) + 1] = in[len + i] + ((-even_il1 + 9 * even_i + 9 * even_ip1 - even_ip2 + 8) >> 4);
 		}

@@ -73,8 +73,14 @@ uint8_t* AkoDecode(size_t input_size, const void* in, size_t* out_width, size_t*
 	// Proccess tiles
 	{
 		size_t tile_memory_size = sizeof(int16_t) * tiles_size * tiles_size * channels;
-		int16_t* tile_memory = calloc(1, tile_memory_size);
-		assert(tile_memory != NULL);
+
+		void* aux_memory = calloc(1, sizeof(int16_t) * tiles_size * 2); // Two scanlines
+		int16_t* tile_memory_a = calloc(1, tile_memory_size);
+		int16_t* tile_memory_b = calloc(1, tile_memory_size);
+
+		assert(aux_memory != NULL);
+		assert(tile_memory_a != NULL);
+		assert(tile_memory_b != NULL);
 
 		size_t col = 0;
 		size_t row = 0;
@@ -88,12 +94,19 @@ uint8_t* AkoDecode(size_t input_size, const void* in, size_t* out_width, size_t*
 
 			// """Decompress"""
 			{
-				memcpy(tile_memory, blob, tile_memory_size);
+				memcpy(tile_memory_a, blob, tile_memory_size);
 				blob = blob + tile_memory_size;
 			}
 
+#if (AKO_WAVELET != 0)
+			// Unpack/Unlift
+			DwtUnpackUnliftImage(tiles_size, channels, aux_memory, tile_memory_a, tile_memory_b);
+#else
+			memcpy(tile_memory_b, tile_memory_a, tile_memory_size);
+#endif
+
 			// Color transform
-			FormatToInterlacedU8RGB(tiles_size, channels, width, tile_memory,
+			FormatToInterlacedU8RGB(tiles_size, channels, width, tile_memory_b,
 			                        image_memory + (width * row + col) * channels);
 
 			// Next tile
@@ -106,7 +119,9 @@ uint8_t* AkoDecode(size_t input_size, const void* in, size_t* out_width, size_t*
 			}
 		}
 
-		free(tile_memory);
+		free(aux_memory);
+		free(tile_memory_a);
+		free(tile_memory_b);
 	}
 
 	// Bye!
@@ -115,59 +130,3 @@ uint8_t* AkoDecode(size_t input_size, const void* in, size_t* out_width, size_t*
 	*out_channels = channels;
 	return image_memory;
 }
-
-
-#if 0
-uint8_t* AkoDecode(size_t input_size, const void* in, size_t* out_dimension, size_t* out_channels)
-{
-	size_t dimension = 0;
-	size_t channels = 0;
-	size_t data_len = 0;
-	size_t compressed_data_size = 0;
-
-	int16_t* buffer_a = NULL;
-	int16_t* buffer_b = NULL;
-	int16_t* aux_buffer = NULL;
-
-	assert(input_size >= sizeof(struct AkoHead));
-	FrameRead(in, &dimension, &channels, &compressed_data_size);
-
-	data_len = dimension * dimension * channels;
-	buffer_a = calloc(1, sizeof(int16_t) * data_len);
-	buffer_b = calloc(1, sizeof(int16_t) * data_len);
-	aux_buffer = calloc(1, sizeof(int16_t) * dimension * 2);
-
-	assert(buffer_a != NULL);
-	assert(buffer_b != NULL);
-	assert(aux_buffer != NULL);
-
-	// Decompress, Unlift, toRgb
-	{
-		const int16_t* skip_head = (int16_t*)((uint8_t*)in + sizeof(struct AkoHead));
-
-		DevBenchmarkStart("Decompress");
-		EntropyDecompress(compressed_data_size, data_len, skip_head, buffer_a);
-		DevBenchmarkStop();
-
-		DevBenchmarkStart("Unpack/Unlift");
-		DwtUnpackUnliftImage(dimension, channels, aux_buffer, buffer_a, buffer_b);
-		DevBenchmarkStop();
-
-		DevBenchmarkStart("Format");
-		FormatToInterlacedU8RGB(dimension, channels, buffer_b, (uint8_t*)buffer_a); // HACK!
-		DevBenchmarkStop();
-	}
-
-	// Bye!
-	DevBenchmarkTotal();
-
-	if (out_dimension != NULL)
-		*out_dimension = dimension;
-	if (out_channels != NULL)
-		*out_channels = channels;
-
-	free(aux_buffer);
-	free(buffer_b);
-	return (uint8_t*)buffer_a; // TODO, realloc!
-}
-#endif
