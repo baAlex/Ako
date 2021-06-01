@@ -42,13 +42,13 @@ static void sLift1d(const struct DwtLiftSettings* s, size_t len, size_t initial_
 	// CDF53: hp[i] = odd[i] - (even[i] + even[i + 1]) / 2
 	// 97DD:  hp[i] = odd[i] - (-even[i - 1] + 9 * even[i] + 9 * even[i + 1] - even[i + 2] + 8) / 16)
 
-#if (AKO_WAVELET == 0)
+#if (AKO_WAVELET == 1)
 	// Haar
 	for (size_t i = 0; i < len; i++)
 		out[len + i] = in[(i * 2) + 1] - ((in[(i * 2)] + in[(i * 2) + 1] + 1) >> 1);
 #endif
 
-#if (AKO_WAVELET == 1)
+#if (AKO_WAVELET == 2)
 	// CDF53
 	for (size_t i = 0; i < len; i++)
 	{
@@ -59,23 +59,16 @@ static void sLift1d(const struct DwtLiftSettings* s, size_t len, size_t initial_
 	}
 #endif
 
-#if (AKO_WAVELET == 2)
+#if (AKO_WAVELET == 3)
 	// 97DD
 	if (len > 4) // Needs 4 samples
 	{
 		for (size_t i = 0; i < len; i++)
 		{
-			int16_t even_il1 = in[(i * 2) - 2];
 			int16_t even_i = in[(i * 2)];
-			int16_t even_ip1 = in[(i * 2) + 2];
-			int16_t even_ip2 = in[(i * 2) + 4];
-
-			if (i < 1)
-				even_il1 = even_i;
-			if (i > len - 2)
-				even_ip1 = even_i;
-			if (i > len - 4)
-				even_ip2 = even_ip1;
+			int16_t even_il1 = (i >= 1) ? in[(i * 2) - 2] : even_i;
+			int16_t even_ip1 = (i <= len - 2) ? in[(i * 2) + 2] : even_i;
+			int16_t even_ip2 = (i <= len - 4) ? in[(i * 2) + 4] : even_ip1;
 
 			out[len + i] = in[(i * 2) + 1] - ((-even_il1 + 9 * even_i + 9 * even_ip1 - even_ip2 + 8) >> 4);
 		}
@@ -97,7 +90,7 @@ static void sLift1d(const struct DwtLiftSettings* s, size_t len, size_t initial_
 	// Haar:        lp[i] = (even[i] + odd[i]) / 2
 	for (size_t i = 0; i < len; i++)
 	{
-#if (AKO_WAVELET != 0)
+#if (AKO_WAVELET != 1)
 		// CD53, 97DD
 		if (i > 0)
 			out[i] = in[(i * 2)] + ((out[len + i] + out[len + i - 1] + 2) >> 2);
@@ -127,11 +120,11 @@ static void sLift1d(const struct DwtLiftSettings* s, size_t len, size_t initial_
 }
 
 
-static void sLift2d(const struct DwtLiftSettings* s, size_t dimension, size_t initial_dimension, void* aux_buffer,
+static void sLift2d(const struct DwtLiftSettings* s, size_t dimension, size_t initial_dimension, int16_t* aux_buffer,
                     int16_t* inout)
 {
-	int16_t* buffer_a = (int16_t*)aux_buffer;
-	int16_t* buffer_b = (int16_t*)aux_buffer + initial_dimension;
+	int16_t* buffer_a = aux_buffer;
+	int16_t* buffer_b = aux_buffer + initial_dimension;
 	int16_t* temp = inout;
 
 	// Rows
@@ -165,17 +158,14 @@ static void sLift2d(const struct DwtLiftSettings* s, size_t dimension, size_t in
 }
 
 
-void DwtLiftPlane(const struct DwtLiftSettings* s, size_t dimension, void** aux_buffer, int16_t* inout)
+void DwtLiftPlane(const struct DwtLiftSettings* s, size_t dimension, int16_t* aux_buffer, int16_t* inout)
 {
 	size_t current_dimension = dimension;
 	size_t initial_dimension = dimension;
 
-	*aux_buffer = realloc(*aux_buffer, sizeof(int16_t) * dimension * 2);
-	assert(*aux_buffer != NULL);
-
 	while (current_dimension != 2)
 	{
-		sLift2d(s, current_dimension, initial_dimension, *aux_buffer, inout);
+		sLift2d(s, current_dimension, initial_dimension, aux_buffer, inout);
 		current_dimension = current_dimension / 2;
 	}
 }
@@ -248,6 +238,7 @@ void DwtPackImage(size_t dimension, size_t channels, int16_t* inout)
 	// Pack in correct order
 	memset(inout, 0, sizeof(int16_t) * dimension * dimension * channels);
 	memcpy(inout, lp, sizeof(int16_t) * 2 * 2 * channels);
+	free(lp);
 
 	inout = inout + 2 * 2 * channels;
 	l = 0;
