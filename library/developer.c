@@ -87,7 +87,7 @@ void DevBenchmarkTotal() {}
 
 
 #if (AKO_DEV_SAVE_IMAGES == 1)
-void DevSaveGrayPgm(size_t dimension, const int16_t* data, const char* filename_format, ...)
+void DevSaveGrayPgm(size_t width, size_t height, const int16_t* data, const char* filename_format, ...)
 {
 	char filename[256];
 	va_list args;
@@ -97,9 +97,9 @@ void DevSaveGrayPgm(size_t dimension, const int16_t* data, const char* filename_
 	va_end(args);
 
 	FILE* fp = fopen(filename, "wb");
-	fprintf(fp, "P5\n%zu\n%zu\n255\n", dimension, dimension);
+	fprintf(fp, "P5\n%zu\n%zu\n255\n", width, height);
 
-	for (size_t i = 0; i < (dimension * dimension); i++)
+	for (size_t i = 0; i < (width * height); i++)
 	{
 		uint8_t p = (data[i] > 0) ? (data[i] < 255) ? (uint8_t)data[i] : 255 : 0;
 		fwrite(&p, 1, 1, fp);
@@ -108,9 +108,10 @@ void DevSaveGrayPgm(size_t dimension, const int16_t* data, const char* filename_
 	fclose(fp);
 }
 #else
-void DevSaveGrayPgm(size_t dimension, const int16_t* data, const char* filename_format, ...)
+void DevSaveGrayPgm(size_t width, size_t height, const int16_t* data, const char* filename_format, ...)
 {
-	(void)dimension;
+	(void)width;
+	(void)height;
 	(void)data;
 	(void)filename_format;
 }
