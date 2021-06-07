@@ -43,7 +43,7 @@ extern void DevBenchmarkStart(const char* name);
 extern void DevBenchmarkStop();
 extern void DevBenchmarkTotal();
 extern void DevPrintf(const char* format, ...);
-extern void DevSaveGrayPgm(size_t dimension, const int16_t* data, const char* filename_format, ...);
+extern void DevSaveGrayPgm(size_t width, size_t height, const int16_t* data, const char* filename_format, ...);
 
 
 static inline size_t sTilesNo(size_t width, size_t height, size_t tile_size)
@@ -72,50 +72,60 @@ uint8_t* AkoDecode(size_t input_size, const void* in, size_t* out_width, size_t*
 
 	// Proccess tiles
 	{
-		size_t tile_memory_size = sizeof(int16_t) * tiles_size * tiles_size * channels;
-
 		void* aux_memory = calloc(1, sizeof(int16_t) * tiles_size * 2); // Two scanlines
-		int16_t* tile_memory_a = calloc(1, tile_memory_size);
-		int16_t* tile_memory_b = calloc(1, tile_memory_size);
-
 		assert(aux_memory != NULL);
+
+		int16_t* tile_memory_a = calloc(1, sizeof(int16_t) * tiles_size * tiles_size * channels);
+		int16_t* tile_memory_b = calloc(1, sizeof(int16_t) * tiles_size * tiles_size * channels);
 		assert(tile_memory_a != NULL);
 		assert(tile_memory_b != NULL);
 
 		size_t col = 0;
 		size_t row = 0;
+		size_t tile_width = 0;
+		size_t tile_height = 0;
+		size_t tile_size = 0;
 
 		const uint8_t* blob = (const uint8_t*)in + sizeof(struct AkoHead);
 
 		for (size_t i = 0; i < tiles_no; i++)
 		{
-			if ((col + tiles_size) > width || (row + tiles_size) > height)
-				goto next_tile;
+			// Tiles size, border tiles not always are square
+			tile_width = tiles_size;
+			tile_height = tiles_size;
+
+			if ((col + tiles_size) > width)
+				tile_width = width - col;
+
+			if ((row + tiles_size) > height)
+				tile_height = height - row;
+
+			tile_size = sizeof(int16_t) * tile_width * tile_height * channels;
 
 			// """Decompress"""
 			{
-				memcpy(tile_memory_a, blob, tile_memory_size);
-				blob = blob + tile_memory_size;
+				memcpy(tile_memory_a, blob, tile_size);
+				blob = blob + tile_size;
 			}
 
 #if (AKO_WAVELET != 0)
 			// Unpack/Unlift
-			DwtUnpackUnliftImage(tiles_size, channels, aux_memory, tile_memory_a, tile_memory_b);
+			DwtUnpackUnliftImage(tile_width, channels, aux_memory, tile_memory_a, tile_memory_b);
 #else
-			memcpy(tile_memory_b, tile_memory_a, tile_memory_size);
+			memcpy(tile_memory_b, tile_memory_a, tile_size);
 #endif
 
 			// Color transform
-			FormatToInterlacedU8RGB(tiles_size, channels, width, tile_memory_b,
+			FormatToInterlacedU8RGB(tile_width, tile_height, channels, width, tile_memory_b,
 			                        image_memory + (width * row + col) * channels);
 
 			// Next tile
 		next_tile:
-			col = col + tiles_size;
+			col = col + tile_width;
 			if (col >= width)
 			{
 				col = 0;
-				row = row + tiles_size;
+				row = row + tile_height;
 			}
 		}
 
