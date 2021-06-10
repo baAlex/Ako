@@ -32,7 +32,7 @@ struct AkoSettings
 {
 	float detail_gate[4]; // Applied on high frequencies
 	size_t limit[4];
-	size_t tiles_size;
+	size_t tiles_dimension;
 };
 
 struct AkoHead
@@ -62,7 +62,7 @@ AKO_EXPORT const char* AkoVersionString();
 //
 
 #define AKO_COLORSPACE 1 // 0 = RGB, 1 = YCOCG, 2 = YCOCG-R (reversible)
-#define AKO_WAVELET 0    // 0 = None, 1 = Haar, 2 = CDF53, 3 = 97DD
+#define AKO_WAVELET 1    // 0 = None, 1 = Haar, 2 = CDF53, 3 = 97DD
 
 // Haar: Haar wavelet
 // The traditional one not suitable for integer arithmetics (lossy)

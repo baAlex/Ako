@@ -33,8 +33,13 @@ SOFTWARE.
 
 #include "ako.h"
 #include "dwt.h"
+#include "misc.h"
 
 
+extern void DevPrintf(const char* format, ...);
+
+
+#if 0
 static inline void sUnlift1d(size_t len, const int16_t* in, int16_t* out)
 {
 	// Even
@@ -235,6 +240,52 @@ void DwtUnpackUnliftImage(size_t dimension, size_t channels, int16_t* aux_buffer
 			// Done with this channel
 			hp = hp + current * current * 3; // Move from current B, C and D
 			lp = lp + dimension * dimension;
+		}
+	}
+}
+#endif
+
+
+static inline void sCurrentSize(size_t total_lifts, size_t lift, size_t final_w, size_t final_h, size_t* out_current_w,
+                                size_t* out_current_h, size_t* out_target_w, size_t* out_target_h)
+{
+	*out_target_w = final_w;
+	*out_target_h = final_h;
+
+	for (size_t i = 1; i < (total_lifts - lift); i++)
+	{
+		*out_target_w = (*out_target_w % 2 == 0) ? (*out_target_w / 2) : ((*out_target_w + 1) / 2);
+		*out_target_h = (*out_target_h % 2 == 0) ? (*out_target_h / 2) : ((*out_target_h + 1) / 2);
+	}
+
+	*out_current_w = (*out_target_w % 2 == 0) ? (*out_target_w / 2) : ((*out_target_w + 1) / 2);
+	*out_current_h = (*out_target_h % 2 == 0) ? (*out_target_h / 2) : ((*out_target_h + 1) / 2);
+}
+
+
+void InverseDwtTransform(size_t w, size_t h, size_t channels, void* aux_memory, const int16_t* input, int16_t* output)
+{
+#if (AKO_WAVELET == 0)
+	memcpy(output, input, sizeof(int16_t) * w * h * channels);
+	return;
+#endif
+
+	const size_t total_lifts = TileTotalLifts(w, h);
+
+	size_t current_w = 0;
+	size_t current_h = 0;
+	size_t target_w = 0;
+	size_t target_h = 0;
+
+	for (size_t ch = 0; ch < channels; ch++)
+	{
+		for (size_t lift = 0; lift < total_lifts; lift++)
+		{
+			sCurrentSize(total_lifts, lift, w, h, &current_w, &current_h, &target_w, &target_h);
+
+			if (ch == 0)
+				DevPrintf("###\t - Unlift %zu, %zux%zu -> %zux%zu px\n", lift, current_w, current_h, target_w,
+				          target_h);
 		}
 	}
 }

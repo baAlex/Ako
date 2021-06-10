@@ -24,7 +24,7 @@ SOFTWARE.
 
 -------------------------------
 
- [dwt-lift-pack.c]
+ [dwt-lift.c]
  - Alexander Brandt 2021
 -----------------------------*/
 
@@ -35,6 +35,10 @@ SOFTWARE.
 #include "dwt.h"
 
 
+extern void DevPrintf(const char* format, ...);
+
+
+#if 0
 static void sLift1d(const struct DwtLiftSettings* s, size_t len, size_t initial_len, const int16_t* in, int16_t* out)
 {
 	// Highpass
@@ -251,5 +255,38 @@ void DwtPackImage(size_t dimension, size_t channels, int16_t* inout)
 
 		inout = inout + length;
 		l = l + 1;
+	}
+}
+#endif
+
+
+void DwtTransform(size_t w, size_t h, size_t channels, void* aux_memory, const int16_t* input, int16_t* output)
+{
+#if (AKO_WAVELET == 0)
+	memcpy(output, input, sizeof(int16_t) * w * h * channels);
+	return;
+#endif
+
+	size_t lift = 0;
+
+	size_t current_w = 0;
+	size_t current_h = 0;
+	size_t target_w = w;
+	size_t target_h = h;
+
+	for (size_t ch = 0; ch < channels; ch++)
+	{
+		while (target_w > 2 && target_h > 2)
+		{
+			current_w = target_w;
+			current_h = target_h;
+			target_w = (target_w % 2 == 0) ? (target_w / 2) : ((target_w + 1) / 2);
+			target_h = (target_h % 2 == 0) ? (target_h / 2) : ((target_h + 1) / 2);
+
+			if (ch == 0)
+				DevPrintf("###\t - Lift %zu, %zux%zu <- %zux%zu px\n", lift, target_w, target_h, current_w, current_h);
+
+			lift = lift + 1;
+		}
 	}
 }
