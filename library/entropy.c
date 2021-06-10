@@ -238,33 +238,25 @@ static inline int16_t sZigZagDecode(uint16_t in)
 }
 
 
-size_t EntropyCompress(size_t input_length, void** aux_buffer, int16_t* inout)
+size_t EntropyCompress(size_t input_length, const int16_t* in, void* out)
 {
-	// TODO, the 'inout' style of API is ugly :(
-	// (remainder of the early days of the project)
-
 	struct EliasEncodeState s = {0};
 
-	// Pre-pass with NULL as output, this return the final compressed size
+	// Pre-pass with NULL as output, this returns the final compressed size
 	for (size_t i = 0; i < input_length; i++)
-		sEliasEncodeU(&s, false, sZigZagEncode(inout[i]), NULL);
+		sEliasEncodeU(&s, false, sZigZagEncode(in[i]), NULL);
 
 	sEliasEncodeStop(&s, NULL);
+	if (out == NULL)
+		return s.bytes_write;
 
-	// Realloc 'aux_buffer'
-	*aux_buffer = realloc(*aux_buffer, s.bytes_write);
-	assert(*aux_buffer != NULL);
-
-	// Actual compression into 'aux_buffer'
+	// Actual compression
 	memset(&s, 0, sizeof(struct EliasEncodeState));
 
 	for (size_t i = 0; i < input_length; i++)
-		sEliasEncodeU(&s, false, sZigZagEncode(inout[i]), *aux_buffer);
+		sEliasEncodeU(&s, false, sZigZagEncode(in[i]), out);
 
-	sEliasEncodeStop(&s, *aux_buffer);
-
-	// Bye!, copy back to 'inout'
-	memcpy(inout, *aux_buffer, s.bytes_write);
+	sEliasEncodeStop(&s, out);
 	return s.bytes_write;
 }
 

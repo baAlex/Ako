@@ -139,7 +139,7 @@ static int sReadArguments(int argc, const char* argv[], struct EncoderSettings* 
 {
 	bool gate_set = false;
 	bool ratio_set = false;
-	bool tiles_size_set = false;
+	bool tiles_dimensions = false;
 	float ratio = 1.0f;
 
 	// Read/set arguments
@@ -198,15 +198,15 @@ static int sReadArguments(int argc, const char* argv[], struct EncoderSettings* 
 		{
 			if ((i = i + 1) == argc)
 			{
-				fprintf(stderr, "Missing tiles size\n");
+				fprintf(stderr, "Missing tiles dimensions\n");
 				return 1;
 			}
 
-			tiles_size_set = true;
+			tiles_dimensions = true;
 			long temp = atol(argv[i]);
 
 			if (temp > 0)
-				codec_s->tiles_size = (size_t)temp;
+				codec_s->tiles_dimension = (size_t)temp;
 		}
 		else if (strcmp(argv[i], "-v") == 0 || strcmp(argv[i], "--version") == 0)
 		{
@@ -257,10 +257,10 @@ static int sReadArguments(int argc, const char* argv[], struct EncoderSettings* 
 				printf("Luma/chroma gate ratio: %.2f:1\n", fabsf(ratio));
 		}
 
-		if (tiles_size_set == true)
-			printf("Tiles size: %zux%zu px\n", codec_s->tiles_size, codec_s->tiles_size);
+		if (tiles_dimensions == true)
+			printf("Tiles dimensions: %zux%zu px\n", codec_s->tiles_dimension, codec_s->tiles_dimension);
 
-		if (gate_set || ratio_set || tiles_size_set)
+		if (gate_set || ratio_set || tiles_dimensions)
 			printf("\n");
 	}
 
@@ -312,7 +312,7 @@ int main(int argc, const char* argv[])
 	struct EncoderSettings enco_s = {0};
 	struct AkoSettings codec_s = {.detail_gate = {16.0f, 16.0f, 16.0f, 16.0f}, // Default settings
 	                              .limit = {0, 0, 0, 0},
-	                              .tiles_size = 256};
+	                              .tiles_dimension = 512};
 
 	if (argc == 1)
 	{

@@ -22,14 +22,15 @@ endif ()
 
 
 set(AKO_SOURCES
-	"./library/developer.c"
 	"./library/decode.c"
+	"./library/developer.c"
+	"./library/dwt-lift.c"
+	"./library/dwt-unlift.c"
 	"./library/encode.c"
 	"./library/entropy.c"
-	"./library/dwt-lift-pack.c"
-	"./library/dwt-unlift.c"
 	"./library/format.c"
 	"./library/frame.c"
+	"./library/misc.c"
 	"./library/version.c")
 
 

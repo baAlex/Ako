@@ -36,23 +36,24 @@ SOFTWARE.
 #include "frame.h"
 
 
-#define VALID_TILES_SIZE_NO 8 // Only 8 values to encode them in 3 bits
-static size_t s_valid_tiles_size[VALID_TILES_SIZE_NO] = {8, 16, 32, 64, 128, 256, 512, 1024};
+#define VALID_TILES_DIMENSIONS_NO 16 // Only 16 values to encode them in 4 bits
+static size_t s_valid_tiles_dimensions[VALID_TILES_DIMENSIONS_NO] = {
+    16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536, 131072, 262144, 524288};
 
 
-void FrameWrite(size_t width, size_t height, size_t channels, size_t tiles_size, void* output)
+void FrameWrite(size_t width, size_t height, size_t channels, size_t tiles_dimension, void* output)
 {
 	assert(width > 0 && width <= UINT32_MAX);
 	assert(height > 0 && height <= UINT32_MAX);
 	assert(channels > 0 && channels <= 4);
 
-	int tsize = -1; // Invalid value
-	for (int i = 0; i < VALID_TILES_SIZE_NO; i++)
+	int dimension = -1; // Invalid value
+	for (int i = 0; i < VALID_TILES_DIMENSIONS_NO; i++)
 	{
-		if (s_valid_tiles_size[i] == tiles_size)
-			tsize = i;
+		if (s_valid_tiles_dimensions[i] == tiles_dimension)
+			dimension = i;
 	}
-	assert(tsize != -1);
+	assert(dimension != -1);
 
 	struct AkoHead* head = output;
 
@@ -65,7 +66,7 @@ void FrameWrite(size_t width, size_t height, size_t channels, size_t tiles_size,
 	head->unused1 = 0;
 	head->unused2 = 0;
 
-	head->format = (uint8_t)((uint8_t)tsize | ((channels - 1) << 3));
+	head->format = (uint8_t)((uint8_t)dimension | ((channels - 1) << 4));
 
 	head->width = (uint32_t)width;
 	head->height = (uint32_t)height;
@@ -73,7 +74,7 @@ void FrameWrite(size_t width, size_t height, size_t channels, size_t tiles_size,
 
 
 void FrameRead(const void* input, size_t input_size, size_t* out_width, size_t* out_height, size_t* out_channels,
-               size_t* out_tiles_size)
+               size_t* out_tiles_dimensions)
 {
 	assert(input_size >= sizeof(struct AkoHead));
 
@@ -84,8 +85,8 @@ void FrameRead(const void* input, size_t input_size, size_t* out_width, size_t* 
 
 	*out_width = (size_t)head->width;
 	*out_height = (size_t)head->height;
-	*out_channels = (size_t)(head->format >> 3) + 1;
-	*out_tiles_size = s_valid_tiles_size[head->format & 0b00000111];
+	*out_channels = (size_t)(head->format >> 4) + 1;
+	*out_tiles_dimensions = s_valid_tiles_dimensions[head->format & 0b00000111];
 
 	assert(*out_width != 0);
 	assert(*out_height != 0);

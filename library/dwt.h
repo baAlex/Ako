@@ -10,15 +10,9 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-struct DwtLiftSettings
-{
-	float detail_gate;
-	size_t limit;
-};
-
-void DwtLiftPlane(const struct DwtLiftSettings* s, size_t dimension, int16_t* aux_buffer, int16_t* inout);
-void DwtPackImage(size_t dimension, size_t channels, int16_t* inout);
-
-void DwtUnpackUnliftImage(size_t dimension, size_t channels, int16_t* aux_buffer, const int16_t* in, int16_t* out);
+void DwtTransform(size_t width, size_t height, size_t channels, void* aux_memory, const int16_t* input,
+                  int16_t* output);
+void InverseDwtTransform(size_t width, size_t height, size_t channels, void* aux_memory, const int16_t* input,
+                         int16_t* output);
 
 #endif

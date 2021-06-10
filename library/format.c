@@ -91,8 +91,8 @@ void FormatToPlanarI16YUV(size_t width, size_t height, size_t channels, size_t i
                           int16_t* out)
 {
 	// De-interlace into planes
-	// From here 'out' is an image on his own, of size
-	// 'width * height' with no need of a pitch
+	// From here 'out' is an image on its own, of
+	// 'width * height' dimensions with no need of a pitch
 	{
 		int16_t* planar_out = out;
 		in_pitch = in_pitch * channels;
