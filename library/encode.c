@@ -44,103 +44,122 @@ extern void DevBenchmarkStart(const char* name);
 extern void DevBenchmarkStop();
 extern void DevBenchmarkTotal();
 extern void DevPrintf(const char* format, ...);
-extern void DevSaveGrayPgm(size_t width, size_t height, const int16_t* data, const char* filename_format, ...);
+extern void DevSaveGrayPgm(size_t width, size_t height, size_t in_pitch, const int16_t* data,
+                           const char* filename_format, ...);
 
 
 static void sDevDumpTiles(size_t width, size_t height, size_t channels, size_t tile_no, const int16_t* in)
 {
 	switch (channels)
 	{
-	case 4: DevSaveGrayPgm(width, height, in + (width * height) * 3, "/tmp/tile-%02zu-a.pgm", tile_no);
-	case 3: DevSaveGrayPgm(width, height, in + (width * height) * 2, "/tmp/tile-%02zu-v.pgm", tile_no);
-	case 2: DevSaveGrayPgm(width, height, in + (width * height) * 1, "/tmp/tile-%02zu-u.pgm", tile_no);
-	case 1: DevSaveGrayPgm(width, height, in + (width * height) * 0, "/tmp/tile-%02zu-y.pgm", tile_no);
+	case 4:
+		DevSaveGrayPgm(width, height, width, in + (width * height) * 3, "/tmp/tile-%02zu-a.pgm",
+		               tile_no); // Fallthrough
+	case 3:
+		DevSaveGrayPgm(width, height, width, in + (width * height) * 2, "/tmp/tile-%02zu-v.pgm",
+		               tile_no); // Fallthrough
+	case 2:
+		DevSaveGrayPgm(width, height, width, in + (width * height) * 1, "/tmp/tile-%02zu-u.pgm",
+		               tile_no); // Fallthrough
+	case 1:
+		DevSaveGrayPgm(width, height, width, in + (width * height) * 0, "/tmp/tile-%02zu-y.pgm",
+		               tile_no); // Fallthrough
 	}
 }
 
 
-size_t AkoEncode(size_t width, size_t height, size_t channels, const struct AkoSettings* s, const uint8_t* in,
+size_t AkoEncode(size_t image_w, size_t image_h, size_t channels, const struct AkoSettings* s, const uint8_t* in,
                  void** out)
 {
-	size_t blob_memory_size = sizeof(struct AkoHead);
-	void* blob_memory = malloc(blob_memory_size);
-	assert(blob_memory != NULL);
+	size_t blob_size = sizeof(struct AkoHead);
+	void* blob = malloc(blob_size);
+	assert(blob != NULL);
 
-	const size_t tiles_no = TilesNo(width, height, s->tiles_dimension);
-	const size_t tile_memory_size = TileWorstLength(width, height, s->tiles_dimension) * sizeof(int16_t) * channels;
-	DevPrintf("###\t[%zux%zu px , %zu channels, %zu px tiles, %zu tiles, reserved %zu bytes]\n", width, height,
-	          channels, s->tiles_dimension, tiles_no, tile_memory_size);
+	const size_t tiles_no = TilesNo(image_w, image_h, s->tiles_dimension);
+	DevPrintf("###\t[%zux%zu px , %zu channels, %zu px tiles, %zu tiles]\n", image_w, image_h, channels,
+	          s->tiles_dimension, tiles_no);
 
-	FrameWrite(width, height, channels, s->tiles_dimension, blob_memory);
+	const size_t workarea_size = WorkareaLength(image_w, image_h, s->tiles_dimension) * channels * sizeof(int16_t);
+	DevPrintf("###\t[Workarea of %.2f kB]\n", (float)workarea_size / 500.0f);
+
+	FrameWrite(image_w, image_h, channels, s->tiles_dimension, blob);
 
 	// Proccess tiles
 	{
-		void* aux_memory = malloc(sizeof(int16_t) * s->tiles_dimension * 2); // Two scanlines
+		void* aux_memory = malloc(sizeof(int16_t) * s->tiles_dimension * 4); // Four scanlines
 		assert(aux_memory != NULL);
 
-		int16_t* tile_memory_a = malloc(tile_memory_size);
-		int16_t* tile_memory_b = malloc(tile_memory_size);
-		assert(tile_memory_a != NULL);
-		assert(tile_memory_b != NULL);
+		int16_t* workarea_a = malloc(workarea_size);
+		int16_t* workarea_b = malloc(workarea_size);
+		assert(workarea_a != NULL);
+		assert(workarea_b != NULL);
 
-		memset(tile_memory_a, 0, tile_memory_size);
-		memset(tile_memory_b, 0, tile_memory_size);
+		memset(aux_memory, 0, sizeof(int16_t) * s->tiles_dimension * 4);
+		memset(workarea_a, 0, workarea_size);
+		memset(workarea_b, 0, workarea_size);
 
 		size_t col = 0;
 		size_t row = 0;
-		size_t tile_width = 0;
-		size_t tile_height = 0;
+		size_t tile_w = 0;
+		size_t tile_h = 0;
 		size_t tile_size = 0;
+		size_t planes_space = 0;
 
 		for (size_t i = 0; i < tiles_no; i++)
 		{
 			// Tile dimensions, border tiles not always are square
-			tile_width = s->tiles_dimension;
-			tile_height = s->tiles_dimension;
+			tile_w = s->tiles_dimension;
+			tile_h = s->tiles_dimension;
 
-			if ((col + s->tiles_dimension) > width)
-				tile_width = width - col;
-			if ((row + s->tiles_dimension) > height)
-				tile_height = height - row;
+			if ((col + s->tiles_dimension) > image_w)
+				tile_w = image_w - col;
+			if ((row + s->tiles_dimension) > image_h)
+				tile_h = image_h - row;
 
-			tile_size = TileLength(tile_width, tile_height) * sizeof(int16_t) * channels;
-			DevPrintf("###\t[Tile %zu, x: %zu, y: %zu, %zux%zu px]\n", i, col, row, tile_width, tile_height);
+			tile_size = TileTotalLength(tile_w, tile_h, NULL, NULL) * sizeof(int16_t) * channels;
+
+			planes_space = 0; // Non divisible by two dimensions add an extra row and/or column
+			planes_space = (tile_w % 2 == 0) ? planes_space : (planes_space + tile_h);
+			planes_space = (tile_h % 2 == 0) ? planes_space : (planes_space + tile_w);
+
+			DevPrintf("###\t[Tile %zu, x: %zu, y: %zu, %zux%zu px, spacing: %zu]\n", i, col, row, tile_w, tile_h,
+			          planes_space);
 
 			// Proccess
-			FormatToPlanarI16YUV(tile_width, tile_height, channels, width, in + (width * row + col) * channels,
-			                     tile_memory_a);
-			DwtTransform(tile_width, tile_height, channels, aux_memory, tile_memory_a, tile_memory_b);
+			FormatToPlanarI16YUV(tile_w, tile_h, channels, planes_space, image_w, in + (image_w * row + col) * channels,
+			                     workarea_a);
+			DwtTransform(s, tile_w, tile_h, channels, planes_space, aux_memory, workarea_a, workarea_b);
 
 			// Resize blob
 			{
-				blob_memory_size = blob_memory_size + tile_size;
-				blob_memory = realloc(blob_memory, blob_memory_size); // TODO, use a exponential-growth buffer thing
-				assert(blob_memory != NULL);
+				blob_size = blob_size + tile_size;
+				blob = realloc(blob, blob_size); // TODO, use a exponential-growth buffer thing
+				assert(blob != NULL);
 			}
 
 			// """Compress"""
 			{
-				memcpy((uint8_t*)blob_memory + (blob_memory_size - tile_size), tile_memory_b, tile_size);
+				memcpy((uint8_t*)blob + (blob_size - tile_size), workarea_b, tile_size);
 			}
 
 			// Developers, developers, developers
-			sDevDumpTiles(tile_width, tile_height, channels, i, tile_memory_b);
+			sDevDumpTiles(tile_w, tile_h, channels, i, workarea_b);
 
 			// Next tile
-			col = col + tile_width;
-			if (col >= width)
+			col = col + tile_w;
+			if (col >= image_w)
 			{
 				col = 0;
-				row = row + tile_height;
+				row = row + tile_h;
 			}
 		}
 
 		free(aux_memory);
-		free(tile_memory_a);
-		free(tile_memory_b);
+		free(workarea_a);
+		free(workarea_b);
 	}
 
 	// Bye!
-	*out = blob_memory;
-	return blob_memory_size;
+	*out = blob;
+	return blob_size;
 }

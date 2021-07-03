@@ -10,9 +10,13 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-void DwtTransform(size_t width, size_t height, size_t channels, void* aux_memory, const int16_t* input,
-                  int16_t* output);
-void InverseDwtTransform(size_t width, size_t height, size_t channels, void* aux_memory, const int16_t* input,
-                         int16_t* output);
+#include "ako.h"
+
+void DwtTransform(const struct AkoSettings* s, size_t width, size_t height, size_t channels, size_t planes_space,
+                  int16_t* aux_memory, int16_t* input,
+                  int16_t* output); // Destroys 'input'
+void InverseDwtTransform(size_t width, size_t height, size_t channels, size_t planes_space, int16_t* aux_memory,
+                         int16_t* input,
+                         int16_t* output); // Destroys 'input'
 
 #endif

@@ -44,86 +44,96 @@ extern void DevBenchmarkStart(const char* name);
 extern void DevBenchmarkStop();
 extern void DevBenchmarkTotal();
 extern void DevPrintf(const char* format, ...);
-extern void DevSaveGrayPgm(size_t width, size_t height, const int16_t* data, const char* filename_format, ...);
+extern void DevSaveGrayPgm(size_t width, size_t height, size_t in_pitch, const int16_t* data,
+                           const char* filename_format, ...);
 
 
-uint8_t* AkoDecode(size_t input_size, const void* in, size_t* out_width, size_t* out_height, size_t* out_channels)
+uint8_t* AkoDecode(size_t input_size, const void* in, size_t* out_w, size_t* out_h, size_t* out_channels)
 {
-	size_t width, height, channels, tiles_dimension;
+	size_t image_w, image_h, channels, tiles_dimension;
+	FrameRead(in, input_size, &image_w, &image_h, &channels, &tiles_dimension);
 
-	FrameRead(in, input_size, &width, &height, &channels, &tiles_dimension);
+	const size_t tiles_no = TilesNo(image_w, image_h, tiles_dimension);
+	DevPrintf("###\t[%zux%zu px , %zu channels, %zu px tiles, %zu tiles]\n", image_w, image_h, channels,
+	          tiles_dimension, tiles_no);
 
-	const size_t tiles_no = TilesNo(width, height, tiles_dimension);
-	const size_t tile_memory_size = TileWorstLength(width, height, tiles_dimension) * sizeof(int16_t) * channels;
-	DevPrintf("###\t[%zux%zu px , %zu channels, %zu px tiles, %zu tiles, reserved %zu bytes]\n", width, height,
-	          channels, tiles_dimension, tiles_no, tile_memory_size);
+	const size_t workarea_size = WorkareaLength(image_w, image_h, tiles_dimension) * channels * sizeof(int16_t);
+	DevPrintf("###\t[Workarea of %.2f kB]\n", (float)workarea_size / 500.0f);
 
-	uint8_t* image_memory = malloc(sizeof(uint8_t) * width * height * channels);
+	uint8_t* image_memory = malloc(sizeof(uint8_t) * image_w * image_h * channels);
 	assert(image_memory != NULL);
 
 	// Proccess tiles
 	{
-		void* aux_memory = malloc(sizeof(int16_t) * tiles_dimension * 2); // Two scanlines
+		void* aux_memory = malloc(workarea_size / 2 + sizeof(int16_t) * tiles_dimension * 4); // Four scanlines
 		assert(aux_memory != NULL);
 
-		int16_t* tile_memory_a = malloc(tile_memory_size);
-		int16_t* tile_memory_b = malloc(tile_memory_size);
-		assert(tile_memory_a != NULL);
-		assert(tile_memory_b != NULL);
+		int16_t* workarea_a = malloc(workarea_size);
+		int16_t* workarea_b = malloc(workarea_size);
+		assert(workarea_a != NULL);
+		assert(workarea_b != NULL);
 
-		memset(tile_memory_a, 0, tile_memory_size);
-		memset(tile_memory_b, 0, tile_memory_size);
+		memset(aux_memory, 0, workarea_size / 2 + sizeof(int16_t) * tiles_dimension * 4);
+		memset(workarea_a, 0, workarea_size);
+		memset(workarea_b, 0, workarea_size);
 
 		size_t col = 0;
 		size_t row = 0;
-		size_t tile_width = 0;
-		size_t tile_height = 0;
+		size_t tile_w = 0;
+		size_t tile_h = 0;
 		size_t tile_size = 0;
+		size_t planes_space = 0;
 
 		const uint8_t* blob = (const uint8_t*)in + sizeof(struct AkoHead);
 
 		for (size_t i = 0; i < tiles_no; i++)
 		{
 			// Tile dimensions, border tiles not always are square
-			tile_width = tiles_dimension;
-			tile_height = tiles_dimension;
+			tile_w = tiles_dimension;
+			tile_h = tiles_dimension;
 
-			if ((col + tiles_dimension) > width)
-				tile_width = width - col;
-			if ((row + tiles_dimension) > height)
-				tile_height = height - row;
+			if ((col + tiles_dimension) > image_w)
+				tile_w = image_w - col;
+			if ((row + tiles_dimension) > image_h)
+				tile_h = image_h - row;
 
-			tile_size = TileLength(tile_width, tile_height) * sizeof(int16_t) * channels;
-			DevPrintf("###\t[Tile %zu, x: %zu, y: %zu, %zux%zu px]\n", i, col, row, tile_width, tile_height);
+			tile_size = TileTotalLength(tile_w, tile_h, NULL, NULL) * sizeof(int16_t) * channels;
+
+			planes_space = 0; // Non divisible by two dimensions add an extra row and/or column
+			planes_space = (tile_w % 2 == 0) ? planes_space : (planes_space + tile_w);
+			planes_space = (tile_h % 2 == 0) ? planes_space : (planes_space + tile_h);
+
+			DevPrintf("###\t[Tile %zu, x: %zu, y: %zu, %zux%zu px, spacing: %zu]\n", i, col, row, tile_w, tile_h,
+			          planes_space);
 
 			// """Decompress"""
 			{
-				memcpy(tile_memory_a, blob, tile_size);
+				memcpy(workarea_a, blob, tile_size);
 				blob = blob + tile_size;
 			}
 
 			// Proccess
-			InverseDwtTransform(tile_width, tile_height, channels, aux_memory, tile_memory_a, tile_memory_b);
-			FormatToInterlacedU8RGB(tile_width, tile_height, channels, width, tile_memory_b,
-			                        image_memory + (width * row + col) * channels);
+			InverseDwtTransform(tile_w, tile_h, channels, planes_space, aux_memory, workarea_a, workarea_b);
+			FormatToInterlacedU8RGB(tile_w, tile_h, channels, planes_space, image_w, workarea_b,
+			                        image_memory + (image_w * row + col) * channels);
 
 			// Next tile
-			col = col + tile_width;
-			if (col >= width)
+			col = col + tile_w;
+			if (col >= image_w)
 			{
 				col = 0;
-				row = row + tile_height;
+				row = row + tile_h;
 			}
 		}
 
 		free(aux_memory);
-		free(tile_memory_a);
-		free(tile_memory_b);
+		free(workarea_a);
+		free(workarea_b);
 	}
 
 	// Bye!
-	*out_width = width;
-	*out_height = height;
+	*out_w = image_w;
+	*out_h = image_h;
 	*out_channels = channels;
 	return image_memory;
 }

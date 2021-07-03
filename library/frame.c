@@ -86,7 +86,7 @@ void FrameRead(const void* input, size_t input_size, size_t* out_width, size_t* 
 	*out_width = (size_t)head->width;
 	*out_height = (size_t)head->height;
 	*out_channels = (size_t)(head->format >> 4) + 1;
-	*out_tiles_dimensions = s_valid_tiles_dimensions[head->format & 0b00000111];
+	*out_tiles_dimensions = s_valid_tiles_dimensions[head->format & 0b00001111];
 
 	assert(*out_width != 0);
 	assert(*out_height != 0);
