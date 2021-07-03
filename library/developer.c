@@ -87,7 +87,7 @@ void DevBenchmarkTotal() {}
 
 
 #if (AKO_DEV_SAVE_IMAGES == 1)
-void DevSaveGrayPgm(size_t width, size_t height, const int16_t* data, const char* filename_format, ...)
+void DevSaveGrayPgm(size_t width, size_t height, size_t in_pitch, const int16_t* data, const char* filename_format, ...)
 {
 	char filename[256];
 	va_list args;
@@ -99,19 +99,22 @@ void DevSaveGrayPgm(size_t width, size_t height, const int16_t* data, const char
 	FILE* fp = fopen(filename, "wb");
 	fprintf(fp, "P5\n%zu\n%zu\n255\n", width, height);
 
-	for (size_t i = 0; i < (width * height); i++)
-	{
-		uint8_t p = (data[i] > 0) ? (data[i] < 255) ? (uint8_t)data[i] : 255 : 0;
-		fwrite(&p, 1, 1, fp);
-	}
+	for (size_t row = 0; row < height; row++)
+		for (size_t col = 0; col < width; col++)
+		{
+			const int16_t* in = &data[(row * in_pitch) + col];
+			uint8_t p = (*in > 0) ? (*in < 255) ? (uint8_t)*in : 255 : 0;
+			fwrite(&p, 1, 1, fp);
+		}
 
 	fclose(fp);
 }
 #else
-void DevSaveGrayPgm(size_t width, size_t height, const int16_t* data, const char* filename_format, ...)
+void DevSaveGrayPgm(size_t width, size_t height, size_t in_pitch, const int16_t* data, const char* filename_format, ...)
 {
 	(void)width;
 	(void)height;
+	(void)in_pitch;
 	(void)data;
 	(void)filename_format;
 }
