@@ -247,8 +247,8 @@ void DwtTransform(const struct AkoSettings* s, size_t tile_w, size_t tile_h, siz
 			// Developers, developers, developers
 			DevSaveGrayPgm(target_w * 2, target_h * 2, target_w * 2, in, "/tmp/lift-ch%zu-%zu.pgm", ch, lift);
 
-			if (ch == 0)
-				DevPrintf("###\t - Lift %zu, %zux%zu <- %zux%zu px\n", lift, target_w, target_h, current_w, current_h);
+			// if (ch == 0)
+			//	DevPrintf("###\t - Lift %zu, %zux%zu <- %zux%zu px\n", lift, target_w, target_h, current_w, current_h);
 
 			// Emit
 			output_cursor = output_cursor - (target_w * target_h) * 3; // Three highpasses...

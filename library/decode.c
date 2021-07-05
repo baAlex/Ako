@@ -81,7 +81,7 @@ uint8_t* AkoDecode(size_t input_size, const void* in, size_t* out_w, size_t* out
 		size_t row = 0;
 		size_t tile_w = 0;
 		size_t tile_h = 0;
-		size_t tile_size = 0;
+		size_t tile_length = 0;
 		size_t planes_space = 0;
 
 		const uint8_t* blob = (const uint8_t*)in + sizeof(struct AkoHead);
@@ -97,19 +97,28 @@ uint8_t* AkoDecode(size_t input_size, const void* in, size_t* out_w, size_t* out
 			if ((row + tiles_dimension) > image_h)
 				tile_h = image_h - row;
 
-			tile_size = TileTotalLength(tile_w, tile_h, NULL, NULL) * sizeof(int16_t) * channels;
+			tile_length = TileTotalLength(tile_w, tile_h, NULL, NULL) * channels;
 
 			planes_space = 0; // Non divisible by two dimensions add an extra row and/or column
-			planes_space = (tile_w % 2 == 0) ? planes_space : (planes_space + tile_w);
-			planes_space = (tile_h % 2 == 0) ? planes_space : (planes_space + tile_h);
+			planes_space = (tile_w % 2 == 0) ? planes_space : (planes_space + tile_h);
+			planes_space = (tile_h % 2 == 0) ? planes_space : (planes_space + tile_w);
 
 			DevPrintf("###\t[Tile %zu, x: %zu, y: %zu, %zux%zu px, spacing: %zu]\n", i, col, row, tile_w, tile_h,
 			          planes_space);
 
-			// """Decompress"""
+			// Decompress
 			{
-				memcpy(workarea_a, blob, tile_size);
-				blob = blob + tile_size;
+				size_t compressed_size = *((uint32_t*)blob);
+
+#if (AKO_COMPRESSION == 1)
+				memset(workarea_a, 0, workarea_size); // FIXME, EntropyDecompress() error
+
+				EntropyDecompress(compressed_size, tile_length, blob + sizeof(uint32_t), workarea_a);
+				blob = blob + compressed_size + sizeof(uint32_t);
+#else
+				memcpy(workarea_a, blob + sizeof(uint32_t), compressed_size);
+				blob = blob + compressed_size + sizeof(uint32_t);
+#endif
 			}
 
 			// Proccess
