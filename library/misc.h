@@ -12,7 +12,7 @@
 size_t TilesNo(size_t image_w, size_t image_h, size_t tiles_dimension);
 
 size_t TileTotalLifts(size_t tile_w, size_t tile_h);
-size_t TileTotalLength(size_t tile_w, size_t tile_h, size_t* out_worst_w, size_t* out_worst_h);
+size_t TileTotalLength(size_t tile_w, size_t tile_h);
 
 size_t WorkareaLength(size_t image_w, size_t image_h, size_t tiles_dimension);
 

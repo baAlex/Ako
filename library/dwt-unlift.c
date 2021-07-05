@@ -187,10 +187,15 @@ static inline void sCurrentSize(size_t total_lifts, size_t lift, size_t final_w,
 
 
 void InverseDwtTransform(size_t tile_w, size_t tile_h, size_t channels, size_t planes_space, int16_t* aux_memory,
-                         int16_t* input, int16_t* output)
+                         int16_t* in, int16_t* out)
 {
 #if (AKO_WAVELET == 0)
-	memcpy(output, input, sizeof(int16_t) * tile_w * tile_h * channels);
+	for (size_t ch = 0; ch < channels; ch++)
+	{
+		int16_t* temp = out + ((tile_w * tile_h) + planes_space) * ch;
+		memcpy(temp, in, sizeof(int16_t) * tile_w * tile_h);
+		in = in + tile_w * tile_h;
+	}
 	return;
 #endif
 
@@ -201,18 +206,18 @@ void InverseDwtTransform(size_t tile_w, size_t tile_h, size_t channels, size_t p
 	size_t target_w = 0;
 	size_t target_h = 0;
 
-	int16_t* input_cursor = input;
+	int16_t* input_cursor = in;
 	size_t lp_pitch = 0;
 
 	// Lowpasses (one per-channel)
 	for (size_t ch = 0; ch < channels; ch++)
 	{
 		sCurrentSize(total_lifts, 0, tile_w, tile_h, &current_w, &current_h, &target_w, &target_h);
-		int16_t* out = output + ((tile_w * tile_h) + planes_space) * ch;
+		int16_t* lp = out + ((tile_w * tile_h) + planes_space) * ch;
 
 		for (size_t r = 0; r < current_h; r++)
 		{
-			memcpy(out + (current_w * r), input_cursor, sizeof(int16_t) * current_w);
+			memcpy(lp + (current_w * r), input_cursor, sizeof(int16_t) * current_w);
 			input_cursor = input_cursor + current_w; // One lowpass...
 		}
 	}
@@ -225,15 +230,15 @@ void InverseDwtTransform(size_t tile_w, size_t tile_h, size_t channels, size_t p
 		for (size_t ch = 0; ch < channels; ch++)
 		{
 			// Unlift
-			int16_t* out = output + ((tile_w * tile_h) + planes_space) * ch;
+			int16_t* lp = out + ((tile_w * tile_h) + planes_space) * ch;
 
 			lp_pitch = ((current_w % 2) == 0 || unlift == 0) ? current_w : current_w + 1;
 
-			sUnlift2d(current_w, current_h, target_w, target_h, lp_pitch, aux_memory, out, input_cursor);
+			sUnlift2d(current_w, current_h, target_w, target_h, lp_pitch, aux_memory, lp, input_cursor);
 			input_cursor = input_cursor + (current_w * current_h) * 3; // ...And three highpasses
 
 			// Developers, developers, developers
-			DevSaveGrayPgm(current_w * 2, current_h * 2, current_w * 2, out, "/tmp/unlift-ch%zu-%zu.pgm", ch, unlift);
+			DevSaveGrayPgm(current_w * 2, current_h * 2, current_w * 2, lp, "/tmp/unlift-ch%zu-%zu.pgm", ch, unlift);
 
 			// if (ch == 0)
 			//	DevPrintf("###\t - Unlift %zu, %zux%zu -> %zux%zu px\n", unlift, current_w, current_h, target_w,
