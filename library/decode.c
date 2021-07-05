@@ -44,8 +44,6 @@ extern void DevBenchmarkStart(const char* name);
 extern void DevBenchmarkStop();
 extern void DevBenchmarkTotal();
 extern void DevPrintf(const char* format, ...);
-extern void DevSaveGrayPgm(size_t width, size_t height, size_t in_pitch, const int16_t* data,
-                           const char* filename_format, ...);
 
 
 uint8_t* AkoDecode(size_t input_size, const void* in, size_t* out_w, size_t* out_h, size_t* out_channels)
@@ -97,7 +95,7 @@ uint8_t* AkoDecode(size_t input_size, const void* in, size_t* out_w, size_t* out
 			if ((row + tiles_dimension) > image_h)
 				tile_h = image_h - row;
 
-			tile_length = TileTotalLength(tile_w, tile_h, NULL, NULL) * channels;
+			tile_length = TileTotalLength(tile_w, tile_h) * channels;
 
 			planes_space = 0; // Non divisible by two dimensions add an extra row and/or column
 			planes_space = (tile_w % 2 == 0) ? planes_space : (planes_space + tile_h);

@@ -44,28 +44,6 @@ extern void DevBenchmarkStart(const char* name);
 extern void DevBenchmarkStop();
 extern void DevBenchmarkTotal();
 extern void DevPrintf(const char* format, ...);
-extern void DevSaveGrayPgm(size_t width, size_t height, size_t in_pitch, const int16_t* data,
-                           const char* filename_format, ...);
-
-
-static void sDevDumpTiles(size_t width, size_t height, size_t channels, size_t tile_no, const int16_t* in)
-{
-	switch (channels)
-	{
-	case 4:
-		DevSaveGrayPgm(width, height, width, in + (width * height) * 3, "/tmp/tile-%02zu-a.pgm",
-		               tile_no); // Fallthrough
-	case 3:
-		DevSaveGrayPgm(width, height, width, in + (width * height) * 2, "/tmp/tile-%02zu-v.pgm",
-		               tile_no); // Fallthrough
-	case 2:
-		DevSaveGrayPgm(width, height, width, in + (width * height) * 1, "/tmp/tile-%02zu-u.pgm",
-		               tile_no); // Fallthrough
-	case 1:
-		DevSaveGrayPgm(width, height, width, in + (width * height) * 0, "/tmp/tile-%02zu-y.pgm",
-		               tile_no); // Fallthrough
-	}
-}
 
 
 size_t AkoEncode(size_t image_w, size_t image_h, size_t channels, const struct AkoSettings* s, const uint8_t* in,
@@ -112,7 +90,7 @@ size_t AkoEncode(size_t image_w, size_t image_h, size_t channels, const struct A
 			if ((row + s->tiles_dimension) > image_h)
 				tile_h = image_h - row;
 
-			tile_length = TileTotalLength(tile_w, tile_h, NULL, NULL) * channels;
+			tile_length = TileTotalLength(tile_w, tile_h) * channels;
 
 			planes_space = 0; // Non divisible by two dimensions add an extra row and/or column
 			planes_space = (tile_w % 2 == 0) ? planes_space : (planes_space + tile_h);
@@ -128,29 +106,31 @@ size_t AkoEncode(size_t image_w, size_t image_h, size_t channels, const struct A
 
 			// Compress
 			{
+				// Calculate size of compressed data
 #if (AKO_COMPRESSION == 1)
 				size_t compressed_size = EntropyCompress(tile_length, workarea_b, NULL);
-				assert(compressed_size <= UINT32_MAX);
 #else
 				size_t compressed_size = tile_length * sizeof(uint16_t);
 #endif
 
+				// Realloc blob
 				blob_size = blob_size + compressed_size + sizeof(uint32_t);
 				blob = realloc(blob, blob_size); // TODO, use a exponential-growth buffer thing
 				assert(blob != NULL);
 
+				// Compressed size at the first 4 bytes
+				assert(compressed_size <= UINT32_MAX);
+
+				uint32_t* temp = (uint32_t*)((uint8_t*)blob + (blob_size - compressed_size - sizeof(uint32_t)));
+				*temp = (uint32_t)compressed_size;
+
+				// Compressed data
 #if (AKO_COMPRESSION == 1)
 				EntropyCompress(tile_length, workarea_b, (uint8_t*)blob + (blob_size - compressed_size));
 #else
 				memcpy((uint8_t*)blob + (blob_size - compressed_size), workarea_b, compressed_size);
 #endif
-
-				uint32_t* temp = (uint32_t*)((uint8_t*)blob + (blob_size - compressed_size - sizeof(uint32_t)));
-				*temp = (uint32_t)compressed_size;
 			}
-
-			// Developers, developers, developers
-			sDevDumpTiles(tile_w, tile_h, channels, i, workarea_b);
 
 			// Next tile
 			col = col + tile_w;

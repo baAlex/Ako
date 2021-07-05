@@ -61,10 +61,9 @@ AKO_EXPORT const char* AkoVersionString();
 
 //
 
-#define AKO_COMPRESSION 1
-
-#define AKO_COLORSPACE 1 // 0 = RGB, 1 = YCOCG, 2 = YCOCG-R (reversible)
-#define AKO_WAVELET 3    // 0 = None, 1 = Haar, 2 = CDF53, 3 = 97DD
+#define AKO_COMPRESSION 1 // 0 = None, 1 = Elias gamma coding
+#define AKO_COLORSPACE 1  // 0 = RGB, 1 = YCOCG, 2 = YCOCG-R (reversible)
+#define AKO_WAVELET 3     // 0 = None, 1 = Haar, 2 = CDF53, 3 = 97DD
 
 // Haar: Haar wavelet
 // The traditional one not suitable for integer arithmetics (lossy)

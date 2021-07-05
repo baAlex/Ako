@@ -87,8 +87,8 @@ static inline void sToRgb(int16_t y, int16_t u, int16_t v, int16_t* r, int16_t* 
 }
 
 
-void FormatToPlanarI16YUV(size_t width, size_t height, size_t channels, size_t planes_space, size_t in_pitch,
-                          const uint8_t* in, int16_t* out)
+void FormatToPlanarI16YUV(size_t w, size_t h, size_t channels, size_t planes_space, size_t in_pitch, const uint8_t* in,
+                          int16_t* out)
 {
 	// De-interlace into planes
 	// From here 'out' is an image on its own, of
@@ -99,8 +99,8 @@ void FormatToPlanarI16YUV(size_t width, size_t height, size_t channels, size_t p
 
 		for (size_t ch = 0; ch < channels; ch++)
 		{
-			for (size_t row = 0; row < (height * in_pitch); row += in_pitch)
-				for (size_t col = 0; col < (width * channels); col += channels)
+			for (size_t row = 0; row < (h * in_pitch); row += in_pitch)
+				for (size_t col = 0; col < (w * channels); col += channels)
 				{
 					*planar_out = (int16_t)in[row + col + ch];
 					planar_out = planar_out + 1;
@@ -113,54 +113,59 @@ void FormatToPlanarI16YUV(size_t width, size_t height, size_t channels, size_t p
 	// Set to zero pixels behind an alpha of zero
 	if (channels == 4)
 	{
-		for (size_t i = 0; i < (width * height); i++)
+		for (size_t i = 0; i < (w * h); i++)
 		{
-			if (out[((width * height) + planes_space) * 3 + i] == 0) // Alpha
+			if (out[((w * h) + planes_space) * 3 + i] == 0) // Alpha
 			{
-				out[((width * height) + planes_space) * 0 + i] = 0; // RGB
-				out[((width * height) + planes_space) * 1 + i] = 0;
-				out[((width * height) + planes_space) * 2 + i] = 0;
+				out[((w * h) + planes_space) * 0 + i] = 0; // RGB
+				out[((w * h) + planes_space) * 1 + i] = 0;
+				out[((w * h) + planes_space) * 2 + i] = 0;
 			}
 		}
 	}
 	else if (channels == 2)
 	{
-		for (size_t i = 0; i < (width * height); i++)
+		for (size_t i = 0; i < (w * h); i++)
 		{
-			if (out[((width * height) + planes_space) * 1 + i] == 1) // Alpha
-				out[((width * height) + planes_space) * 0 + i] = 0;  // Gray
+			if (out[((w * h) + planes_space) * 1 + i] == 1) // Alpha
+				out[((w * h) + planes_space) * 0 + i] = 0;  // Gray
 		}
 	}
 
 	// Color transformation
 	if (channels == 3 || channels == 4)
 	{
-		for (size_t i = 0; i < (width * height); i++)
+		for (size_t i = 0; i < (w * h); i++)
 		{
 			int16_t y, u, v;
 
-			sToYuv(out[((width * height) + planes_space) * 0 + i], out[((width * height) + planes_space) * 1 + i],
-			       out[((width * height) + planes_space) * 2 + i], &y, &u, &v);
+			sToYuv(out[((w * h) + planes_space) * 0 + i], out[((w * h) + planes_space) * 1 + i],
+			       out[((w * h) + planes_space) * 2 + i], &y, &u, &v);
 
-			out[((width * height) + planes_space) * 0 + i] = y;
-			out[((width * height) + planes_space) * 1 + i] = u;
-			out[((width * height) + planes_space) * 2 + i] = v;
+			out[((w * h) + planes_space) * 0 + i] = y;
+			out[((w * h) + planes_space) * 1 + i] = u;
+			out[((w * h) + planes_space) * 2 + i] = v;
 		}
 	}
 }
 
 
-void FormatToInterlacedU8RGB(size_t width, size_t height, size_t channels, size_t planes_space, size_t out_pitch,
-                             int16_t* in, uint8_t* out)
+void FormatToInterlacedU8RGB(size_t w, size_t h, size_t channels, size_t planes_space, size_t out_pitch, int16_t* in,
+                             uint8_t* out)
 {
-	size_t in_pitch = (width % 2 == 0) ? width : width + 1; // TODO, find a better place where put this
-	size_t plane = width * height + planes_space;
+#if (AKO_WAVELET == 0)
+	size_t in_pitch = w;
+#else
+	size_t in_pitch = (w % 2 == 0) ? w : w + 1; // TODO, find a better place where put this
+#endif
+
+	size_t plane = w * h + planes_space;
 
 	// Color transformation
 	if (channels == 4)
 	{
-		for (size_t row = 0; row < height; row++)
-			for (size_t col = 0; col < width; col++)
+		for (size_t row = 0; row < h; row++)
+			for (size_t col = 0; col < w; col++)
 			{
 				const int16_t a = in[(row * in_pitch) + col + plane * 3];
 				int16_t r, g, b;
@@ -176,8 +181,8 @@ void FormatToInterlacedU8RGB(size_t width, size_t height, size_t channels, size_
 	}
 	else if (channels == 3)
 	{
-		for (size_t row = 0; row < height; row++)
-			for (size_t col = 0; col < width; col++)
+		for (size_t row = 0; row < h; row++)
+			for (size_t col = 0; col < w; col++)
 			{
 				int16_t r, g, b;
 
@@ -191,8 +196,8 @@ void FormatToInterlacedU8RGB(size_t width, size_t height, size_t channels, size_
 	}
 	else
 	{
-		for (size_t row = 0; row < height; row++)
-			for (size_t col = 0; col < width; col++)
+		for (size_t row = 0; row < h; row++)
+			for (size_t col = 0; col < w; col++)
 			{
 				const int16_t c = in[(row * in_pitch) + col];
 				in[(row * in_pitch) + col] = (c > 0) ? (c < 255) ? c : 255 : 0;
@@ -202,8 +207,8 @@ void FormatToInterlacedU8RGB(size_t width, size_t height, size_t channels, size_
 	// Interlace from planes
 	out_pitch = out_pitch * channels;
 
-	for (size_t row = 0; row < height; row++)
-		for (size_t col = 0; col < width; col++)
+	for (size_t row = 0; row < h; row++)
+		for (size_t col = 0; col < w; col++)
 		{
 			for (size_t ch = 0; ch < channels; ch++)
 				out[(row * out_pitch) + col * channels + ch] = (uint8_t)in[(row * in_pitch) + col + plane * ch];

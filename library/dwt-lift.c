@@ -111,7 +111,7 @@ static void sLift1d(const struct AkoSettings* s, size_t ch, float q, size_t len,
 	// Degrade highpass
 	for (size_t i = 0; i < len; i++)
 	{
-		// Gate
+		// Noise gate
 		const float gate = (s->detail_gate[ch] * q);
 
 		if ((float)out[len + i] > -gate && (float)out[len + i] < gate)
@@ -149,7 +149,7 @@ static inline void s2dToLinearV(size_t w, size_t h, size_t in_pitch, const int16
 static inline void sLift2d(const struct AkoSettings* s, size_t ch, float q, size_t current_w, size_t current_h,
                            size_t target_w, size_t target_h, size_t in_pitch, int16_t* aux, int16_t* a, int16_t* b)
 {
-	// Rows (from A to B)
+	// Rows (from buffer A to B)
 	{
 		const size_t fake_last_col = (target_w * 2) - current_w;
 		const size_t fake_last_row = (target_h * 2) - current_h;
@@ -175,7 +175,7 @@ static inline void sLift2d(const struct AkoSettings* s, size_t ch, float q, size
 			memcpy(out, out - (target_w * 2), sizeof(int16_t) * (target_w * 2));
 	}
 
-	// Columns (from B to A)
+	// Columns (from buffer B to A)
 	for (size_t col = 0; col < (target_w * 2); col++)
 	{
 		int16_t* temp = b + col;
@@ -198,10 +198,15 @@ static inline void sLift2d(const struct AkoSettings* s, size_t ch, float q, size
 
 
 void DwtTransform(const struct AkoSettings* s, size_t tile_w, size_t tile_h, size_t channels, size_t planes_space,
-                  int16_t* aux_memory, int16_t* input, int16_t* output)
+                  int16_t* aux_memory, int16_t* in, int16_t* out)
 {
 #if (AKO_WAVELET == 0)
-	memcpy(output, input, sizeof(int16_t) * tile_w * tile_h * channels);
+	for (size_t ch = 0; ch < channels; ch++)
+	{
+		int16_t* temp = in + ((tile_w * tile_h) + planes_space) * ch;
+		memcpy(out, temp, sizeof(int16_t) * tile_w * tile_h);
+		out = out + tile_w * tile_h;
+	}
 	return;
 #endif
 
@@ -212,8 +217,7 @@ void DwtTransform(const struct AkoSettings* s, size_t tile_w, size_t tile_h, siz
 	size_t target_w = tile_w;
 	size_t target_h = tile_h;
 
-	int16_t* output_cursor = output + TileTotalLength(tile_w, tile_h, NULL, NULL) * channels; // Output end
-
+	int16_t* output_cursor = out + TileTotalLength(tile_w, tile_h) * channels; // Output end
 	float q = 1.0f;
 
 	// Highpasses
@@ -229,40 +233,49 @@ void DwtTransform(const struct AkoSettings* s, size_t tile_w, size_t tile_h, siz
 		for (size_t ch = (channels - 1); ch < channels; ch--) // ... and yes, underflows
 		{
 			// Lift
-			// The nomeclature 'input/output' is misleading, I'm using both
-			// as 'a' or 'b' acordding the occasion.
-			int16_t* in = input + ((tile_w * tile_h) + planes_space) * ch;
+			int16_t* lp = in + ((tile_w * tile_h) + planes_space) * ch;
 
 			if (lift == 0)
 			{
-				int16_t* out = output + (tile_w * tile_h) * ch;
-				sLift2d(s, ch, q, tile_w, tile_h, target_w, target_h, 0, aux_memory, in, out);
+				// The first lift needs a buffer 'b' of the same size than the input,
+				// and we don't have one, but right now 'out' is empty
+				int16_t* buffer_b = out + (tile_w * tile_h) * ch;
+				sLift2d(s, ch, q, tile_w, tile_h, target_w, target_h, 0, aux_memory, lp, buffer_b);
 			}
 			else
 			{
-				sLift2d(s, ch, q, current_w, current_h, target_w, target_h, current_w, aux_memory, in,
-				        in + (current_w * current_h * 2)); // FIXME? ('b' argument)
+				// Following lifts are one quarter of size, thus they fit in the last
+				// half of the input
+				sLift2d(s, ch, q, current_w, current_h, target_w, target_h, current_w, aux_memory, lp,
+				        lp + (current_w * current_h * 2));
 			}
 
 			// Developers, developers, developers
-			DevSaveGrayPgm(target_w * 2, target_h * 2, target_w * 2, in, "/tmp/lift-ch%zu-%zu.pgm", ch, lift);
+			DevSaveGrayPgm(target_w * 2, target_h * 2, target_w * 2, lp, "/tmp/lift-ch%zu-%zu.pgm", ch, lift);
 
 			// if (ch == 0)
 			//	DevPrintf("###\t - Lift %zu, %zux%zu <- %zux%zu px\n", lift, target_w, target_h, current_w, current_h);
 
 			// Emit
+			// Up to here the only thing we did was to modify 'lp', now it holds four
+			// quadrants: LP, B, C and D, where the last three are highpass coefficients
+			// (in classic nomeclanture those highpasses are HL, LH and HH)
+
+			// We need to output the highpasses, LP remains in place for the following
+			// lift step
+
 			output_cursor = output_cursor - (target_w * target_h) * 3; // Three highpasses...
 
 			s2dToLinearV(target_w, target_h, (target_w * 2),
-			             in + target_w * target_h * 2,               //
+			             lp + target_w * target_h * 2,               //
 			             output_cursor + (target_w * target_h) * 0); // C
 
 			s2dToLinearV(target_w, target_h, (target_w * 2),
-			             in + target_w,                              //
+			             lp + target_w,                              //
 			             output_cursor + (target_w * target_h) * 1); // B
 
 			s2dToLinearV(target_w, target_h, (target_w * 2),
-			             in + target_w + target_h * (target_w * 2),  //
+			             lp + target_w + target_h * (target_w * 2),  //
 			             output_cursor + (target_w * target_h) * 2); // D
 		}
 
@@ -275,9 +288,9 @@ void DwtTransform(const struct AkoSettings* s, size_t tile_w, size_t tile_h, siz
 	{
 		output_cursor = output_cursor - (target_w * target_h); // ..And one lowpass
 
-		int16_t* in = input + ((tile_w * tile_h) + planes_space) * ch;
-		s2dToLinearH(target_w, target_h, (target_w * 2), in, output_cursor);
+		int16_t* lp = in + ((tile_w * tile_h) + planes_space) * ch;
+		s2dToLinearH(target_w, target_h, (target_w * 2), lp, output_cursor);
 	}
 
-	assert((output_cursor - output) == 0);
+	assert((output_cursor - out) == 0);
 }
