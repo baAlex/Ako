@@ -94,15 +94,11 @@ size_t AkoEncode(size_t image_w, size_t image_h, size_t channels, const struct A
 		assert(workarea_a != NULL);
 		assert(workarea_b != NULL);
 
-		memset(aux_memory, 0, sizeof(int16_t) * s->tiles_dimension * 4);
-		memset(workarea_a, 0, workarea_size);
-		memset(workarea_b, 0, workarea_size);
-
 		size_t col = 0;
 		size_t row = 0;
 		size_t tile_w = 0;
 		size_t tile_h = 0;
-		size_t tile_size = 0;
+		size_t tile_length = 0;
 		size_t planes_space = 0;
 
 		for (size_t i = 0; i < tiles_no; i++)
@@ -116,7 +112,7 @@ size_t AkoEncode(size_t image_w, size_t image_h, size_t channels, const struct A
 			if ((row + s->tiles_dimension) > image_h)
 				tile_h = image_h - row;
 
-			tile_size = TileTotalLength(tile_w, tile_h, NULL, NULL) * sizeof(int16_t) * channels;
+			tile_length = TileTotalLength(tile_w, tile_h, NULL, NULL) * channels;
 
 			planes_space = 0; // Non divisible by two dimensions add an extra row and/or column
 			planes_space = (tile_w % 2 == 0) ? planes_space : (planes_space + tile_h);
@@ -130,16 +126,27 @@ size_t AkoEncode(size_t image_w, size_t image_h, size_t channels, const struct A
 			                     workarea_a);
 			DwtTransform(s, tile_w, tile_h, channels, planes_space, aux_memory, workarea_a, workarea_b);
 
-			// Resize blob
+			// Compress
 			{
-				blob_size = blob_size + tile_size;
+#if (AKO_COMPRESSION == 1)
+				size_t compressed_size = EntropyCompress(tile_length, workarea_b, NULL);
+				assert(compressed_size <= UINT32_MAX);
+#else
+				size_t compressed_size = tile_length * sizeof(uint16_t);
+#endif
+
+				blob_size = blob_size + compressed_size + sizeof(uint32_t);
 				blob = realloc(blob, blob_size); // TODO, use a exponential-growth buffer thing
 				assert(blob != NULL);
-			}
 
-			// """Compress"""
-			{
-				memcpy((uint8_t*)blob + (blob_size - tile_size), workarea_b, tile_size);
+#if (AKO_COMPRESSION == 1)
+				EntropyCompress(tile_length, workarea_b, (uint8_t*)blob + (blob_size - compressed_size));
+#else
+				memcpy((uint8_t*)blob + (blob_size - compressed_size), workarea_b, compressed_size);
+#endif
+
+				uint32_t* temp = (uint32_t*)((uint8_t*)blob + (blob_size - compressed_size - sizeof(uint32_t)));
+				*temp = (uint32_t)compressed_size;
 			}
 
 			// Developers, developers, developers

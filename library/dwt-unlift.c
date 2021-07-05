@@ -235,9 +235,9 @@ void InverseDwtTransform(size_t tile_w, size_t tile_h, size_t channels, size_t p
 			// Developers, developers, developers
 			DevSaveGrayPgm(current_w * 2, current_h * 2, current_w * 2, out, "/tmp/unlift-ch%zu-%zu.pgm", ch, unlift);
 
-			if (ch == 0)
-				DevPrintf("###\t - Unlift %zu, %zux%zu -> %zux%zu px\n", unlift, current_w, current_h, target_w,
-				          target_h);
+			// if (ch == 0)
+			//	DevPrintf("###\t - Unlift %zu, %zux%zu -> %zux%zu px\n", unlift, current_w, current_h, target_w,
+			//	          target_h);
 		}
 	}
 }

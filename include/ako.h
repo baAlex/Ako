@@ -61,6 +61,8 @@ AKO_EXPORT const char* AkoVersionString();
 
 //
 
+#define AKO_COMPRESSION 1
+
 #define AKO_COLORSPACE 1 // 0 = RGB, 1 = YCOCG, 2 = YCOCG-R (reversible)
 #define AKO_WAVELET 3    // 0 = None, 1 = Haar, 2 = CDF53, 3 = 97DD
 
