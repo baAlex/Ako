@@ -41,7 +41,7 @@ extern void DevSaveGrayPgm(size_t width, size_t height, size_t in_pitch, const i
                            const char* filename_format, ...);
 
 
-static inline void sUnlift1d(size_t len, const int16_t* lp, const int16_t* hp, int16_t* out)
+static inline void sUnlift1d(size_t len, int16_t q, const int16_t* lp, const int16_t* hp, int16_t* out)
 {
 	// Even
 	// CDF53, 97DD: even[i] = lp[i] - (hp[i] + hp[i - 1]) / 4
@@ -51,12 +51,12 @@ static inline void sUnlift1d(size_t len, const int16_t* lp, const int16_t* hp, i
 #if (AKO_WAVELET != 1)
 		// CDF53, 97DD
 		if (i > 0)
-			out[(i * 2)] = lp[i] - ((hp[i] + hp[i - 1]) / 4);
+			out[(i * 2)] = lp[i] - ((hp[i] * q + hp[i - 1] * q) / 4);
 		else
-			out[(i * 2)] = lp[i] - ((hp[i] + hp[i]) / 4); // Fake first value
+			out[(i * 2)] = lp[i] - ((hp[i] * q + hp[i] * q) / 4); // Fake first value
 #else
 		// Haar
-		out[(i * 2)] = lp[i] - hp[i];
+		out[(i * 2)] = lp[i] - hp[i] * q;
 #endif
 	}
 
@@ -68,7 +68,7 @@ static inline void sUnlift1d(size_t len, const int16_t* lp, const int16_t* hp, i
 #if (AKO_WAVELET == 1)
 	// Haar
 	for (size_t i = 0; i < len; i++)
-		out[(i * 2) + 1] = lp[i] + hp[i];
+		out[(i * 2) + 1] = lp[i] + hp[i] * q;
 #endif
 
 #if (AKO_WAVELET == 2)
@@ -76,9 +76,9 @@ static inline void sUnlift1d(size_t len, const int16_t* lp, const int16_t* hp, i
 	for (size_t i = 0; i < len; i++)
 	{
 		if (i < len - 2)
-			out[(i * 2) + 1] = hp[i] + ((out[(i * 2)] + out[(i * 2) + 2]) / 2);
+			out[(i * 2) + 1] = hp[i] * q + ((out[(i * 2)] + out[(i * 2) + 2]) / 2);
 		else
-			out[(i * 2) + 1] = hp[i] + ((out[(i * 2)] + out[(i * 2)]) / 2); // Fake last value
+			out[(i * 2) + 1] = hp[i] * q + ((out[(i * 2)] + out[(i * 2)]) / 2); // Fake last value
 	}
 #endif
 
@@ -93,7 +93,7 @@ static inline void sUnlift1d(size_t len, const int16_t* lp, const int16_t* hp, i
 			int16_t even_ip1 = (i <= len - 2) ? out[(i * 2) + 2] : even_i;
 			int16_t even_ip2 = (i <= len - 4) ? out[(i * 2) + 4] : even_ip1;
 
-			out[(i * 2) + 1] = hp[i] + (-(even_il1 + even_ip2) + 9 * (even_i + even_ip1)) / 16;
+			out[(i * 2) + 1] = hp[i] * q + (-(even_il1 + even_ip2) + 9 * (even_i + even_ip1)) / 16;
 		}
 	}
 	else // Fallback to CDF53
@@ -101,9 +101,9 @@ static inline void sUnlift1d(size_t len, const int16_t* lp, const int16_t* hp, i
 		for (size_t i = 0; i < len; i++)
 		{
 			if (i < len - 2)
-				out[(i * 2) + 1] = hp[i] + ((out[(i * 2)] + out[(i * 2) + 2]) / 2);
+				out[(i * 2) + 1] = hp[i] * q + ((out[(i * 2)] + out[(i * 2) + 2]) / 2);
 			else
-				out[(i * 2) + 1] = hp[i] + ((out[(i * 2)] + out[(i * 2)]) / 2); // Fake last value
+				out[(i * 2) + 1] = hp[i] * q + ((out[(i * 2)] + out[(i * 2)]) / 2); // Fake last value
 		}
 	}
 #endif
@@ -116,8 +116,8 @@ static inline size_t sMax(size_t a, size_t b)
 }
 
 
-static inline void sUnlift2d(size_t current_w, size_t current_h, size_t target_w, size_t target_h, size_t lp_pitch,
-                             int16_t* aux, int16_t* lp, int16_t* hp)
+static inline void sUnlift2d(int16_t q, size_t current_w, size_t current_h, size_t target_w, size_t target_h,
+                             size_t lp_pitch, int16_t* aux, int16_t* lp, int16_t* hp)
 {
 	(void)target_w;
 	int16_t* b = aux + (sMax(current_w, current_h) * 2) * 4;
@@ -133,7 +133,7 @@ static inline void sUnlift2d(size_t current_w, size_t current_h, size_t target_w
 			temp = temp + 1;
 		}
 
-		sUnlift1d(current_h, aux, hp, aux + current_h); // Hp == C
+		sUnlift1d(current_h, q, aux, hp, aux + current_h); // Hp == C
 		hp = hp + current_h;
 
 		temp = aux + current_h;
@@ -150,7 +150,7 @@ static inline void sUnlift2d(size_t current_w, size_t current_h, size_t target_w
 	{
 		int16_t* temp = aux;
 
-		sUnlift1d(current_h, hp, hp + (current_w * current_h), temp); // Hp == B
+		sUnlift1d(current_h, q, hp, hp + (current_w * current_h), temp); // Hp == B
 		hp = hp + current_h;
 
 		for (size_t row = 0; row < target_h; row++)
@@ -164,7 +164,7 @@ static inline void sUnlift2d(size_t current_w, size_t current_h, size_t target_w
 	for (size_t row = 0; row < target_h; row++)
 	{
 		memcpy(aux, lp + (current_w * 2) * row, sizeof(int16_t) * current_w);
-		sUnlift1d(current_w, b + current_w * row, aux, lp + (current_w * 2) * row);
+		sUnlift1d(current_w, q, b + current_w * row, aux, lp + (current_w * 2) * row);
 	}
 }
 
@@ -208,6 +208,7 @@ void InverseDwtTransform(size_t tile_w, size_t tile_h, size_t channels, size_t p
 
 	int16_t* input_cursor = in;
 	size_t lp_pitch = 0;
+	int16_t q = 0;
 
 	// Lowpasses (one per-channel)
 	for (size_t ch = 0; ch < channels; ch++)
@@ -229,12 +230,15 @@ void InverseDwtTransform(size_t tile_w, size_t tile_h, size_t channels, size_t p
 
 		for (size_t ch = 0; ch < channels; ch++)
 		{
+			// Head
+			q = *input_cursor;
+			input_cursor = input_cursor + 1; // One head...
+
 			// Unlift
 			int16_t* lp = out + ((tile_w * tile_h) + planes_space) * ch;
-
 			lp_pitch = ((current_w % 2) == 0 || unlift == 0) ? current_w : current_w + 1;
 
-			sUnlift2d(current_w, current_h, target_w, target_h, lp_pitch, aux_memory, lp, input_cursor);
+			sUnlift2d(q, current_w, current_h, target_w, target_h, lp_pitch, aux_memory, lp, input_cursor);
 			input_cursor = input_cursor + (current_w * current_h) * 3; // ...And three highpasses
 
 			// Developers, developers, developers

@@ -29,6 +29,7 @@ SOFTWARE.
 -----------------------------*/
 
 #include <assert.h>
+#include <math.h>
 #include <string.h>
 
 #include "ako.h"
@@ -41,7 +42,7 @@ extern void DevSaveGrayPgm(size_t width, size_t height, size_t in_pitch, const i
                            const char* filename_format, ...);
 
 
-static void sLift1d(const struct AkoSettings* s, size_t ch, float q, size_t len, const int16_t* in, int16_t* out)
+static void sLift1d(int16_t q, float g, size_t len, const int16_t* in, int16_t* out)
 {
 	// Highpass
 	// Haar:  hp[i] = odd[i] - (even[i] + odd[i]) / 2
@@ -112,10 +113,12 @@ static void sLift1d(const struct AkoSettings* s, size_t ch, float q, size_t len,
 	for (size_t i = 0; i < len; i++)
 	{
 		// Noise gate
-		const float gate = (s->detail_gate[ch] * q);
-
-		if ((float)out[len + i] > -gate && (float)out[len + i] < gate)
+		const float value = (float)out[len + i];
+		if ((value / (float)q) > (-g / (float)q) && (value / (float)q) < (g / (float)q))
 			out[len + i] = 0;
+
+		// Quantization
+		out[len + i] = out[len + i] / q;
 	}
 }
 
@@ -146,8 +149,8 @@ static inline void s2dToLinearV(size_t w, size_t h, size_t in_pitch, const int16
 }
 
 
-static inline void sLift2d(const struct AkoSettings* s, size_t ch, float q, size_t current_w, size_t current_h,
-                           size_t target_w, size_t target_h, size_t in_pitch, int16_t* aux, int16_t* a, int16_t* b)
+static inline void sLift2d(size_t ch, int16_t q, float g, size_t current_w, size_t current_h, size_t target_w,
+                           size_t target_h, size_t in_pitch, int16_t* aux, int16_t* a, int16_t* b)
 {
 	// Rows (from buffer A to B)
 	{
@@ -165,7 +168,7 @@ static inline void sLift2d(const struct AkoSettings* s, size_t ch, float q, size
 			if (fake_last_col != 0)
 				temp[(target_w * 2) - 1] = in[current_w - 1];
 
-			sLift1d(s, ch, q, target_w, aux, out);
+			sLift1d(q, g, target_w, aux, out);
 
 			out = out + (target_w * 2);
 			in = in + current_w + in_pitch;
@@ -185,7 +188,7 @@ static inline void sLift2d(const struct AkoSettings* s, size_t ch, float q, size
 			temp = temp + (target_w * 2);
 		}
 
-		sLift1d(s, ch, q, target_h, aux, aux + (target_h * 2));
+		sLift1d(q, g, target_h, aux, aux + (target_h * 2));
 
 		temp = a + col;
 		for (size_t i = 0; i < (target_h * 2); i++)
@@ -218,7 +221,10 @@ void DwtTransform(const struct AkoSettings* s, size_t tile_w, size_t tile_h, siz
 	size_t target_h = tile_h;
 
 	int16_t* output_cursor = out + TileTotalLength(tile_w, tile_h) * channels; // Output end
-	float q = 1.0f;
+
+	const size_t total_lifts = TileTotalLifts(tile_w, tile_h);
+	float q = 0.0f;
+	float g = 0.0f;
 
 	// Highpasses
 	while (target_w > 2 && target_h > 2)
@@ -232,6 +238,33 @@ void DwtTransform(const struct AkoSettings* s, size_t tile_w, size_t tile_h, siz
 		// and for us (the encoder) this mean to proccess them as VUY...
 		for (size_t ch = (channels - 1); ch < channels; ch--) // ... and yes, underflows
 		{
+			// Quantization/Noise gate
+			{
+				float user_g = s->noise_gate[ch];
+				float user_q = s->quantization[ch];
+				user_g = (user_g < 0.0f) ? 0.0f : user_g;
+				user_q = (user_q < 1.0f) ? 1.0f : user_q;
+
+				// Mk1
+				float mk1_q = user_q;
+				float mk1_g = user_g;
+				for (size_t i = 0; i < lift; i++)
+				{
+					mk1_q = mk1_q / 2.0f;
+					mk1_g = mk1_g / 2.0f;
+				}
+
+				// Mk3
+				float mk3_q = powf(user_q, 1.0f - (float)lift / ((float)total_lifts - 1.0f));
+				float mk3_g = powf(user_g + 1.0f, 1.0f - (float)lift / ((float)total_lifts - 1.0f)) - 1.0f;
+
+				// Some cautions
+				q = mk1_q;
+				g = mk3_g;
+				q = (q < 1.0f) ? 1.0 : q;
+				g = (g < 0.0f) ? 0.0 : g;
+			}
+
 			// Lift
 			int16_t* lp = in + ((tile_w * tile_h) + planes_space) * ch;
 
@@ -240,21 +273,25 @@ void DwtTransform(const struct AkoSettings* s, size_t tile_w, size_t tile_h, siz
 				// The first lift needs a buffer 'b' of the same size than the input,
 				// and we don't have one, but right now 'out' is empty
 				int16_t* buffer_b = out + (tile_w * tile_h) * ch;
-				sLift2d(s, ch, q, tile_w, tile_h, target_w, target_h, 0, aux_memory, lp, buffer_b);
+				sLift2d(ch, (int16_t)q, g, tile_w, tile_h, target_w, target_h, 0, aux_memory, lp, buffer_b);
 			}
 			else
 			{
 				// Following lifts are one quarter of size, thus they fit in the last
 				// half of the input
-				sLift2d(s, ch, q, current_w, current_h, target_w, target_h, current_w, aux_memory, lp,
+				sLift2d(ch, (int16_t)q, g, current_w, current_h, target_w, target_h, current_w, aux_memory, lp,
 				        lp + (current_w * current_h * 2));
 			}
 
 			// Developers, developers, developers
 			DevSaveGrayPgm(target_w * 2, target_h * 2, target_w * 2, lp, "/tmp/lift-ch%zu-%zu.pgm", ch, lift);
 
-			// if (ch == 0)
-			//	DevPrintf("###\t - Lift %zu, %zux%zu <- %zux%zu px\n", lift, target_w, target_h, current_w, current_h);
+			if (ch == 0)
+			{
+				//	DevPrintf("###\t - Lift %zu, %zux%zu <- %zux%zu px\n", lift, target_w, target_h, current_w,
+				// current_h);
+				// DevPrintf("###\t - Lift %zu, q: %.2f, g: %.2f\n", lift, q, g);
+			}
 
 			// Emit
 			// Up to here the only thing we did was to modify 'lp', now it holds four
@@ -277,10 +314,12 @@ void DwtTransform(const struct AkoSettings* s, size_t tile_w, size_t tile_h, siz
 			s2dToLinearV(target_w, target_h, (target_w * 2),
 			             lp + target_w + target_h * (target_w * 2),  //
 			             output_cursor + (target_w * target_h) * 2); // D
+
+			output_cursor = output_cursor - 1; // One head...
+			*output_cursor = (int16_t)q;
 		}
 
 		lift = lift + 1;
-		q = q / 2.0f;
 	}
 
 	// Lowpasses (one per-channel)

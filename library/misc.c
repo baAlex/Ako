@@ -72,6 +72,7 @@ size_t TileTotalLength(size_t tile_w, size_t tile_h)
 		tile_w = RoundSplit(tile_w);
 		tile_h = RoundSplit(tile_h);
 		length = length + (tile_w * tile_h) * 3; // Three highpasses...
+		length = length + 1;                     // One head...
 	}
 
 	return length + (tile_w * tile_h); // And one lowpass
