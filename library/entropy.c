@@ -126,7 +126,7 @@ static void sEliasEncodeU(struct EliasEncodeState* s, bool bypass_rle, uint16_t 
 		{
 			// Emit RLE sequence length using the same elias-coding
 			if (s->rle_len != 0)
-				sEliasEncodeU(s, true, (uint16_t)s->rle_len, output);
+				sEliasEncodeU(s, true, (uint16_t)s->rle_len - 1, output);
 
 			s->rle_len = 0;
 		}
@@ -166,9 +166,14 @@ static inline uint16_t sEliasDecodeU(struct EliasDecodeState* s, bool bypass_rle
 	// RLE!
 	if (bypass_rle == false && s->rle_len != 0)
 	{
+		size_t temp = s->prev;
 		s->rle_len -= 1;
+
+		if (s->rle_len == 0)
+			s->prev = 666; // FIXMEEE!!!!... or no, this entire module is horrible
+
 		s->values_read = s->values_read + 1;
-		return s->prev;
+		return temp;
 	}
 
 	// Can we input?
@@ -212,10 +217,7 @@ static inline uint16_t sEliasDecodeU(struct EliasDecodeState* s, bool bypass_rle
 	if (bypass_rle == false)
 	{
 		if (v == s->prev)
-		{
 			s->rle_len = sEliasDecodeU(s, true, input_size, input);
-			s->rle_len -= 1;
-		}
 
 		s->prev = v;
 	}

@@ -137,7 +137,8 @@ struct EncoderSettings
 
 static int sReadArguments(int argc, const char* argv[], struct EncoderSettings* enco_s, struct AkoSettings* codec_s)
 {
-	bool gate_set = false;
+	bool quantization_set = false;
+	bool noisegate_set = false;
 	bool ratio_set = false;
 	bool tiles_dimensions = false;
 	float ratio = 1.0f;
@@ -165,27 +166,43 @@ static int sReadArguments(int argc, const char* argv[], struct EncoderSettings* 
 
 			enco_s->output_filename = argv[i];
 		}
-		else if (strcmp(argv[i], "-g") == 0 || strcmp(argv[i], "--gate") == 0)
+		else if (strcmp(argv[i], "-q") == 0 || strcmp(argv[i], "--quantization") == 0)
 		{
 			if ((i = i + 1) == argc)
 			{
-				fprintf(stderr, "Missing gate threshold\n");
+				fprintf(stderr, "Missing quantization step size\n");
 				return 1;
 			}
 
-			gate_set = true;
+			quantization_set = true;
 
 			float temp = strtof(argv[i], NULL);
-			codec_s->detail_gate[0] = temp;
-			codec_s->detail_gate[1] = temp;
-			codec_s->detail_gate[2] = temp;
-			codec_s->detail_gate[3] = temp;
+			codec_s->quantization[0] = temp;
+			codec_s->quantization[1] = temp;
+			codec_s->quantization[2] = temp;
+			codec_s->quantization[3] = temp;
+		}
+		else if (strcmp(argv[i], "-n") == 0 || strcmp(argv[i], "--noisegate") == 0)
+		{
+			if ((i = i + 1) == argc)
+			{
+				fprintf(stderr, "Missing noise gate threshold\n");
+				return 1;
+			}
+
+			noisegate_set = true;
+
+			float temp = strtof(argv[i], NULL);
+			codec_s->noise_gate[0] = temp;
+			codec_s->noise_gate[1] = temp;
+			codec_s->noise_gate[2] = temp;
+			codec_s->noise_gate[3] = temp;
 		}
 		else if (strcmp(argv[i], "-r") == 0 || strcmp(argv[i], "--ratio") == 0)
 		{
 			if ((i = i + 1) == argc)
 			{
-				fprintf(stderr, "Missing luma/chroma gate ratio\n");
+				fprintf(stderr, "Missing luma/chroma quality ratio\n");
 				return 1;
 			}
 
@@ -212,7 +229,7 @@ static int sReadArguments(int argc, const char* argv[], struct EncoderSettings* 
 		{
 			enco_s->print_version = true;
 		}
-		else if (strcmp(argv[i], "-q") == 0 || strcmp(argv[i], "--quiet") == 0)
+		else if (strcmp(argv[i], "--quiet") == 0)
 		{
 			enco_s->quiet = true;
 		}
@@ -246,21 +263,23 @@ static int sReadArguments(int argc, const char* argv[], struct EncoderSettings* 
 	// Print settings
 	if (enco_s->print_version == false && enco_s->quiet == false && enco_s->use_stdout == false)
 	{
-		if (gate_set == true)
-			printf("Gate threshold: %.0f\n", codec_s->detail_gate[0]);
+		if (quantization_set == true)
+			printf("Quantization step size: %.0f\n", codec_s->quantization[0]);
+		if (noisegate_set == true)
+			printf("Noise gate threshold: %.0f\n", codec_s->noise_gate[0]);
 
 		if (ratio_set == true)
 		{
 			if (ratio > 0.0f)
-				printf("Luma/chroma gate ratio: 1:%.2f\n", ratio);
+				printf("Luma/chroma quality ratio: 1:%.2f\n", ratio);
 			else
-				printf("Luma/chroma gate ratio: %.2f:1\n", fabsf(ratio));
+				printf("Luma/chroma quality ratio: %.2f:1\n", fabsf(ratio));
 		}
 
 		if (tiles_dimensions == true)
 			printf("Tiles dimensions: %zux%zu px\n", codec_s->tiles_dimension, codec_s->tiles_dimension);
 
-		if (gate_set || ratio_set || tiles_dimensions)
+		if (noisegate_set || ratio_set || tiles_dimensions)
 			printf("\n");
 	}
 
@@ -268,13 +287,17 @@ static int sReadArguments(int argc, const char* argv[], struct EncoderSettings* 
 	// is manufactured by us (the encoder)
 	if (ratio > 0.0f)
 	{
-		codec_s->detail_gate[1] = codec_s->detail_gate[1] * ratio;
-		codec_s->detail_gate[2] = codec_s->detail_gate[2] * ratio;
+		codec_s->quantization[1] = codec_s->quantization[1] * ratio;
+		codec_s->quantization[2] = codec_s->quantization[2] * ratio;
+		codec_s->noise_gate[1] = codec_s->noise_gate[1] * ratio;
+		codec_s->noise_gate[2] = codec_s->noise_gate[2] * ratio;
 	}
 	else
 	{
-		codec_s->detail_gate[0] = codec_s->detail_gate[0] * fabsf(ratio);
-		codec_s->detail_gate[3] = codec_s->detail_gate[3] * fabsf(ratio);
+		codec_s->quantization[0] = codec_s->quantization[0] * fabsf(ratio);
+		codec_s->quantization[3] = codec_s->quantization[3] * fabsf(ratio);
+		codec_s->noise_gate[0] = codec_s->noise_gate[0] * fabsf(ratio);
+		codec_s->noise_gate[3] = codec_s->noise_gate[3] * fabsf(ratio);
 	}
 
 	return 0;
@@ -288,30 +311,38 @@ Usage: akoenc [options] -i <input filename> -stdout\n\
 Ako encoding tool.\n\
 \n\
 General options:\n\
- -v, --version      Show version information\n\
- -q, --quiet        Quiet mode\n\
+ -v, --version    Show version information\n\
+ --quiet          Quiet mode\n\
 \n\
 Encoding options:\n\
- -g, --gate n       Gate threshold, controls quality/size by discarding\n\
-                    coefficients below the specified value.\n\
-                    Examples:\n\
-                    '-g 0'    Near lossless quality, poor compression\n\
-                    '-g 16'   Good quality/size compromise (sic.) (default)\n\
 \n\
- -r, --ratio n      Luma/chroma gate ratio, controls how the gate threshold\n\
-                    affects components independently. Can be used to emulate\n\
-                    a form of chroma subsampling.\n\
-                    Examples:\n\
-                    '-r 1'    Luma/chroma with equal gate thresholds (default)\n\
-                    '-r 4'    Chroma gate threshold multiplied by four\n\
-                    '-r 2.5'  Chroma gate threshold multiplied by two and half\n\
+--quantization <n>, -q <n>\n\
+    Quantization step size. Rounds coefficients to an approximate value,\n\
+    one that can be encoded with fewer bits. Main method to achieve lossy\n\
+    compression.\n\
+    Examples:\n\
+        '-q 1'    No quantization, poor compression\n\
+        '-q 16'   Good quality/size compromise (default)\n\
+\n\
+--noisegate <n>, -n <n>\n\
+    Noise gate threshold. Discards coefficients below the specified value,\n\
+    acting as a denoiser. Helps with compression. Different than\n\
+    quantization, this discards information rather than encode it at lower\n\
+    quality, as such, more noticeable artifacts will appear.\n\
+    Examples:\n\
+        '-g 0'    Off (default)\n\
+        '-g 16'   Good quality/size compromise\n\
+\n\
+--ratio <n>, -r <n>\n\
+    Luma/chroma quality ratio. Can be used to emulate a form of chorma\n\
+    subsampling.\n\
 ";
 
 int main(int argc, const char* argv[])
 {
 	struct EncoderSettings enco_s = {0};
-	struct AkoSettings codec_s = {.detail_gate = {16.0f, 16.0f, 16.0f, 16.0f}, // Default settings
-	                              .limit = {0, 0, 0, 0},
+	struct AkoSettings codec_s = {.quantization = {16.0f, 16.0f, 16.0f, 16.0f}, // Default settings
+	                              .noise_gate = {0.0f, 0.0f, 0.0f, 0.0f},
 	                              .tiles_dimension = 512};
 
 	if (argc == 1)
@@ -342,7 +373,7 @@ int main(int argc, const char* argv[])
 	png = sImageLoadPng(enco_s.input_filename, &width, &height, &channels);
 	assert(png != NULL);
 
-	if (enco_s.quiet == false)
+	if (enco_s.quiet == false && enco_s.use_stdout == false)
 		printf("Input: '%s', %zux%zu px, %zu channels\n", enco_s.input_filename, width, height, channels);
 
 	// Save Ako
