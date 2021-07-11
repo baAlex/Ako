@@ -82,8 +82,8 @@ AKO_EXPORT const char* AkoVersionString();
 
 //
 
-#define AKO_DEV_PRINTF_DEBUG 0
-#define AKO_DEV_TINY_BENCHMARK 0
+#define AKO_DEV_PRINTF_DEBUG 1
+#define AKO_DEV_TINY_BENCHMARK 1
 #define AKO_DEV_SAVE_IMAGES 0
 
 #endif

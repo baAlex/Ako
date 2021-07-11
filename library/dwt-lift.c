@@ -33,13 +33,9 @@ SOFTWARE.
 #include <string.h>
 
 #include "ako.h"
+#include "developer.h"
 #include "dwt.h"
 #include "misc.h"
-
-
-extern void DevPrintf(const char* format, ...);
-extern void DevSaveGrayPgm(size_t width, size_t height, size_t in_pitch, const int16_t* data,
-                           const char* filename_format, ...);
 
 
 static void sLift1d(int16_t q, float g, size_t len, const int16_t* in, int16_t* out)
@@ -284,7 +280,7 @@ void DwtTransform(const struct AkoSettings* s, size_t tile_w, size_t tile_h, siz
 			}
 
 			// Developers, developers, developers
-			DevSaveGrayPgm(target_w * 2, target_h * 2, target_w * 2, lp, "/tmp/lift-ch%zu-%zu.pgm", ch, lift);
+			// DevSaveGrayPgm(target_w * 2, target_h * 2, target_w * 2, lp, "/tmp/lift-ch%zu-%zu.pgm", ch, lift);
 
 			if (ch == 0)
 			{

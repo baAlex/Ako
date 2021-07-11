@@ -32,13 +32,9 @@ SOFTWARE.
 #include <string.h>
 
 #include "ako.h"
+#include "developer.h"
 #include "dwt.h"
 #include "misc.h"
-
-
-extern void DevPrintf(const char* format, ...);
-extern void DevSaveGrayPgm(size_t width, size_t height, size_t in_pitch, const int16_t* data,
-                           const char* filename_format, ...);
 
 
 static inline void sUnlift1d(size_t len, int16_t q, const int16_t* lp, const int16_t* hp, int16_t* out)
@@ -242,7 +238,7 @@ void InverseDwtTransform(size_t tile_w, size_t tile_h, size_t channels, size_t p
 			input_cursor = input_cursor + (current_w * current_h) * 3; // ...And three highpasses
 
 			// Developers, developers, developers
-			DevSaveGrayPgm(current_w * 2, current_h * 2, current_w * 2, lp, "/tmp/unlift-ch%zu-%zu.pgm", ch, unlift);
+			// DevSaveGrayPgm(current_w * 2, current_h * 2, current_w * 2, lp, "/tmp/unlift-ch%zu-%zu.pgm", ch, unlift);
 
 			// if (ch == 0)
 			//	DevPrintf("###\t - Unlift %zu, %zux%zu -> %zux%zu px\n", unlift, current_w, current_h, target_w,

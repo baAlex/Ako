@@ -31,58 +31,79 @@ SOFTWARE.
 #include <assert.h>
 #include <stdarg.h>
 #include <stdio.h>
-#include <time.h>
 
 #include "ako.h"
+#include "developer.h"
 
 
 #if (AKO_DEV_TINY_BENCHMARK == 1)
-
-static clock_t s_benchmark_start;
-static const char* s_benchmark_name;
-static clock_t s_benchmark_total;
-
-void DevBenchmarkStart(const char* name)
+inline struct Benchmark DevBenchmarkCreate(const char* name)
 {
-	s_benchmark_start = clock();
-	s_benchmark_name = name;
+	return (struct Benchmark){.start = 0, .elapsed = 0, .name = name};
 }
 
-void DevBenchmarkStop()
+inline void DevBenchmarkStartResume(struct Benchmark* benchmark)
 {
-	clock_t current = clock();
-	s_benchmark_total = s_benchmark_total + (current - s_benchmark_start);
-
-	double ms = ((double)(current - s_benchmark_start) / (double)CLOCKS_PER_SEC) * 1000.0f;
-	double sec = ((double)(current - s_benchmark_start) / (double)CLOCKS_PER_SEC);
-
-	if (ms < 1000.0f)
-		printf("%.2f\tms\t%s\n", ms, s_benchmark_name);
-	else
-		printf("%.2f\tsec\t%s\n", sec, s_benchmark_name);
+	if (benchmark->start == 0)
+		benchmark->start = clock();
 }
 
-void DevBenchmarkTotal()
+inline void DevBenchmarkPause(struct Benchmark* benchmark)
 {
-	printf("-----\n");
+	if (benchmark->start != 0)
+	{
+		benchmark->elapsed = benchmark->elapsed + (clock() - benchmark->start);
+		benchmark->start = 0;
+	}
+}
 
-	double ms = ((double)s_benchmark_total / (double)CLOCKS_PER_SEC) * 1000.0f;
-	double sec = ((double)s_benchmark_total / (double)CLOCKS_PER_SEC);
+inline void DevBenchmarkStop(struct Benchmark* benchmark)
+{
+	if (benchmark->start != 0)
+	{
+		benchmark->elapsed = (clock() - benchmark->start);
+		benchmark->start = 0;
+	}
+}
+
+inline void DevBenchmarkPrint(struct Benchmark* benchmark)
+{
+	DevBenchmarkStop(benchmark);
+
+	const double ms = (double)benchmark->elapsed / ((double)CLOCKS_PER_SEC / 1000.0f);
+	const double sec = (double)benchmark->elapsed / (double)CLOCKS_PER_SEC;
 
 	if (ms < 1000.0f)
-		printf("%.2f\tms\tTotal\n\n", ms);
+		printf("###\t%7.2f ms | %s\n", ms, benchmark->name);
 	else
-		printf("%.2f\tsec\tTotal\n\n", sec);
-
-	s_benchmark_total = 0;
+		printf("###\t%7.2f s  | %s\n", sec, benchmark->name);
 }
 #else
-void DevBenchmarkStart(const char* name)
+inline struct Benchmark DevBenchmarkCreate(const char* name)
 {
 	(void)name;
+	return (struct Benchmark){0};
 }
-void DevBenchmarkStop() {}
-void DevBenchmarkTotal() {}
+
+inline void DevBenchmarkStartResume(struct Benchmark* benchmark)
+{
+	(void)benchmark;
+}
+
+inline void DevBenchmarkPause(struct Benchmark* benchmark)
+{
+	(void)benchmark;
+}
+
+inline void DevBenchmarkStop(struct Benchmark* benchmark)
+{
+	(void)benchmark;
+}
+
+inline void DevBenchmarkPrint(struct Benchmark* benchmark)
+{
+	(void)benchmark;
+}
 #endif
 
 
