@@ -50,7 +50,7 @@ static void sPngErrorHandler(png_structp pngs, png_const_charp msg)
 }
 
 
-static uint8_t* sImageLoadPng(const char* filename, size_t* out_dimension, size_t* out_channels)
+static uint8_t* sImageLoadPng(const char* filename, size_t* out_width, size_t* out_height, size_t* out_channels)
 {
 	FILE* fp = fopen(filename, "rb");
 	assert(fp != NULL);
@@ -72,7 +72,6 @@ static uint8_t* sImageLoadPng(const char* filename, size_t* out_dimension, size_
 
 	png_read_info(pngs, pngi); // Reads everything except pixel data
 	png_get_IHDR(pngs, pngi, &width, &height, &bit_depth, &color_type, NULL, NULL, NULL);
-	assert(width == height);
 
 	switch (color_type)
 	{
@@ -96,14 +95,18 @@ static uint8_t* sImageLoadPng(const char* filename, size_t* out_dimension, size_
 
 	png_read_update_info(pngs, pngi); // Applies transformations?, configures the decoder? (?)
 
+	// Output what we have so far
+	assert(out_width != NULL);
+	assert(out_height != NULL);
+	assert(out_channels != NULL);
+
+	*out_width = (size_t)width;
+	*out_height = (size_t)height;
+	*out_channels = (size_t)channels;
+
 	// Alloc image
 	uint8_t* image = malloc(width * height * channels);
 	assert(image != NULL);
-
-	if (out_dimension != NULL)
-		*out_dimension = (size_t)width;
-	if (out_channels != NULL)
-		*out_channels = (size_t)channels;
 
 	// Read data
 	png_bytepp row_pointers = (png_bytepp)png_malloc(pngs, height * sizeof(png_bytep));
@@ -134,8 +137,10 @@ struct EncoderSettings
 
 static int sReadArguments(int argc, const char* argv[], struct EncoderSettings* enco_s, struct AkoSettings* codec_s)
 {
-	bool gate_set = false;
+	bool quantization_set = false;
+	bool noisegate_set = false;
 	bool ratio_set = false;
+	bool tiles_dimensions_set = false;
 	float ratio = 1.0f;
 
 	// Read/set arguments
@@ -161,27 +166,43 @@ static int sReadArguments(int argc, const char* argv[], struct EncoderSettings* 
 
 			enco_s->output_filename = argv[i];
 		}
-		else if (strcmp(argv[i], "-g") == 0 || strcmp(argv[i], "--gate") == 0)
+		else if (strcmp(argv[i], "-q") == 0 || strcmp(argv[i], "--quantization") == 0)
 		{
 			if ((i = i + 1) == argc)
 			{
-				fprintf(stderr, "Missing gate threshold\n");
+				fprintf(stderr, "Missing quantization step size\n");
 				return 1;
 			}
 
-			gate_set = true;
+			quantization_set = true;
 
 			float temp = strtof(argv[i], NULL);
-			codec_s->detail_gate[0] = temp;
-			codec_s->detail_gate[1] = temp;
-			codec_s->detail_gate[2] = temp;
-			codec_s->detail_gate[3] = temp;
+			codec_s->quantization[0] = temp;
+			codec_s->quantization[1] = temp;
+			codec_s->quantization[2] = temp;
+			codec_s->quantization[3] = temp;
+		}
+		else if (strcmp(argv[i], "-n") == 0 || strcmp(argv[i], "--noisegate") == 0)
+		{
+			if ((i = i + 1) == argc)
+			{
+				fprintf(stderr, "Missing noise gate threshold\n");
+				return 1;
+			}
+
+			noisegate_set = true;
+
+			float temp = strtof(argv[i], NULL);
+			codec_s->noise_gate[0] = temp;
+			codec_s->noise_gate[1] = temp;
+			codec_s->noise_gate[2] = temp;
+			codec_s->noise_gate[3] = temp;
 		}
 		else if (strcmp(argv[i], "-r") == 0 || strcmp(argv[i], "--ratio") == 0)
 		{
 			if ((i = i + 1) == argc)
 			{
-				fprintf(stderr, "Missing luma/chroma gate ratio\n");
+				fprintf(stderr, "Missing luma/chroma quality ratio\n");
 				return 1;
 			}
 
@@ -190,11 +211,25 @@ static int sReadArguments(int argc, const char* argv[], struct EncoderSettings* 
 			if (fabsf(ratio = strtof(argv[i], NULL)) < 1.0f)
 				ratio = 1.0f;
 		}
+		else if (strcmp(argv[i], "-t") == 0 || strcmp(argv[i], "--tiles") == 0)
+		{
+			if ((i = i + 1) == argc)
+			{
+				fprintf(stderr, "Missing tiles dimensions\n");
+				return 1;
+			}
+
+			tiles_dimensions_set = true;
+			long temp = atol(argv[i]);
+
+			if (temp > 0)
+				codec_s->tiles_dimension = (size_t)temp;
+		}
 		else if (strcmp(argv[i], "-v") == 0 || strcmp(argv[i], "--version") == 0)
 		{
 			enco_s->print_version = true;
 		}
-		else if (strcmp(argv[i], "-q") == 0 || strcmp(argv[i], "--quiet") == 0)
+		else if (strcmp(argv[i], "--quiet") == 0)
 		{
 			enco_s->quiet = true;
 		}
@@ -226,20 +261,28 @@ static int sReadArguments(int argc, const char* argv[], struct EncoderSettings* 
 	}
 
 	// Print settings
-	if (enco_s->quiet == false && enco_s->use_stdout == false)
+	if (enco_s->print_version == false && enco_s->quiet == false && enco_s->use_stdout == false)
 	{
-		if (gate_set == true)
-			printf("Gate threshold: %.0f\n", codec_s->detail_gate[0]);
+		if (quantization_set == true)
+			printf("Quantization step size: %.0f\n", codec_s->quantization[0]);
+		if (noisegate_set == true)
+			printf("Noise gate threshold: %.0f\n", codec_s->noise_gate[0]);
 
 		if (ratio_set == true)
 		{
 			if (ratio > 0.0f)
-				printf("Luma/chroma gate ratio: 1:%.2f\n", ratio);
+				printf("Luma/chroma quality ratio: 1:%.2f\n", ratio);
 			else
-				printf("Luma/chroma gate ratio: %.2f:1\n", fabsf(ratio));
+				printf("Luma/chroma quality ratio: %.2f:1\n", fabsf(ratio));
 		}
 
-		if (gate_set || ratio_set)
+		if (tiles_dimensions_set == true)
+		{
+			if (codec_s->tiles_dimension != 0)
+				printf("Tiles dimensions: %zux%zu px\n", codec_s->tiles_dimension, codec_s->tiles_dimension);
+		}
+
+		if (noisegate_set || ratio_set || tiles_dimensions_set)
 			printf("\n");
 	}
 
@@ -247,13 +290,17 @@ static int sReadArguments(int argc, const char* argv[], struct EncoderSettings* 
 	// is manufactured by us (the encoder)
 	if (ratio > 0.0f)
 	{
-		codec_s->detail_gate[1] = codec_s->detail_gate[1] * ratio;
-		codec_s->detail_gate[2] = codec_s->detail_gate[2] * ratio;
+		codec_s->quantization[1] = codec_s->quantization[1] * ratio;
+		codec_s->quantization[2] = codec_s->quantization[2] * ratio;
+		codec_s->noise_gate[1] = codec_s->noise_gate[1] * ratio;
+		codec_s->noise_gate[2] = codec_s->noise_gate[2] * ratio;
 	}
 	else
 	{
-		codec_s->detail_gate[0] = codec_s->detail_gate[0] * fabsf(ratio);
-		codec_s->detail_gate[3] = codec_s->detail_gate[3] * fabsf(ratio);
+		codec_s->quantization[0] = codec_s->quantization[0] * fabsf(ratio);
+		codec_s->quantization[3] = codec_s->quantization[3] * fabsf(ratio);
+		codec_s->noise_gate[0] = codec_s->noise_gate[0] * fabsf(ratio);
+		codec_s->noise_gate[3] = codec_s->noise_gate[3] * fabsf(ratio);
 	}
 
 	return 0;
@@ -267,30 +314,39 @@ Usage: akoenc [options] -i <input filename> -stdout\n\
 Ako encoding tool.\n\
 \n\
 General options:\n\
- -v, --version      Show version information\n\
- -q, --quiet        Quiet mode\n\
+ -v, --version    Show version information\n\
+ --quiet          Quiet mode\n\
 \n\
 Encoding options:\n\
- -g, --gate n       Gate threshold, controls quality/size by discarding\n\
-                    coefficients below the specified value.\n\
-                    Examples:\n\
-                    '-g 0'    Near lossless quality, poor compression\n\
-                    '-g 16'   Good quality/size compromise (sic.) (default)\n\
 \n\
- -r, --ratio n      Luma/chroma gate ratio, controls how the gate threshold\n\
-                    affects components independently. Can be used to emulate\n\
-                    a form of chroma subsampling.\n\
-                    Examples:\n\
-                    '-r 1'    Luma/chroma with equal gate thresholds (default)\n\
-                    '-r 4'    Chroma gate threshold multiplied by four\n\
-                    '-r 2.5'  Chroma gate threshold multiplied by two and half\n\
+--quantization <n>, -q <n>\n\
+    Quantization step size. Rounds coefficients to an approximate value,\n\
+    one that can be encoded with fewer bits. Main method to achieve lossy\n\
+    compression.\n\
+    Examples:\n\
+        '-q 1'    No quantization, poor compression\n\
+        '-q 16'   Good quality/size compromise (default)\n\
+\n\
+--noisegate <n>, -n <n>\n\
+    Noise gate threshold. Discards coefficients below the specified value,\n\
+    acting as a denoiser. Helps with compression. Different than\n\
+    quantization, this discards information rather than encode it at lower\n\
+    quality, as such, more noticeable artifacts will appear.\n\
+    Examples:\n\
+        '-g 0'    Off (default)\n\
+        '-g 16'   Good quality/size compromise\n\
+\n\
+--ratio <n>, -r <n>\n\
+    Luma/chroma quality ratio. Can be used to emulate a form of chorma\n\
+    subsampling.\n\
 ";
 
 int main(int argc, const char* argv[])
 {
 	struct EncoderSettings enco_s = {0};
-	struct AkoSettings codec_s = {.detail_gate = {16.0f, 16.0f, 16.0f, 16.0f}, // Default settings
-	                              .limit = {0, 0, 0, 0}};
+	struct AkoSettings codec_s = {.quantization = {16.0f, 16.0f, 16.0f, 16.0f}, // Default settings
+	                              .noise_gate = {0.0f, 0.0f, 0.0f, 0.0f},
+	                              .tiles_dimension = 0};
 
 	if (argc == 1)
 	{
@@ -304,7 +360,7 @@ int main(int argc, const char* argv[])
 	if (enco_s.print_version == true)
 	{
 		printf("Ako encoding tool.\n");
-		printf(" - %s, format %u\n", AkoVersionString(), AKO_FORMAT);
+		printf(" - %s, format %u\n", AkoVersionString(), AKO_FORMAT_VERSION);
 		printf(" - libpng %s (%u)\n", PNG_LIBPNG_VER_STRING, png_access_version_number());
 		printf("\n");
 		printf("Copyright (c) 2021 Alexander Brandt\n");
@@ -312,18 +368,22 @@ int main(int argc, const char* argv[])
 	}
 
 	// Load Png
-	size_t dimension = 0;
+	size_t width = 0;
+	size_t height = 0;
 	size_t channels = 0;
 	void* png = NULL;
 
-	png = sImageLoadPng(enco_s.input_filename, &dimension, &channels);
+	png = sImageLoadPng(enco_s.input_filename, &width, &height, &channels);
 	assert(png != NULL);
+
+	if (enco_s.quiet == false && enco_s.use_stdout == false)
+		printf("Input: '%s', %zux%zu px, %zu channels\n", enco_s.input_filename, width, height, channels);
 
 	// Save Ako
 	void* blob = NULL;
 	size_t blob_size = 0;
 
-	blob_size = AkoEncode(dimension, channels, &codec_s, png, &blob);
+	blob_size = AkoEncode(width, height, channels, &codec_s, png, &blob);
 	assert(blob_size != 0);
 
 	if (enco_s.use_stdout == false)
@@ -334,13 +394,19 @@ int main(int argc, const char* argv[])
 		fwrite(blob, blob_size, 1, fp);
 		fclose(fp);
 
-		// Print little info
+		// Print a little info
 		if (enco_s.quiet == false)
 		{
-			printf("%.2f kB -> %.2f kB, %.2f%%\n\n",
-			       (double)(dimension * dimension * channels + sizeof(struct AkoHead)) / 1000.0f,
-			       (double)blob_size / 1000.0f,
-			       (double)(dimension * dimension * channels + sizeof(struct AkoHead)) / (double)blob_size);
+			const double uncompressed_size = (double)(width * height * channels) / 1000.0;
+			const double compressed_size = (double)blob_size / 1000.0f;
+			double ratio = uncompressed_size / compressed_size;
+
+			if (ratio > 10) // Don't deal with decimals
+				printf("Output: '%s', 1:%.0f compressed (%.2f kB -> %.2f kB)\n\n", enco_s.output_filename, ratio,
+				       uncompressed_size, compressed_size);
+			else
+				printf("Output: '%s', 1:%.1f compressed (%.2f kB -> %.2f kB)\n\n", enco_s.output_filename, ratio,
+				       uncompressed_size, compressed_size);
 		}
 	}
 	else
