@@ -140,7 +140,7 @@ static int sReadArguments(int argc, const char* argv[], struct EncoderSettings* 
 	bool quantization_set = false;
 	bool noisegate_set = false;
 	bool ratio_set = false;
-	bool tiles_dimensions = false;
+	bool tiles_dimensions_set = false;
 	float ratio = 1.0f;
 
 	// Read/set arguments
@@ -219,7 +219,7 @@ static int sReadArguments(int argc, const char* argv[], struct EncoderSettings* 
 				return 1;
 			}
 
-			tiles_dimensions = true;
+			tiles_dimensions_set = true;
 			long temp = atol(argv[i]);
 
 			if (temp > 0)
@@ -276,10 +276,13 @@ static int sReadArguments(int argc, const char* argv[], struct EncoderSettings* 
 				printf("Luma/chroma quality ratio: %.2f:1\n", fabsf(ratio));
 		}
 
-		if (tiles_dimensions == true)
-			printf("Tiles dimensions: %zux%zu px\n", codec_s->tiles_dimension, codec_s->tiles_dimension);
+		if (tiles_dimensions_set == true)
+		{
+			if (codec_s->tiles_dimension != 0)
+				printf("Tiles dimensions: %zux%zu px\n", codec_s->tiles_dimension, codec_s->tiles_dimension);
+		}
 
-		if (noisegate_set || ratio_set || tiles_dimensions)
+		if (noisegate_set || ratio_set || tiles_dimensions_set)
 			printf("\n");
 	}
 
@@ -343,7 +346,7 @@ int main(int argc, const char* argv[])
 	struct EncoderSettings enco_s = {0};
 	struct AkoSettings codec_s = {.quantization = {16.0f, 16.0f, 16.0f, 16.0f}, // Default settings
 	                              .noise_gate = {0.0f, 0.0f, 0.0f, 0.0f},
-	                              .tiles_dimension = 512};
+	                              .tiles_dimension = 0};
 
 	if (argc == 1)
 	{

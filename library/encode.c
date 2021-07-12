@@ -44,18 +44,20 @@ SOFTWARE.
 size_t AkoEncode(size_t image_w, size_t image_h, size_t channels, const struct AkoSettings* s, const uint8_t* in,
                  void** out)
 {
+	size_t tiles_dimension = (s->tiles_dimension == 0) ? 524288 : s->tiles_dimension;
+
 	size_t blob_size = sizeof(struct AkoHead);
 	void* blob = malloc(blob_size);
 	assert(blob != NULL);
 
-	const size_t tiles_no = TilesNo(image_w, image_h, s->tiles_dimension);
+	const size_t tiles_no = TilesNo(image_w, image_h, tiles_dimension);
 	DevPrintf("###\t%zux%zu px , %zu channels, %zu px tiles, %zu tiles\n", image_w, image_h, channels,
-	          s->tiles_dimension, tiles_no);
+	          tiles_dimension, tiles_no);
 
-	const size_t workarea_size = WorkareaLength(image_w, image_h, s->tiles_dimension) * channels * sizeof(int16_t);
+	const size_t workarea_size = WorkareaLength(image_w, image_h, tiles_dimension) * channels * sizeof(int16_t);
 	DevPrintf("###\tWorkarea of %.2f kB\n", (float)workarea_size / 500.0f);
 
-	FrameWrite(image_w, image_h, channels, s->tiles_dimension, blob);
+	FrameWrite(image_w, image_h, channels, tiles_dimension, blob);
 
 	// Proccess tiles
 	struct Benchmark bench_color = DevBenchmarkCreate("Color transformation");
@@ -64,7 +66,7 @@ size_t AkoEncode(size_t image_w, size_t image_h, size_t channels, const struct A
 	struct Benchmark bench_total = DevBenchmarkCreate("Total");
 	DevBenchmarkStartResume(&bench_total);
 	{
-		void* aux_memory = malloc(sizeof(int16_t) * s->tiles_dimension * 4); // Four scanlines
+		void* aux_memory = malloc(sizeof(int16_t) * tiles_dimension * 4); // Four scanlines
 		assert(aux_memory != NULL);
 
 		int16_t* workarea_a = malloc(workarea_size);
@@ -82,12 +84,12 @@ size_t AkoEncode(size_t image_w, size_t image_h, size_t channels, const struct A
 		for (size_t i = 0; i < tiles_no; i++)
 		{
 			// Tile dimensions, border tiles not always are square
-			tile_w = s->tiles_dimension;
-			tile_h = s->tiles_dimension;
+			tile_w = tiles_dimension;
+			tile_h = tiles_dimension;
 
-			if ((col + s->tiles_dimension) > image_w)
+			if ((col + tiles_dimension) > image_w)
 				tile_w = image_w - col;
-			if ((row + s->tiles_dimension) > image_h)
+			if ((row + tiles_dimension) > image_h)
 				tile_h = image_h - row;
 
 			tile_length = TileTotalLength(tile_w, tile_h) * channels;
