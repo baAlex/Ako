@@ -7,11 +7,11 @@ link = clang -fuse-ld=lld
 
 # Release flags:
 cflags = -flto -O3 -fvisibility=hidden -DAKO_EXPORT_SYMBOLS -fdiagnostics-color=always -I./include
-lflags = -fdiagnostics-color=always
+lflags = -lm -fdiagnostics-color=always
 
 # Debug flags:
-# cflags = -g -O0 -std=c11 -Wall -Wextra -pedantic -Wconversion -fdiagnostics-color=always -I./include
-# lflags = -fdiagnostics-color=always
+#cflags = -g -O0 -std=c11 -Wall -Wextra -pedantic -Wconversion -fdiagnostics-color=always -I./include
+#lflags = -lm -fdiagnostics-color=always
 
 
 ###

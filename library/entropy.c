@@ -166,7 +166,7 @@ static inline uint16_t sEliasDecodeU(struct EliasDecodeState* s, bool bypass_rle
 	// RLE!
 	if (bypass_rle == false && s->rle_len != 0)
 	{
-		size_t temp = s->prev;
+		uint16_t temp = s->prev;
 		s->rle_len -= 1;
 
 		if (s->rle_len == 0)
