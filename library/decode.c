@@ -33,66 +33,132 @@ SOFTWARE.
 
 #include "ako.h"
 
+#include "developer.h"
 #include "dwt.h"
 #include "entropy.h"
 #include "format.h"
 #include "frame.h"
+#include "misc.h"
 
 
-extern void DevBenchmarkStart(const char* name);
-extern void DevBenchmarkStop();
-extern void DevBenchmarkTotal();
-
-
-uint8_t* AkoDecode(size_t input_size, const void* in, size_t* out_dimension, size_t* out_channels)
+uint8_t* AkoDecode(size_t input_size, const void* in, size_t* out_w, size_t* out_h, size_t* out_channels)
 {
-	size_t dimension = 0;
-	size_t channels = 0;
-	size_t data_len = 0;
-	size_t compressed_data_size = 0;
+	size_t image_w, image_h, channels, tiles_dimension;
+	FrameRead(in, input_size, &image_w, &image_h, &channels, &tiles_dimension);
 
-	int16_t* buffer_a = NULL;
-	int16_t* buffer_b = NULL;
-	int16_t* aux_buffer = NULL;
+	const size_t tiles_no = TilesNo(image_w, image_h, tiles_dimension);
+	DevPrintf("###\t%zux%zu px , %zu channels, %zu px tiles, %zu tiles\n", image_w, image_h, channels, tiles_dimension,
+	          tiles_no);
 
-	assert(input_size >= sizeof(struct AkoHead));
-	FrameRead(in, &dimension, &channels, &compressed_data_size);
+	const size_t workarea_size = WorkareaLength(image_w, image_h, tiles_dimension) * channels * sizeof(int16_t);
+	DevPrintf("###\tWorkarea of %.2f kB\n", (float)workarea_size / 500.0f);
 
-	data_len = dimension * dimension * channels;
-	buffer_a = calloc(1, sizeof(int16_t) * data_len);
-	buffer_b = calloc(1, sizeof(int16_t) * data_len);
-	aux_buffer = calloc(1, sizeof(int16_t) * dimension * 2);
+	uint8_t* image_memory = malloc(sizeof(uint8_t) * image_w * image_h * channels);
+	assert(image_memory != NULL);
 
-	assert(buffer_a != NULL);
-	assert(buffer_b != NULL);
-	assert(aux_buffer != NULL);
-
-	// Decompress, Unlift, toRgb
+	// Proccess tiles
+	struct Benchmark bench_decompression = DevBenchmarkCreate("Decompression");
+	struct Benchmark bench_color = DevBenchmarkCreate("Color transformation");
+	struct Benchmark bench_wavelet = DevBenchmarkCreate("Wavelet transformation");
+	struct Benchmark bench_total = DevBenchmarkCreate("Total");
+	DevBenchmarkStartResume(&bench_total);
 	{
-		const int16_t* skip_head = (int16_t*)((uint8_t*)in + sizeof(struct AkoHead));
+		void* aux_memory = malloc(workarea_size / 2 + sizeof(int16_t) * tiles_dimension * 4); // Four scanlines
+		assert(aux_memory != NULL);
 
-		DevBenchmarkStart("Decompress");
-		EntropyDecompress(compressed_data_size, data_len, skip_head, buffer_a);
-		DevBenchmarkStop();
+		int16_t* workarea_a = malloc(workarea_size);
+		int16_t* workarea_b = malloc(workarea_size);
+		assert(workarea_a != NULL);
+		assert(workarea_b != NULL);
 
-		DevBenchmarkStart("Unpack/Unlift");
-		DwtUnpackUnliftImage(dimension, channels, aux_buffer, buffer_a, buffer_b);
-		DevBenchmarkStop();
+		memset(aux_memory, 0, workarea_size / 2 + sizeof(int16_t) * tiles_dimension * 4);
+		memset(workarea_a, 0, workarea_size);
+		memset(workarea_b, 0, workarea_size);
 
-		DevBenchmarkStart("Format");
-		FormatToInterlacedU8RGB(dimension, channels, buffer_b, (uint8_t*)buffer_a); // HACK!
-		DevBenchmarkStop();
+		size_t col = 0;
+		size_t row = 0;
+		size_t tile_w = 0;
+		size_t tile_h = 0;
+		size_t tile_length = 0;
+		size_t planes_space = 0;
+
+		const uint8_t* blob = (const uint8_t*)in + sizeof(struct AkoHead);
+
+		for (size_t i = 0; i < tiles_no; i++)
+		{
+			// Tile dimensions, border tiles not always are square
+			tile_w = tiles_dimension;
+			tile_h = tiles_dimension;
+
+			if ((col + tiles_dimension) > image_w)
+				tile_w = image_w - col;
+			if ((row + tiles_dimension) > image_h)
+				tile_h = image_h - row;
+
+			tile_length = TileTotalLength(tile_w, tile_h) * channels;
+
+			planes_space = 0; // Non divisible by two dimensions add an extra row and/or column
+			planes_space = (tile_w % 2 == 0) ? planes_space : (planes_space + tile_h);
+			planes_space = (tile_h % 2 == 0) ? planes_space : (planes_space + tile_w);
+
+			if (i < 10)
+				DevPrintf("###\t[Tile %zu, x: %zu, y: %zu, %zux%zu px, spacing: %zu]\n", i, col, row, tile_w, tile_h,
+				          planes_space);
+			else if (i == 10)
+				DevPrintf("###\t[Tile ...]\n");
+
+			// Decompress
+			DevBenchmarkStartResume(&bench_decompression);
+			{
+				size_t compressed_size = *((uint32_t*)blob);
+
+#if (AKO_COMPRESSION == 1)
+				memset(workarea_a, 0, workarea_size); // FIXME, EntropyDecompress() error
+
+				EntropyDecompress(compressed_size, tile_length, blob + sizeof(uint32_t), workarea_a);
+				blob = blob + compressed_size + sizeof(uint32_t);
+#else
+				memcpy(workarea_a, blob + sizeof(uint32_t), compressed_size);
+				blob = blob + compressed_size + sizeof(uint32_t);
+#endif
+			}
+			DevBenchmarkPause(&bench_decompression);
+
+			// Proccess
+			DevBenchmarkStartResume(&bench_wavelet);
+			{
+				InverseDwtTransform(tile_w, tile_h, channels, planes_space, aux_memory, workarea_a, workarea_b);
+			}
+			DevBenchmarkPause(&bench_wavelet);
+
+			DevBenchmarkStartResume(&bench_color);
+			{
+				FormatToInterlacedU8RGB(tile_w, tile_h, channels, planes_space, image_w, workarea_b,
+				                        image_memory + (image_w * row + col) * channels);
+			}
+			DevBenchmarkPause(&bench_color);
+
+			// Next tile
+			col = col + tile_w;
+			if (col >= image_w)
+			{
+				col = 0;
+				row = row + tile_h;
+			}
+		}
+
+		free(aux_memory);
+		free(workarea_a);
+		free(workarea_b);
 	}
+	DevBenchmarkPrint(&bench_decompression);
+	DevBenchmarkPrint(&bench_wavelet);
+	DevBenchmarkPrint(&bench_color);
+	DevBenchmarkPrint(&bench_total);
 
 	// Bye!
-	DevBenchmarkTotal();
-
-	if (out_dimension != NULL)
-		*out_dimension = dimension;
-	if (out_channels != NULL)
-		*out_channels = channels;
-
-	free(aux_buffer);
-	free(buffer_b);
-	return (uint8_t*)buffer_a; // TODO, realloc!
+	*out_w = image_w;
+	*out_h = image_h;
+	*out_channels = channels;
+	return image_memory;
 }

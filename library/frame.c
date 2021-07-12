@@ -36,64 +36,59 @@ SOFTWARE.
 #include "frame.h"
 
 
-#define VALID_DIMENSIONS_NO 16
-static const size_t s_valid_dimensions[VALID_DIMENSIONS_NO] = {
-    2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536,
-};
+#define VALID_TILES_DIMENSIONS_NO 16 // Only 16 values to encode them in 4 bits
+static size_t s_valid_tiles_dimensions[VALID_TILES_DIMENSIONS_NO] = {
+    16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536, 131072, 262144, 524288};
 
 
-static inline uint32_t sEncodeDimension(size_t no)
+void FrameWrite(size_t width, size_t height, size_t channels, size_t tiles_dimension, void* output)
 {
-	for (uint32_t i = 0; i < VALID_DIMENSIONS_NO; i++)
+	assert(width > 0 && width <= UINT32_MAX);
+	assert(height > 0 && height <= UINT32_MAX);
+	assert(channels > 0 && channels <= 4);
+
+	int dimension = -1; // Invalid value
+	for (int i = 0; i < VALID_TILES_DIMENSIONS_NO; i++)
 	{
-		if (s_valid_dimensions[i] == no)
-			return i;
+		if (s_valid_tiles_dimensions[i] == tiles_dimension)
+			dimension = i;
 	}
+	assert(dimension != -1);
 
-	assert(1 == 0);
-	return 0;
-}
-
-
-static inline size_t sDecodeDimension(uint32_t no)
-{
-	assert(no < VALID_DIMENSIONS_NO);
-	return s_valid_dimensions[no];
-}
-
-
-void FrameWrite(size_t dimension, size_t channels, size_t compressed_data_size, void* output)
-{
 	struct AkoHead* head = output;
 
 	head->magic[0] = 'A';
 	head->magic[1] = 'k';
 	head->magic[2] = 'o';
 	head->magic[3] = 'I';
-	head->magic[4] = 'm';
 
-	head->major = AKO_VER_MAJOR;
-	head->minor = AKO_VER_MINOR;
-	head->format = AKO_FORMAT;
+	head->version = AKO_FORMAT_VERSION;
+	head->unused1 = 0;
+	head->unused2 = 0;
 
-	assert(compressed_data_size <= UINT32_MAX); // TODO, a compressor responsibility
+	head->format = (uint8_t)((uint8_t)dimension | ((channels - 1) << 4));
 
-	head->compressed_data_size = (uint32_t)compressed_data_size;
-	head->info = sEncodeDimension(dimension) | (uint32_t)(channels << 4);
+	head->width = (uint32_t)width;
+	head->height = (uint32_t)height;
 }
 
 
-void FrameRead(const void* input, size_t* out_dimension, size_t* out_channels, size_t* out_compressed_data_size)
+void FrameRead(const void* input, size_t input_size, size_t* out_width, size_t* out_height, size_t* out_channels,
+               size_t* out_tiles_dimensions)
 {
+	assert(input_size >= sizeof(struct AkoHead));
+
 	const struct AkoHead* head = input;
 
-	assert(memcmp(head->magic, "AkoIm", 5) == 0);
+	assert(memcmp(head->magic, "AkoI", 4) == 0);
+	assert(head->version == AKO_FORMAT_VERSION);
 
-	assert(head->major == AKO_VER_MAJOR);
-	assert(head->minor == AKO_VER_MINOR);
-	assert(head->format == AKO_FORMAT);
+	*out_width = (size_t)head->width;
+	*out_height = (size_t)head->height;
+	*out_channels = (size_t)(head->format >> 4) + 1;
+	*out_tiles_dimensions = s_valid_tiles_dimensions[head->format & 0b00001111];
 
-	*out_dimension = sDecodeDimension((head->info << (32 - 4)) >> (32 - 4));
-	*out_channels = (size_t)(head->info >> 4);
-	*out_compressed_data_size = (size_t)head->compressed_data_size;
+	assert(*out_width != 0);
+	assert(*out_height != 0);
+	assert(*out_channels != 0);
 }

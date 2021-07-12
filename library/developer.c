@@ -31,63 +31,84 @@ SOFTWARE.
 #include <assert.h>
 #include <stdarg.h>
 #include <stdio.h>
-#include <time.h>
 
 #include "ako.h"
+#include "developer.h"
 
 
 #if (AKO_DEV_TINY_BENCHMARK == 1)
-
-static clock_t s_benchmark_start;
-static const char* s_benchmark_name;
-static clock_t s_benchmark_total;
-
-void DevBenchmarkStart(const char* name)
+inline struct Benchmark DevBenchmarkCreate(const char* name)
 {
-	s_benchmark_start = clock();
-	s_benchmark_name = name;
+	return (struct Benchmark){.start = 0, .elapsed = 0, .name = name};
 }
 
-void DevBenchmarkStop()
+inline void DevBenchmarkStartResume(struct Benchmark* benchmark)
 {
-	clock_t current = clock();
-	s_benchmark_total = s_benchmark_total + (current - s_benchmark_start);
-
-	double ms = ((double)(current - s_benchmark_start) / (double)CLOCKS_PER_SEC) * 1000.0f;
-	double sec = ((double)(current - s_benchmark_start) / (double)CLOCKS_PER_SEC);
-
-	if (ms < 1000.0f)
-		printf("%.2f\tms\t%s\n", ms, s_benchmark_name);
-	else
-		printf("%.2f\tsec\t%s\n", sec, s_benchmark_name);
+	if (benchmark->start == 0)
+		benchmark->start = clock();
 }
 
-void DevBenchmarkTotal()
+inline void DevBenchmarkPause(struct Benchmark* benchmark)
 {
-	printf("-----\n");
+	if (benchmark->start != 0)
+	{
+		benchmark->elapsed = benchmark->elapsed + (clock() - benchmark->start);
+		benchmark->start = 0;
+	}
+}
 
-	double ms = ((double)s_benchmark_total / (double)CLOCKS_PER_SEC) * 1000.0f;
-	double sec = ((double)s_benchmark_total / (double)CLOCKS_PER_SEC);
+inline void DevBenchmarkStop(struct Benchmark* benchmark)
+{
+	if (benchmark->start != 0)
+	{
+		benchmark->elapsed = (clock() - benchmark->start);
+		benchmark->start = 0;
+	}
+}
+
+inline void DevBenchmarkPrint(struct Benchmark* benchmark)
+{
+	DevBenchmarkStop(benchmark);
+
+	const double ms = (double)benchmark->elapsed / ((double)CLOCKS_PER_SEC / 1000.0f);
+	const double sec = (double)benchmark->elapsed / (double)CLOCKS_PER_SEC;
 
 	if (ms < 1000.0f)
-		printf("%.2f\tms\tTotal\n\n", ms);
+		printf("###\t%7.2f ms | %s\n", ms, benchmark->name);
 	else
-		printf("%.2f\tsec\tTotal\n\n", sec);
-
-	s_benchmark_total = 0;
+		printf("###\t%7.2f s  | %s\n", sec, benchmark->name);
 }
 #else
-void DevBenchmarkStart(const char* name)
+inline struct Benchmark DevBenchmarkCreate(const char* name)
 {
 	(void)name;
+	return (struct Benchmark){0};
 }
-void DevBenchmarkStop() {}
-void DevBenchmarkTotal() {}
+
+inline void DevBenchmarkStartResume(struct Benchmark* benchmark)
+{
+	(void)benchmark;
+}
+
+inline void DevBenchmarkPause(struct Benchmark* benchmark)
+{
+	(void)benchmark;
+}
+
+inline void DevBenchmarkStop(struct Benchmark* benchmark)
+{
+	(void)benchmark;
+}
+
+inline void DevBenchmarkPrint(struct Benchmark* benchmark)
+{
+	(void)benchmark;
+}
 #endif
 
 
 #if (AKO_DEV_SAVE_IMAGES == 1)
-void DevSaveGrayPgm(size_t dimension, const int16_t* data, const char* filename_format, ...)
+void DevSaveGrayPgm(size_t width, size_t height, size_t in_pitch, const int16_t* data, const char* filename_format, ...)
 {
 	char filename[256];
 	va_list args;
@@ -97,21 +118,41 @@ void DevSaveGrayPgm(size_t dimension, const int16_t* data, const char* filename_
 	va_end(args);
 
 	FILE* fp = fopen(filename, "wb");
-	fprintf(fp, "P5\n%zu\n%zu\n255\n", dimension, dimension);
+	fprintf(fp, "P5\n%zu\n%zu\n255\n", width, height);
 
-	for (size_t i = 0; i < (dimension * dimension); i++)
-	{
-		uint8_t p = (data[i] > 0) ? (data[i] < 255) ? (uint8_t)data[i] : 255 : 0;
-		fwrite(&p, 1, 1, fp);
-	}
+	for (size_t row = 0; row < height; row++)
+		for (size_t col = 0; col < width; col++)
+		{
+			const int16_t* in = &data[(row * in_pitch) + col];
+			uint8_t p = (*in > 0) ? (*in < 255) ? (uint8_t)*in : 255 : 0;
+			fwrite(&p, 1, 1, fp);
+		}
 
 	fclose(fp);
 }
 #else
-void DevSaveGrayPgm(size_t dimension, const int16_t* data, const char* filename_format, ...)
+void DevSaveGrayPgm(size_t width, size_t height, size_t in_pitch, const int16_t* data, const char* filename_format, ...)
 {
-	(void)dimension;
+	(void)width;
+	(void)height;
+	(void)in_pitch;
 	(void)data;
 	(void)filename_format;
+}
+#endif
+
+
+#if (AKO_DEV_PRINTF_DEBUG == 1)
+void DevPrintf(const char* format, ...)
+{
+	va_list args;
+	va_start(args, format);
+	vprintf(format, args);
+	va_end(args);
+}
+#else
+void DevPrintf(const char* format, ...)
+{
+	(void)format;
 }
 #endif

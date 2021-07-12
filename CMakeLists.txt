@@ -22,25 +22,34 @@ endif ()
 
 
 set(AKO_SOURCES
-	"./library/developer.c"
 	"./library/decode.c"
+	"./library/developer.c"
+	"./library/dwt-lift.c"
+	"./library/dwt-unlift.c"
 	"./library/encode.c"
 	"./library/entropy.c"
-	"./library/dwt-lift-pack.c"
-	"./library/dwt-unlift.c"
 	"./library/format.c"
 	"./library/frame.c"
+	"./library/misc.c"
 	"./library/version.c")
 
 
 if (AKO_SHARED)
 	add_library("ako" SHARED ${AKO_SOURCES})
 	target_include_directories("ako" PUBLIC "./include/")
+
+	if (NOT MSVC)
+		target_link_libraries("ako" PRIVATE "m")
+	endif ()
 endif ()
 
 if (AKO_STATIC)
 	add_library("ako-static" STATIC ${AKO_SOURCES})
 	target_include_directories("ako-static" PUBLIC "./include/")
+
+	if (NOT MSVC)
+		target_link_libraries("ako-static" PRIVATE "m")
+	endif ()
 endif ()
 
 if (AKO_ENC)
