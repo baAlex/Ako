@@ -38,72 +38,187 @@ SOFTWARE.
 #include "misc.h"
 
 
-static void sLift1d(int16_t q, float g, size_t len, const int16_t* in, int16_t* out)
+// TODO, wrap modes may be all wrong, but my brain hurts. :(
+
+
+static inline void sHaar(size_t len, const int16_t* in, int16_t* out)
 {
 	// Highpass
-	// Haar:  hp[i] = odd[i] - (even[i] + odd[i]) / 2
-	// CDF53: hp[i] = odd[i] - (even[i] + even[i + 1]) / 2
-	// 97DD:  hp[i] = odd[i] - (-(even[i - 1] + even[i + 2]) + 9 * (even[i] + even[i + 1])) / 16
-
-#if (AKO_WAVELET == 1)
-	// Haar
+	// Haar: hp[i] = odd[i] - (even[i] + odd[i]) / 2
 	for (size_t i = 0; i < len; i++)
-		out[len + i] = in[(i * 2) + 1] - ((in[(i * 2)] + in[(i * 2) + 1]) / 2);
+		out[len + i] = in[(i * 2) + 1] - (in[(i * 2)] + in[(i * 2)]) / 2;
+
+	// Lowpass
+	// Haar: lp[i] = (even[i] + odd[i]) / 2
+	for (size_t i = 0; i < len; i++)
+		out[i] = (in[(i * 2)] + in[(i * 2)]) / 2;
+}
+
+
+static inline void sCDF53(size_t len, const int16_t* in, int16_t* out)
+{
+	// > 5/3: { d[n] = d0[n] - floor((1 / 2) * (s0[n + 1] + s0[n])) }
+	// > 5/3: { s[n] = s0[n] + floor((1 / 4) * (d[n] + d[n - 1]) + 0.5) }
+	// ADAMS, Michael David (2002). Reversible Integer to Integer Wavelet Transforms For Image Coding
+	// Table 5.2. Page 105.
+
+	// Highpass
+	// CDF53: hp[i] = odd[i] - (even[i + 1] + even[i] + 1) >> 1
+	for (size_t i = 0; i < (len - 1); i++)
+	{
+		const int16_t even_i = in[i * 2];
+		const int16_t even_ip1 = in[i * 2 + 2];
+
+		out[len + i] = in[(i * 2) + 1] - ((even_ip1 + even_i + 1) >> 1);
+	}
+
+	{
+#if (AKO_WRAP_MODE == 0)
+		const int16_t even_i = in[(len - 1) * 2];
+		const int16_t even_ip1 = in[0];
+#else
+		const int16_t even_i = in[(len - 1) * 2];
+		const int16_t even_ip1 = in[(len - 1) * 2];
+#endif
+
+		out[len + (len - 1)] = in[(len - 1) * 2 + 1] - ((even_ip1 + even_i + 1) >> 1);
+	}
+
+	// Lowpass
+	// CDF53: lp[i] = even[i] + (hp[i] + hp[i - 1]) >> 2
+	{
+#if (AKO_WRAP_MODE == 0)
+		const int16_t hp_il1 = out[len + (len - 1)];
+		const int16_t hp_i = out[len];
+#else
+		const int16_t hp_il1 = out[len];
+		const int16_t hp_i = out[len];
+#endif
+
+		out[0] = in[0] + ((hp_i + hp_il1 + 2) >> 2);
+	}
+
+	for (size_t i = 1; i < len; i++)
+	{
+		const int16_t hp_il1 = out[len + (i - 1)];
+		const int16_t hp_i = out[len + i];
+
+		out[i] = in[(i * 2)] + ((hp_i + hp_il1 + 2) >> 2);
+	}
+}
+
+
+static inline void sDD137(size_t len, const int16_t* in, int16_t* out)
+{
+	// > 13/7-T: { d[n] = d0[n] + floor((1 / 16) * ((s0[n + 2] + s0[n - 1]) - 9 * (s0[n + 1] + s0[n])) + 0.5) }
+	// > 13/7-T: { s[n] = s0[n] + floor((1 / 32) * (-d[n + 1] - d[n - 2]) + 9 * (d[n] + d[n - 1])) + 0.5) }
+	// ADAMS (2002). Table 5.2. Page 105.
+
+	// Highpass
+	// DD137: hp[i] = odd[i] + ((even[i + 2] + even[i - 1]) - 9 * (even[i + 1] + even[i]) + 8) >> 4
+	{
+#if (AKO_WRAP_MODE == 0)
+		const int16_t even_il1 = (len == 2) ? in[2] : in[(len * 2) - 2]; // ???
+		const int16_t even_i = in[0];
+		const int16_t even_ip1 = in[2];
+		const int16_t even_ip2 = (len == 2) ? in[0] : in[4]; // ???
+#else
+		const int16_t even_il1 = in[0];
+		const int16_t even_i = in[0];
+		const int16_t even_ip1 = in[2];
+		const int16_t even_ip2 = (len == 2) ? in[2] : in[4];
+#endif
+
+		out[len] = in[1] + (((even_ip2 + even_il1) - 9 * (even_ip1 + even_i) + 8) >> 4);
+	}
+
+	for (size_t i = 1; i < (len - 2); i++)
+	{
+		const int16_t even_il1 = in[i * 2 - 2];
+		const int16_t even_i = in[i * 2];
+		const int16_t even_ip1 = in[i * 2 + 2];
+		const int16_t even_ip2 = in[i * 2 + 4];
+
+		out[len + i] = in[(i * 2) + 1] + (((even_ip2 + even_il1) - 9 * (even_ip1 + even_i) + 8) >> 4);
+	}
+
+	for (size_t i = (len - 2); i < len; i++)
+	{
+#if (AKO_WRAP_MODE == 0)
+		const int16_t even_il1 = (i < 1) ? in[(len - 1) * 2] : in[i * 2 - 2];
+		const int16_t even_i = in[i * 2];
+		const int16_t even_ip1 = (i + 1 >= len) ? in[(i + 1 - len) * 2] : in[i * 2 + 2];
+		const int16_t even_ip2 = (i + 2 >= len) ? in[(i + 2 - len) * 2] : in[i * 2 + 4];
+#else
+		const int16_t even_il1 = (i < 1) ? in[i * 2] : in[i * 2 - 2];
+		const int16_t even_i = in[i * 2];
+		const int16_t even_ip1 = (i + 1 >= len) ? in[i * 2] : in[i * 2 + 2];
+		const int16_t even_ip2 = (i + 2 >= len) ? in[i * 2] : in[i * 2 + 4];
+#endif
+
+		out[len + i] = in[(i * 2) + 1] + (((even_ip2 + even_il1) - 9 * (even_ip1 + even_i) + 8) >> 4);
+	}
+
+	// Lowpass
+	// DD137: lp[i] = even[i] + ((-hp[i + 1] - hp[i - 2]) + 9 * (hp[i] + hp[i - 1]) + 16) >> 5
+	for (size_t i = 0; i < 2; i++)
+	{
+#if (AKO_WRAP_MODE == 0)
+		const int16_t hp_il2 = out[len + (len - 2 + i)];
+		const int16_t hp_il1 = (i == 0) ? out[len + (len - 1)] : out[len];
+		const int16_t hp_i = out[len + i];
+		const int16_t hp_ip1 = out[len + (i + 1)]; // TODO, overflows?
+#else
+		const int16_t hp_il1 = (i == 0) ? out[len + i] : out[len];
+		const int16_t hp_il2 = hp_il1;
+		const int16_t hp_i = out[len + i];
+		const int16_t hp_ip1 = out[len + (i + 1)];
+#endif
+
+		out[i] = in[i * 2] + (((-hp_ip1 - hp_il2) + 9 * (hp_i + hp_il1) + 16) >> 5);
+	}
+
+	for (size_t i = 2; i < (len - 1); i++)
+	{
+		const int16_t hp_il2 = out[len + (i - 2)];
+		const int16_t hp_il1 = out[len + (i - 1)];
+		const int16_t hp_i = out[len + i];
+		const int16_t hp_ip1 = out[len + (i + 1)];
+
+		out[i] = in[i * 2] + (((-hp_ip1 - hp_il2) + 9 * (hp_i + hp_il1) + 16) >> 5);
+	}
+
+	{
+#if (AKO_WRAP_MODE == 0)
+		const int16_t hp_il2 = (len == 2) ? out[len + (len - 1)] : out[len + (len - 3)];
+		const int16_t hp_il1 = (len == 2) ? out[len] : out[len + (len - 2)];
+		const int16_t hp_i = out[len + (len - 1)];
+		const int16_t hp_ip1 = out[len];
+#else
+		const int16_t hp_il2 = (len == 2) ? out[len + (len - 1)] : out[len + (len - 3)];
+		const int16_t hp_il1 = (len == 2) ? out[len + (len - 1)] : out[len + (len - 2)];
+		const int16_t hp_i = out[len + (len - 1)];
+		const int16_t hp_ip1 = out[len + (len - 1)];
+#endif
+
+		out[len - 1] = in[(len - 1) * 2] + (((-hp_ip1 - hp_il2) + 9 * (hp_i + hp_il1) + 16) >> 5);
+	}
+}
+
+
+static void sLift1d(int16_t q, float g, size_t len, const int16_t* in, int16_t* out)
+{
+#if (AKO_WAVELET == 1)
+	sHaar(len, in, out);
 #endif
 
 #if (AKO_WAVELET == 2)
-	// CDF53
-	for (size_t i = 0; i < len; i++)
-	{
-		if (i < len - 2)
-			out[len + i] = in[(i * 2) + 1] - ((in[(i * 2)] + in[(i * 2) + 2]) / 2);
-		else
-			out[len + i] = in[(i * 2) + 1] - ((in[(i * 2)] + in[(i * 2)]) / 2); // Fake last value
-	}
+	sCDF53(len, in, out);
 #endif
 
 #if (AKO_WAVELET == 3)
-	// 97DD
-	if (len > 4) // Needs 4 samples
-	{
-		for (size_t i = 0; i < len; i++)
-		{
-			int16_t even_i = in[(i * 2)];
-			int16_t even_il1 = (i >= 1) ? in[(i * 2) - 2] : even_i;
-			int16_t even_ip1 = (i <= len - 2) ? in[(i * 2) + 2] : even_i;
-			int16_t even_ip2 = (i <= len - 4) ? in[(i * 2) + 4] : even_ip1;
-
-			out[len + i] = in[(i * 2) + 1] - (-(even_il1 + even_ip2) + 9 * (even_i + even_ip1)) / 16;
-		}
-	}
-	else // Fallback to CDF53
-	{
-		for (size_t i = 0; i < len; i++)
-		{
-			if (i < len - 2)
-				out[len + i] = in[(i * 2) + 1] - ((in[(i * 2)] + in[(i * 2) + 2]) / 2);
-			else
-				out[len + i] = in[(i * 2) + 1] - ((in[(i * 2)] + in[(i * 2)]) / 2); // Fake last value
-		}
-	}
+	sDD137(len, in, out);
 #endif
-
-	// Lowpass
-	// CDF53, 97DD: lp[i] = even[i] + (hp[i] + hp[i - 1]) / 4
-	// Haar:        lp[i] = (even[i] + odd[i]) / 2
-	for (size_t i = 0; i < len; i++)
-	{
-#if (AKO_WAVELET != 1)
-		// CD53, 97DD
-		if (i > 0)
-			out[i] = in[(i * 2)] + ((out[len + i] + out[len + i - 1]) / 4);
-		else
-			out[i] = in[(i * 2)] + ((out[len + i] + out[len + i]) / 4); // Fake first value
-#else
-		// Haar
-		out[i] = (in[(i * 2)] + in[(i * 2) + 1]) / 2;
-#endif
-	}
 
 	// Degrade highpass
 	for (size_t i = 0; i < len; i++)
@@ -284,8 +399,7 @@ void DwtTransform(const struct AkoSettings* s, size_t tile_w, size_t tile_h, siz
 
 			if (ch == 0)
 			{
-				//	DevPrintf("###\t - Lift %zu, %zux%zu <- %zux%zu px\n", lift, target_w, target_h, current_w,
-				// current_h);
+				DevPrintf("###\t - Lift %zu, %zux%zu <- %zux%zu px\n", lift, target_w, target_h, current_w, current_h);
 				// DevPrintf("###\t - Lift %zu, q: %.2f, g: %.2f\n", lift, q, g);
 			}
 
