@@ -37,71 +37,177 @@ SOFTWARE.
 #include "misc.h"
 
 
-static inline void sUnlift1d(size_t len, int16_t q, const int16_t* lp, const int16_t* hp, int16_t* out)
+// TODO, wrap modes may be all wrong, but my brain hurts. :(
+
+
+static inline void sHaar(size_t len, int16_t q, const int16_t* lp, const int16_t* hp, int16_t* out)
 {
 	// Even
-	// CDF53, 97DD: even[i] = lp[i] - (hp[i] + hp[i - 1]) / 4
-	// Haar:        even[i] = lp[i] - hp[i]
+	// Haar: even[i] = lp[i] - hp[i]
 	for (size_t i = 0; i < len; i++)
-	{
-#if (AKO_WAVELET != 1)
-		// CDF53, 97DD
-		if (i > 0)
-			out[(i * 2)] = lp[i] - ((hp[i] * q + hp[i - 1] * q) / 4);
-		else
-			out[(i * 2)] = lp[i] - ((hp[i] * q + hp[i] * q) / 4); // Fake first value
-#else
-		// Haar
 		out[(i * 2)] = lp[i] - hp[i] * q;
+
+	// Odd
+	// Haar: odd[i] = lp[i] + hp[i]
+	for (size_t i = 0; i < len; i++)
+		out[(i * 2) + 1] = lp[i] + hp[i] * q;
+}
+
+
+static inline void sCDF53(size_t len, int16_t q, const int16_t* lp, const int16_t* hp, int16_t* out)
+{
+	// Even
+	// CDF53: even[i] = lp[i] - (hp[i] + hp[i - 1] + 2) >> 2
+	{
+#if (AKO_WRAP_MODE == 0)
+		const int16_t hp_il1 = hp[len - 1] * q;
+		const int16_t hp_i = hp[0] * q;
+#else
+		const int16_t hp_il1 = hp[0] * q;
+		const int16_t hp_i = hp[0] * q;
 #endif
+
+		out[0] = lp[0] - ((hp_i + hp_il1 + 2) >> 2);
+	}
+
+	for (size_t i = 1; i < len; i++)
+	{
+		const int16_t hp_il1 = hp[i - 1] * q;
+		const int16_t hp_i = hp[i] * q;
+
+		out[(i * 2)] = lp[i] - ((hp_i + hp_il1 + 2) >> 2);
 	}
 
 	// Odd
-	// Haar:  odd[i] = lp[i] + hp[i]
-	// CDF53: odd[i] = hp[i] + (even[i] + even[i + 1]) / 2
-	// 97DD:  odd[i] = hp[i] + (-(even[i - 1] + even[i + 2]) + 9 * (even[i] + even[i + 1])) / 16
+	// CDF53: odd[i] = hp[i] + (even[i + 1] + even[i] + 1) >> 1
+	for (size_t i = 0; i < (len - 1); i++)
+	{
+		const int16_t even_i = out[i * 2];
+		const int16_t even_ip1 = out[i * 2 + 2];
 
+		out[i * 2 + 1] = hp[i] * q + ((even_ip1 + even_i + 1) >> 1);
+	}
+
+	{
+#if (AKO_WRAP_MODE == 0)
+		const int16_t even_i = out[(len - 1) * 2];
+		const int16_t even_ip1 = out[0];
+#else
+		const int16_t even_i = out[(len - 1) * 2];
+		const int16_t even_ip1 = out[(len - 1) * 2];
+#endif
+
+		out[(len - 1) * 2 + 1] = hp[len - 1] * q + ((even_ip1 + even_i + 1) >> 1);
+	}
+}
+
+
+static inline void sDD137(size_t len, int16_t q, const int16_t* lp, const int16_t* hp, int16_t* out)
+{
+	// Even
+	// DD137: even[i] = lp[i] - ((-hp[i + 1] - hp[i - 2]) + 9 * (hp[i] + hp[i - 1]) + 16) >> 5
+	for (size_t i = 0; i < 2; i++)
+	{
+#if (AKO_WRAP_MODE == 0)
+		const int16_t hp_il2 = hp[len - 2 + i] * q;
+		const int16_t hp_il1 = ((i == 0) ? hp[len - 1] : hp[0]) * q;
+		const int16_t hp_i = hp[i] * q;
+		const int16_t hp_ip1 = hp[i + 1] * q; // TODO, overflows?
+#else
+		const int16_t hp_il1 = ((i == 0) ? hp[i] : hp[0]) * q;
+		const int16_t hp_il2 = hp_il1;
+		const int16_t hp_i = hp[i] * q;
+		const int16_t hp_ip1 = hp[i + 1] * q;
+#endif
+
+		out[i * 2] = lp[i] - (((-hp_ip1 - hp_il2) + 9 * (hp_i + hp_il1) + 16) >> 5);
+	}
+
+	for (size_t i = 2; i < (len - 1); i++)
+	{
+		const int16_t hp_il2 = hp[i - 2] * q;
+		const int16_t hp_il1 = hp[i - 1] * q;
+		const int16_t hp_i = hp[i] * q;
+		const int16_t hp_ip1 = hp[i + 1] * q;
+
+		out[i * 2] = lp[i] - (((-hp_ip1 - hp_il2) + 9 * (hp_i + hp_il1) + 16) >> 5);
+	}
+
+	{
+#if (AKO_WRAP_MODE == 0)
+		const int16_t hp_il2 = ((len == 2) ? hp[len - 1] : hp[len - 3]) * q;
+		const int16_t hp_il1 = ((len == 2) ? hp[0] : hp[len - 2]) * q;
+		const int16_t hp_i = hp[len - 1] * q;
+		const int16_t hp_ip1 = hp[0] * q;
+#else
+		const int16_t hp_il2 = ((len == 2) ? hp[len - 1] : hp[len - 3]) * q;
+		const int16_t hp_il1 = ((len == 2) ? hp[len - 1] : hp[len - 2]) * q;
+		const int16_t hp_i = hp[len - 1] * q;
+		const int16_t hp_ip1 = hp[len - 1] * q;
+#endif
+
+		out[(len - 1) * 2] = lp[len - 1] - (((-hp_ip1 - hp_il2) + 9 * (hp_i + hp_il1) + 16) >> 5);
+	}
+
+	// Odd
+	// DD137: odd[i] = hp[i] - ((even[i + 2] + even[i - 1]) - 9 * (even[i + 1] + even[i]) + 8) >> 4
+	{
+#if (AKO_WRAP_MODE == 0)
+		const int16_t even_il1 = (len == 2) ? out[2] : out[(len * 2) - 2]; // ???
+		const int16_t even_i = out[0];
+		const int16_t even_ip1 = out[2];
+		const int16_t even_ip2 = (len == 2) ? out[0] : out[4]; // ???
+#else
+		const int16_t even_il1 = out[0];
+		const int16_t even_i = out[0];
+		const int16_t even_ip1 = out[2];
+		const int16_t even_ip2 = (len == 2) ? out[2] : out[4];
+#endif
+
+		out[1] = hp[0] * q - (((even_ip2 + even_il1) - 9 * (even_ip1 + even_i) + 8) >> 4);
+	}
+
+	for (size_t i = 1; i < (len - 2); i++)
+	{
+		const int16_t even_il1 = out[i * 2 - 2];
+		const int16_t even_i = out[i * 2];
+		const int16_t even_ip1 = out[i * 2 + 2];
+		const int16_t even_ip2 = out[i * 2 + 4];
+
+		out[i * 2 + 1] = hp[i] * q - (((even_ip2 + even_il1) - 9 * (even_ip1 + even_i) + 8) >> 4);
+	}
+
+	for (size_t i = (len - 2); i < len; i++)
+	{
+#if (AKO_WRAP_MODE == 0)
+		const int16_t even_il1 = (i < 1) ? out[(len - 1) * 2] : out[i * 2 - 2];
+		const int16_t even_i = out[i * 2];
+		const int16_t even_ip1 = (i + 1 >= len) ? out[(i + 1 - len) * 2] : out[i * 2 + 2];
+		const int16_t even_ip2 = (i + 2 >= len) ? out[(i + 2 - len) * 2] : out[i * 2 + 4];
+#else
+		const int16_t even_il1 = (i < 1) ? out[i * 2] : out[i * 2 - 2];
+		const int16_t even_i = out[i * 2];
+		const int16_t even_ip1 = (i + 1 >= len) ? out[i * 2] : out[i * 2 + 2];
+		const int16_t even_ip2 = (i + 2 >= len) ? out[i * 2] : out[i * 2 + 4];
+#endif
+
+		out[i * 2 + 1] = hp[i] * q - (((even_ip2 + even_il1) - 9 * (even_ip1 + even_i) + 8) >> 4);
+	}
+}
+
+
+static inline void sUnlift1d(size_t len, int16_t q, const int16_t* lp, const int16_t* hp, int16_t* out)
+{
 #if (AKO_WAVELET == 1)
-	// Haar
-	for (size_t i = 0; i < len; i++)
-		out[(i * 2) + 1] = lp[i] + hp[i] * q;
+	sHaar(len, q, lp, hp, out);
 #endif
 
 #if (AKO_WAVELET == 2)
-	// CDF53
-	for (size_t i = 0; i < len; i++)
-	{
-		if (i < len - 2)
-			out[(i * 2) + 1] = hp[i] * q + ((out[(i * 2)] + out[(i * 2) + 2]) / 2);
-		else
-			out[(i * 2) + 1] = hp[i] * q + ((out[(i * 2)] + out[(i * 2)]) / 2); // Fake last value
-	}
+	sCDF53(len, q, lp, hp, out);
 #endif
 
 #if (AKO_WAVELET == 3)
-	// 97DD
-	if (len > 4) // Needs 4 samples
-	{
-		for (size_t i = 0; i < len; i++)
-		{
-			int16_t even_i = out[(i * 2)];
-			int16_t even_il1 = (i >= 1) ? out[(i * 2) - 2] : even_i;
-			int16_t even_ip1 = (i <= len - 2) ? out[(i * 2) + 2] : even_i;
-			int16_t even_ip2 = (i <= len - 4) ? out[(i * 2) + 4] : even_ip1;
-
-			out[(i * 2) + 1] = hp[i] * q + (-(even_il1 + even_ip2) + 9 * (even_i + even_ip1)) / 16;
-		}
-	}
-	else // Fallback to CDF53
-	{
-		for (size_t i = 0; i < len; i++)
-		{
-			if (i < len - 2)
-				out[(i * 2) + 1] = hp[i] * q + ((out[(i * 2)] + out[(i * 2) + 2]) / 2);
-			else
-				out[(i * 2) + 1] = hp[i] * q + ((out[(i * 2)] + out[(i * 2)]) / 2); // Fake last value
-		}
-	}
+	sDD137(len, q, lp, hp, out);
 #endif
 }
 
@@ -238,11 +344,12 @@ void InverseDwtTransform(size_t tile_w, size_t tile_h, size_t channels, size_t p
 			input_cursor = input_cursor + (current_w * current_h) * 3; // ...And three highpasses
 
 			// Developers, developers, developers
-			// DevSaveGrayPgm(current_w * 2, current_h * 2, current_w * 2, lp, "/tmp/unlift-ch%zu-%zu.pgm", ch, unlift);
-
-			// if (ch == 0)
-			//	DevPrintf("###\t - Unlift %zu, %zux%zu -> %zux%zu px\n", unlift, current_w, current_h, target_w,
-			//	          target_h);
+			if (ch == 0)
+			{
+				// DevSaveGrayPgm(target_w, target_h, current_w * 2, lp, "/tmp/unlift-ch%zu-%zu.pgm", ch, unlift);
+				// DevPrintf("###\t - Unlift %zu, %zux%zu -> %zux%zu px\n", unlift, current_w, current_h, target_w,
+				//           target_h);
+			}
 		}
 	}
 }

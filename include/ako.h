@@ -63,22 +63,23 @@ AKO_EXPORT const char* AkoVersionString();
 
 #define AKO_COMPRESSION 1 // 0 = None, 1 = Elias gamma coding
 #define AKO_COLORSPACE 1  // 0 = RGB, 1 = YCOCG, 2 = YCOCG-R (reversible)
-#define AKO_WAVELET 2     // 0 = None, 1 = Haar, 2 = CDF53, 3 = 97DD
+#define AKO_WAVELET 3     // 0 = None, 1 = Haar, 2 = CDF53, 3 = DD137
+#define AKO_WRAP_MODE 1   // 0 = Repeat, 1 = Clamp to edge
 
 // Haar: Haar wavelet
-// The traditional one not suitable for integer arithmetics (lossy)
-// Lowpass is '(a + b) / 2', a box filter.
+// CDF53: Cohen–Daubechies–Feauveau 5/3
+// DD137: Deslauriers-Dubuc 13/7
 
-// CDF53: Cohen–Daubechies–Feauveau 5/3.
-// Used in JPEG2000 in lossless mode... should be lossless assuming that
-// I'm doing everything right. A cost of this is that the lowpass pixels
-// are not centre-aligned (as in a box filter) but at a tiny bit to the
-// top-left corner.
+// Formulas:
 
-// 97DD: Deslauriers-Dubuc 9/7
-// Used in Dirac/VC-2. Lossy, the lowpass is the same as CDF53. The
-// highpass carry extra samples in a smoothstep fashion... maybe it´s
-// just me, but the functions and the image they produce looks similar.
+// Haar: hp[i] = odd[i] - (even[i] + odd[i]) / 2
+// Haar: lp[i] = (even[i] + odd[i]) / 2
+
+// CDF53: hp[i] = odd[i] - (even[i + 1] + even[i] + 2) >> 2
+// CDF53: lp[i] = even[i] + (hp[i] + hp[i - 1] + 1) >> 1
+
+// DD137: hp[i] = odd[i] + ((even[i + 2] + even[i - 1]) - 9 * (even[i + 1] + even[i]) + 8) >> 4
+// DD137: lp[i] = even[i] + ((-hp[i + 1] - hp[i - 2]) + 9 * (hp[i] + hp[i - 1]) + 16) >> 5
 
 //
 
