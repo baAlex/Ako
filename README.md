@@ -25,7 +25,7 @@ On Ubuntu you can install them with:
 sudo apt install git ninja-build cmake libpng-dev
 ```
 
-### Compile with Cmake
+### Using Cmake
 ```
 git clone https://github.com/baAlex/Ako
 cd Ako
@@ -35,7 +35,7 @@ cmake -DCMAKE_BUILD_TYPE=Release ..
 cmake --build .
 ```
 
-### Compile with Ninja
+### Using Ninja
 ```
 git clone https://github.com/baAlex/Ako
 cd Ako
@@ -60,7 +60,7 @@ Consider the following examples as mere illustrations, the codec is constantly i
 
 For most purposes the examples are good on showcase how a simple wavelet-based codec degrades images, and what kind of artifacts expect of it.
 - Note that there is no blocks.
-- And how fine details are lost while sharp lines and overall shapes remain somewhat intact. Most codecs do this, but here is a tiny bit impressive since right now there is no analysis, quality estimation nor any rate-distortion optimization (tasks to improve the codec further).
+- And how fine details are lost while sharp lines and overall shapes remain somewhat intact. All codecs do this, but is remarkable since right now there is no analysis, quality estimation nor any rate-distortion optimization (tasks to improve the codec further).
 
 ![](./resources/guanaco1-readme.png)
 - [Uncompressed][1] (2.76 MB), [**1:27**][2] (100.86 kB), [**1:60**][3] (46.02 kB), [**1:146**][4] (18.92 kB)
