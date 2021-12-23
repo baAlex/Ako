@@ -2,7 +2,7 @@
 Ako
 ===
 
-Image codec using discrete wavelet transform.
+Lossy image codec using discrete wavelet transform.
 
 **A toy-project**. It is me learning how image codecs works, having fun following a bunch of papers. :)
 
@@ -75,6 +75,33 @@ For most purposes the examples are good on showcase how a simple wavelet-based c
 - Using quantization steps of: 2, 2 and 30
 - With noise gate thresholds of: 16, 48 and 0
 - Last two serve as comparison between a noise gate compression and a quantization compression, both set to an identical ratio
+
+
+References
+----------
+
+- **ADAMS, Michael David (2002)**. Reversible Integer-to-integer Wavelet Transforms For Image Coding. University of British Columbia.
+- **ARNTZEN, Hans-Kristian (2014)**. Linelet, an Ultra-Low Complexity, Ultra-Low Latency Video Codec for Adaptation of HD-SDI to Ethernet. Norwegian University of Science and Technology Department of Electronics and Telecommunications.
+- **CHRISTOPOULOS, Charilaos, SKODRAS, Athanassios & EBRAHIMI, Touradj (2000)**. The JPEG2000 Still Image Coding System: An Overview. IEEE Transactions on Consumer Electronics, Vol. 46, No. 4, pp. 1103-1127.
+- **DAUBECHIES, Ingrid & SWELDENS, Wim (1998)**. Factoring Wavelet Transforms Into Lifting Steps. The Journal of Fourier Analysis and Applications 4, pp. 247–269.
+- **FYFFE, Graham (2016)**. GFWX: Good, Fast Wavelet Codec. ICT Tech Report ICT-TR-01-2016. University of Southern California Institute.
+- **KIELY, A., KLIMESH, M. (2003)**. The ICER Progressive Wavelet Image Compressor. IPN Progress Report 42-155.
+- ? (2008 September 23). **Dirac Specification Version 2.2.3**.
+
+
+In the early days of the project, when terms like "lift" and "dyadic" were incredible obscure to me, hardware oriented papers gave me an invaluable help:
+
+- **AL-AZAWI, Saad, ABBAS, Yasir Amer & JIDIN, Razali. (2014)**. Low Complexity Multidimensional CDF 5/3 DWT Architecture. 9th International Symposium on Communication Systems, Networks & Digital Sign (CSNDSP).
+- **ANGELOPOULOU, Maria, CHEUNG, Peter, MASSELOS, Konstantinos & ANDREOPOULOS, Yiannis (2008)**. Implementation and Comparison of the 5/3 Lifting 2D Discrete Wavelet Transform Computation Schedules on FPGAs. Journal of VLSI Signal Processing. pp. 3-21.
+- **HEDGE, Shriram & RAMACHADRAN, S. (2014)**. Implementation of CDF 5/3 Wavelet Transform. International Journal of Electrical, Electronics and Data Communication. Vol. 2, No. 11, pp. 36-38.
+
+
+Not directly related, but influencing the project:
+
+- **HANS, Mat & SCHAFER, Ronald (1999)**. Lossless Compression of Digital Audio. HP Laboratories Palo Alto.
+- **ROBINSON, Tony (1994)**. Shorten: Simple Lossless And Near-Lossless Waveform Compression. Cambridge University Engineering Department Technical Report CUED/F-INFENG/TR156.
+- **WEINBERGER, Marcelo, SEROUSSI, Gadiel & SAPIRO, Guillermo (2000)**. The LOCO-I Lossless Image Compression Algorithm: Principles and Standardization into JPEG-LS. IEEE Transactions on Image Processing, Vol. 9, No. 8, pp. 1309-1324.
+- ? (????). **FLAC Format Specification**. Retrieved from: https://xiph.org/flac/format.html.
 
 
 License
