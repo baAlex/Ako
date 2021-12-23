@@ -28,6 +28,13 @@
 #define AKO_FORMAT_VERSION 1 // Format version this library handles
 
 
+enum akoColorspace
+{
+	AKO_COLORSPACE_YCOCG = 0,
+	AKO_COLORSPACE_YCOCG_R,
+	AKO_COLORSPACE_RGB,
+};
+
 struct AkoSettings
 {
 	float quantization[4];

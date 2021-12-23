@@ -133,8 +133,9 @@ uint8_t* AkoDecode(size_t input_size, const void* in, size_t* out_w, size_t* out
 
 			DevBenchmarkStartResume(&bench_color);
 			{
-				FormatToInterlacedU8RGB(tile_w, tile_h, channels, planes_space, image_w, workarea_b,
-				                        image_memory + (image_w * row + col) * channels);
+				akoFormatToInterleavedU8Rgb(AKO_COLORSPACE_YCOCG, channels, (tile_w % 2 == 0) ? tile_w : tile_w + 1,
+				                            (tile_h % 2 == 0) ? tile_h : tile_h + 1, tile_w, tile_h, image_w,
+				                            workarea_b, image_memory + (image_w * row + col) * channels);
 			}
 			DevBenchmarkPause(&bench_color);
 
