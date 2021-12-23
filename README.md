@@ -45,7 +45,7 @@ ninja
 
 Usage
 -----
-The two executables `akoenc` and `akodec` will let you try the codec. Run them whitout any argument to read the usage help. But is mostly:
+Two executables: `akoenc` and `akodec` will let you try the codec. Run them whitout any argument to read the usage help. Is simple as:
 
 ```
 akoenc -q 16 -i "input.png" -o "out.ako"
@@ -56,11 +56,9 @@ akoenc -q 16 -i "input.png" -o "out.ako"
 
 Examples
 --------
-Consider the following examples as mere illustrations, the codec is constantly improving, and compression ratios are too high to be useful in real life.
+Following examples are mere illustrations. The codec is mostly a prototype, and chosen compression ratios are too high to be useful in real life. So, for most purposes below examples serve as a showcase on how a simple wavelet-based codec degrades images, and what kind of artifacts expect of it.
 
-For most purposes the examples are good on showcase how a simple wavelet-based codec degrades images, and what kind of artifacts expect of it.
-- Note that there is no blocks.
-- And how fine details are lost while sharp lines and overall shapes remain somewhat intact. All codecs do this, but is remarkable since right now there is no analysis, quality estimation nor any rate-distortion optimization (tasks to improve the codec further).
+Note that there is no blocks; and how fine details are lost while sharp lines and overall shapes remain somewhat intact. All modern codecs do this, but here is remarkable since (right now) there is no analysis, quality estimation nor any rate-distortion optimization (tasks to improve the codec further).
 
 ![](./resources/guanaco1-readme.png)
 - [Uncompressed][1] (2.76 MB), [**1:27**][2] (100.86 kB), [**1:60**][3] (46.02 kB), [**1:146**][4] (18.92 kB)
