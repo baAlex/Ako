@@ -51,8 +51,8 @@ size_t AkoEncode(size_t image_w, size_t image_h, size_t channels, const struct A
 	assert(blob != NULL);
 
 	const size_t tiles_no = TilesNo(image_w, image_h, tiles_dimension);
-	DevPrintf("###\t%zux%zu px , %zu channels, %zu px tiles, %zu tiles\n", image_w, image_h, channels,
-	          tiles_dimension, tiles_no);
+	DevPrintf("###\t%zux%zu px , %zu channels, %zu px tiles, %zu tiles\n", image_w, image_h, channels, tiles_dimension,
+	          tiles_no);
 
 	const size_t workarea_size = WorkareaLength(image_w, image_h, tiles_dimension) * channels * sizeof(int16_t);
 	DevPrintf("###\tWorkarea of %.2f kB\n", (float)workarea_size / 500.0f);
@@ -107,8 +107,8 @@ size_t AkoEncode(size_t image_w, size_t image_h, size_t channels, const struct A
 			// Proccess
 			DevBenchmarkStartResume(&bench_color);
 			{
-				FormatToPlanarI16YUV(tile_w, tile_h, channels, planes_space, image_w,
-				                     in + (image_w * row + col) * channels, workarea_a);
+				akoFormatToPlanarI16Yuv(0, AKO_COLORSPACE_YCOCG, channels, tile_w, tile_h, image_w, planes_space,
+				                        in + (image_w * row + col) * channels, workarea_a);
 			}
 			DevBenchmarkPause(&bench_color);
 
