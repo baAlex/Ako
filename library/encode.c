@@ -31,12 +31,12 @@ SOFTWARE.
 #include <assert.h>
 #include <string.h>
 
+#include "ako-private.h"
 #include "ako.h"
 
 #include "developer.h"
 #include "dwt.h"
 #include "entropy.h"
-#include "format.h"
 #include "frame.h"
 #include "misc.h"
 
