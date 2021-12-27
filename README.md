@@ -60,15 +60,15 @@ Following examples are mere illustrations. The codec is mostly a prototype, and 
 
 Note that there is no blocks; and how fine details are lost while sharp lines and overall shapes remain somewhat intact. All modern codecs do this, but here is remarkable since (right now) there is no analysis, quality estimation nor any rate-distortion optimization (tasks to improve the codec further).
 
-![](./resources/guanaco1-readme.png)
+![](./resources/readme-images/guanaco1-readme.png)
 - [Uncompressed][1] (2.76 MB), [**1:27**][2] (100.86 kB), [**1:60**][3] (46.02 kB), [**1:146**][4] (18.92 kB)
 - Using quantization steps of: 16, 32 and 64
 
-![](./resources/kodak8-readme.png)
+![](./resources/readme-images/kodak8-readme.png)
 - [Uncompressed][5] (1.17 MB), [**1:15**][6] (78.27 kB), [**1:28**][7] (41.91 kB), [**1:60**][8] (19.62 kB)
 - Using quantization steps of: 16, 32 and 64
 
-![](./resources/vincent-readme.png)
+![](./resources/readme-images/vincent-readme.png)
 - [Uncompressed][9] (7.14 MB), [**1:10**][10] (714.35 kB), [**1:44**][11] (163.46 kB), [**1:44**][12] (163.18 kB)
 - Using quantization steps of: 2, 2 and 30
 - With noise gate thresholds of: 16, 48 and 0
@@ -110,20 +110,20 @@ Each file includes the respective notice at the beginning.
 
 ____
 
-[1]: ./test-images/guanaco1.png
-[2]: ./resources/guanaco1.akoQ16N0.png
-[3]: ./resources/guanaco1.akoQ32N0.png
-[4]: ./resources/guanaco1.akoQ64N0.png
+[1]: ./resources/test-images/guanaco1.png
+[2]: ./resources/readme-images/guanaco1.akoQ16N0.png
+[3]: ./resources/readme-images/guanaco1.akoQ32N0.png
+[4]: ./resources/readme-images/guanaco1.akoQ64N0.png
 
-[5]: ./test-images/kodak8.png
-[6]: ./resources/kodak8.akoQ16N0.png
-[7]: ./resources/kodak8.akoQ32N0.png
-[8]: ./resources/kodak8.akoQ64N0.png
+[5]: ./resources/test-images/kodak8.png
+[6]: ./resources/readme-images/kodak8.akoQ16N0.png
+[7]: ./resources/readme-images/kodak8.akoQ32N0.png
+[8]: ./resources/readme-images/kodak8.akoQ64N0.png
 
-[9]: ./test-images/vincent.png
-[10]: ./resources/vincent.akoQ2N16.png
-[11]: ./resources/vincent.akoQ2N48.png
-[12]: ./resources/vincent.akoQ30N0.png
+[9]: ./resources/test-images/vincent.png
+[10]: ./resources/readme-images/vincent.akoQ2N16.png
+[11]: ./resources/readme-images/vincent.akoQ2N48.png
+[12]: ./resources/readme-images/vincent.akoQ30N0.png
 
 [13]: ./LICENSE
 
