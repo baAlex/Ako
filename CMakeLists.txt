@@ -36,7 +36,7 @@ set(AKO_SOURCES
 
 if (AKO_SHARED)
 	add_library("ako" SHARED ${AKO_SOURCES})
-	target_include_directories("ako" PUBLIC "./include/")
+	target_include_directories("ako" PUBLIC "./library/")
 
 	if (NOT MSVC)
 		target_link_libraries("ako" PRIVATE "m")
@@ -45,7 +45,7 @@ endif ()
 
 if (AKO_STATIC)
 	add_library("ako-static" STATIC ${AKO_SOURCES})
-	target_include_directories("ako-static" PUBLIC "./include/")
+	target_include_directories("ako-static" PUBLIC "./library/")
 
 	if (NOT MSVC)
 		target_link_libraries("ako-static" PRIVATE "m")

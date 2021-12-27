@@ -1,16 +1,16 @@
 
-cc = clang
-link = clang -fuse-ld=lld
+cc = clang-12
+link = clang-12 -fuse-ld=lld
 
 #cc = gcc
 #link = gcc
 
 # Release flags:
-cflags = -flto -O3 -fvisibility=hidden -DAKO_EXPORT_SYMBOLS -fdiagnostics-color=always -I./include
+cflags = -flto -O3 -fvisibility=hidden -DAKO_EXPORT_SYMBOLS -fdiagnostics-color=always -I./library
 lflags = -lm -fdiagnostics-color=always
 
 # Debug flags:
-#cflags = -g -O0 -std=c11 -Wall -Wextra -pedantic -Wconversion -fdiagnostics-color=always -I./include
+#cflags = -g -O0 -std=c11 -Wall -Wextra -pedantic -Wconversion -fdiagnostics-color=always -I./library
 #lflags = -lm -fdiagnostics-color=always
 
 
