@@ -1,4 +1,4 @@
-/*-----------------------------
+/*
 
 MIT License
 
@@ -21,152 +21,63 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+*/
 
--------------------------------
-
- [encode.c]
- - Alexander Brandt 2021
------------------------------*/
-
-#include <assert.h>
-#include <string.h>
 
 #include "ako-private.h"
-#include "ako.h"
-
-#include "developer.h"
-#include "dwt.h"
-#include "entropy.h"
-#include "frame.h"
-#include "misc.h"
 
 
-size_t AkoEncode(size_t image_w, size_t image_h, size_t channels, const struct AkoSettings* s, const uint8_t* in,
-                 void** out)
+size_t akoEncodeExt(const struct akoCallbacks* c, const struct akoSettings* s, size_t channels, size_t image_w,
+                    size_t image_h, const void* in, void** out, enum akoStatus* out_status)
 {
-	size_t tiles_dimension = (s->tiles_dimension == 0) ? 524288 : s->tiles_dimension;
+	enum akoStatus status;
+	struct akoHead* h;
 
-	size_t blob_size = sizeof(struct AkoHead);
-	void* blob = malloc(blob_size);
-	assert(blob != NULL);
+	size_t blob_size = 0;
+	void* blob = NULL;
 
-	const size_t tiles_no = TilesNo(image_w, image_h, tiles_dimension);
-	DevPrintf("###\t%zux%zu px , %zu channels, %zu px tiles, %zu tiles\n", image_w, image_h, channels, tiles_dimension,
-	          tiles_no);
+	// Check callbacks and settings
+	const struct akoCallbacks checked_c = (c != NULL) ? *c : akoDefaultCallbacks();
+	const struct akoSettings checked_s = (s != NULL) ? *s : akoDefaultSettings();
 
-	const size_t workarea_size = WorkareaLength(image_w, image_h, tiles_dimension) * channels * sizeof(int16_t);
-	DevPrintf("###\tWorkarea of %.2f kB\n", (float)workarea_size / 500.0f);
-
-	FrameWrite(image_w, image_h, channels, tiles_dimension, blob);
-
-	// Proccess tiles
-	struct Benchmark bench_color = DevBenchmarkCreate("Color transformation");
-	struct Benchmark bench_wavelet = DevBenchmarkCreate("Wavelet transformation");
-	struct Benchmark bench_compression = DevBenchmarkCreate("Compression");
-	struct Benchmark bench_total = DevBenchmarkCreate("Total");
-	DevBenchmarkStartResume(&bench_total);
+	if (checked_c.malloc == NULL || checked_c.realloc == NULL || checked_c.free == NULL)
 	{
-		void* aux_memory = malloc(sizeof(int16_t) * tiles_dimension * 4); // Four scanlines
-		assert(aux_memory != NULL);
-
-		int16_t* workarea_a = malloc(workarea_size);
-		int16_t* workarea_b = malloc(workarea_size);
-		assert(workarea_a != NULL);
-		assert(workarea_b != NULL);
-
-		size_t col = 0;
-		size_t row = 0;
-		size_t tile_w = 0;
-		size_t tile_h = 0;
-		size_t tile_length = 0;
-		size_t planes_space = 0;
-
-		for (size_t i = 0; i < tiles_no; i++)
-		{
-			// Tile dimensions, border tiles not always are square
-			tile_w = tiles_dimension;
-			tile_h = tiles_dimension;
-
-			if ((col + tiles_dimension) > image_w)
-				tile_w = image_w - col;
-			if ((row + tiles_dimension) > image_h)
-				tile_h = image_h - row;
-
-			tile_length = TileTotalLength(tile_w, tile_h) * channels;
-
-			planes_space = 0; // Non divisible by two dimensions add an extra row and/or column
-			planes_space = (tile_w % 2 == 0) ? planes_space : (planes_space + tile_h);
-			planes_space = (tile_h % 2 == 0) ? planes_space : (planes_space + tile_w);
-
-			if (i < 10)
-				DevPrintf("###\t[Tile %zu, x: %zu, y: %zu, %zux%zu px, spacing: %zu]\n", i, col, row, tile_w, tile_h,
-				          planes_space);
-			else if (i == 10)
-				DevPrintf("###\t[Tile ...]\n");
-
-			// Proccess
-			DevBenchmarkStartResume(&bench_color);
-			{
-				akoFormatToPlanarI16Yuv(0, AKO_COLORSPACE_YCOCG, channels, tile_w, tile_h, image_w, planes_space,
-				                        in + (image_w * row + col) * channels, workarea_a);
-			}
-			DevBenchmarkPause(&bench_color);
-
-			DevBenchmarkStartResume(&bench_wavelet);
-			{
-				DwtTransform(s, tile_w, tile_h, channels, planes_space, aux_memory, workarea_a, workarea_b);
-			}
-			DevBenchmarkPause(&bench_wavelet);
-
-			// Compress
-			DevBenchmarkStartResume(&bench_compression);
-			{
-				// Calculate size of compressed data
-#if (AKO_COMPRESSION == 1)
-				size_t compressed_size = EntropyCompress(tile_length, workarea_b, NULL);
-#else
-				size_t compressed_size = tile_length * sizeof(uint16_t);
-#endif
-
-				// Realloc blob
-				blob_size = blob_size + compressed_size + sizeof(uint32_t);
-				blob = realloc(blob, blob_size); // TODO, use a exponential-growth buffer thing
-				assert(blob != NULL);
-
-				// Compressed size at the first 4 bytes
-				assert(compressed_size <= UINT32_MAX);
-
-				uint32_t* temp = (uint32_t*)((uint8_t*)blob + (blob_size - compressed_size - sizeof(uint32_t)));
-				*temp = (uint32_t)compressed_size;
-
-				// Compressed data
-#if (AKO_COMPRESSION == 1)
-				EntropyCompress(tile_length, workarea_b, (uint8_t*)blob + (blob_size - compressed_size));
-#else
-				memcpy((uint8_t*)blob + (blob_size - compressed_size), workarea_b, compressed_size);
-#endif
-			}
-			DevBenchmarkPause(&bench_compression);
-
-			// Next tile
-			col = col + tile_w;
-			if (col >= image_w)
-			{
-				col = 0;
-				row = row + tile_h;
-			}
-		}
-
-		free(aux_memory);
-		free(workarea_a);
-		free(workarea_b);
+		status = AKO_INVALID_CALLBACKS;
+		goto return_failure;
 	}
-	DevBenchmarkPrint(&bench_color);
-	DevBenchmarkPrint(&bench_wavelet);
-	DevBenchmarkPrint(&bench_compression);
-	DevBenchmarkPrint(&bench_total);
+
+	// Allocate blob
+	blob_size = sizeof(struct akoHead);
+	blob = checked_c.malloc(blob_size);
+
+	if (blob == NULL)
+	{
+		status = AKO_NO_ENOUGH_MEMORY;
+		goto return_failure;
+	}
+
+	// Create head
+	h = blob;
+	if ((status = akoHeadWrite(channels, image_w, image_h, &checked_s, h)) != AKO_OK)
+		goto return_failure;
 
 	// Bye!
-	*out = blob;
+	if (out != NULL)
+		*out = blob;
+	else
+		checked_c.free(blob); // Discard encoded data
+
+	if (out_status != NULL)
+		*out_status = AKO_OK;
+
 	return blob_size;
+
+return_failure:
+	if (blob != NULL)
+		checked_c.free(blob);
+
+	if (out_status != NULL)
+		*out_status = status;
+
+	return 0;
 }

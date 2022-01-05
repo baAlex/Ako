@@ -14,4 +14,10 @@ void akoFormatToInterleavedU8Rgb(enum akoColorspace, size_t channels, size_t wid
                                  size_t in_planes_spacing, size_t out_stride, int16_t* in,
                                  uint8_t* out); // Destroys 'in'
 
+// head.c:
+
+enum akoStatus akoHeadWrite(size_t channels, size_t image_w, size_t image_h, const struct akoSettings*, void* out);
+enum akoStatus akoHeadRead(const void* in, size_t* out_channels, size_t* out_image_w, size_t* out_image_h,
+                           struct akoSettings* out_s);
+
 #endif
