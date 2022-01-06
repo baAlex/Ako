@@ -40,17 +40,17 @@ const char* help_string = "help_string";
 class PngImage
 {
   private:
-	size_t _width;
-	size_t _height;
-	size_t _channels;
-	void* _data;
+	size_t width_;
+	size_t height_;
+	size_t channels_;
+	void* data_;
 
   public:
 	// clang-format off
-	size_t width() const     { return _width; };
-	size_t height() const    { return _height; };
-	size_t channels() const  { return _channels; };
-	const void* data() const { return (const void*)(_data); };
+	size_t width() const     { return width_; };
+	size_t height() const    { return height_; };
+	size_t channels() const  { return channels_; };
+	const void* data() const { return (const void*)(data_); };
 	// clang-format on
 
 	PngImage(const string& filename)
@@ -71,27 +71,28 @@ class PngImage
 
 		// Load/decode
 		if ((error = lodepng_load_file(&blob, &blob_size, filename.c_str())) != 0)
-			throw Modern::Error("LodePng error '" + string(lodepng_error_text(error)) + "'");
+			throw Modern::Error("LodePng error: '" + string(lodepng_error_text(error)) + "'");
 
 		if ((error = lodepng_decode(&data, &width, &height, &state, blob, blob_size)) != 0)
-			throw Modern::Error("LodePng error '" + string(lodepng_error_text(error)) + "'");
+			throw Modern::Error("LodePng error: '" + string(lodepng_error_text(error)) + "'");
 
 		// Validate
 		switch (state.info_png.color.colortype)
 		{
-		case LCT_GREY: _channels = 1; break;
-		case LCT_GREY_ALPHA: _channels = 2; break;
-		case LCT_RGB: _channels = 3; break;
-		case LCT_RGBA: _channels = 4; break;
-		default: throw Modern::Error("Unsupported channels number");
+		case LCT_GREY: channels_ = 1; break;
+		case LCT_GREY_ALPHA: channels_ = 2; break;
+		case LCT_RGB: channels_ = 3; break;
+		case LCT_RGBA: channels_ = 4; break;
+		default: throw Modern::Error("Unsupported channels number (" + to_string(state.info_png.color.colortype) + ")");
 		}
 
 		if (state.info_png.color.bitdepth != 8)
-			throw Modern::Error("Unsupported bits per pixel-component");
+			throw Modern::Error("Unsupported bits per pixel-component (" + to_string(state.info_png.color.bitdepth) +
+			                    ")");
 
-		_data = (void*)data;
-		_width = (size_t)width;
-		_height = (size_t)height;
+		data_ = (void*)data;
+		width_ = (size_t)width;
+		height_ = (size_t)height;
 
 		// Bye!
 		lodepng_state_cleanup(&state);
@@ -100,7 +101,7 @@ class PngImage
 
 	~PngImage()
 	{
-		free(_data);
+		free(data_);
 	}
 };
 
@@ -110,6 +111,8 @@ void AkoEnc(const vector<string>& args)
 	string filename_input = "";
 	string filename_output = "";
 	bool verbose = false;
+
+	akoSettings settings = akoDefaultSettings();
 
 	// Check arguments
 	if (args.size() == 1)
@@ -136,6 +139,43 @@ void AkoEnc(const vector<string>& args)
 			filename_input = *it;
 		else if (Modern::CheckArgumentPair("-o", "--output", it, it_end) == 0)
 			filename_output = *it;
+		else if (Modern::CheckArgumentPair("-r", "--wrap", it, it_end) == 0)
+		{
+			if (*it == "clamp" || *it == "0")
+				settings.wrap = AKO_WRAP_CLAMP;
+			else if (*it == "repeat" || *it == "1")
+				settings.wrap = AKO_WRAP_REPEAT;
+			else if (*it == "zero" || *it == "2")
+				settings.wrap = AKO_WRAP_ZERO;
+			else
+				throw Modern::Error("Unknown wrap mode '" + *it + "'");
+		}
+		else if (Modern::CheckArgumentPair("-w", "--wavelet", it, it_end) == 0)
+		{
+			if (*it == "dd137" || *it == "0")
+				settings.wavelet = AKO_WAVELET_DD137;
+			else if (*it == "cdf53" || *it == "1")
+				settings.wavelet = AKO_WAVELET_CDF53;
+			else if (*it == "haar" || *it == "2")
+				settings.wavelet = AKO_WAVELET_HAAR;
+			else if (*it == "none" || *it == "3")
+				settings.wavelet = AKO_WAVELET_NONE;
+			else
+				throw Modern::Error("Unknown wavelet '" + *it + "'");
+		}
+		else if (Modern::CheckArgumentPair("-c", "--colorspace", it, it_end) == 0)
+		{
+			if (*it == "ycocg" || *it == "0")
+				settings.colorspace = AKO_COLORSPACE_YCOCG;
+			else if (*it == "ycocg-r" || *it == "1")
+				settings.colorspace = AKO_COLORSPACE_YCOCG_R;
+			else if (*it == "rgb" || *it == "2")
+				settings.colorspace = AKO_COLORSPACE_RGB;
+			else
+				throw Modern::Error("Unknown colorspace '" + *it + "'");
+		}
+		else if (Modern::CheckArgumentPair("-t", "--tiles", it, it_end) == 0)
+			settings.tiles_dimension = stol(*it);
 		else
 			throw Modern::Error("Unknown argument '" + *it + "'");
 	}
@@ -147,14 +187,18 @@ void AkoEnc(const vector<string>& args)
 	const auto png = make_unique<PngImage>(filename_input);
 
 	if (verbose == true)
-		cout << "Input: '" << filename_input << "', " << png->channels() << " channel(s), " << png->width() << "x"
+	{
+		cout << "AkoEnc: '" << filename_input << "', " << png->channels() << " channel(s), " << png->width() << "x"
 		     << png->height() << " pixels" << endl;
+
+		cout << " - tiles dimension: " << settings.tiles_dimension << " px, wrap mode: " << (int)settings.wrap
+		     << ", wavelet: " << (int)settings.wavelet << ", colorspace: " << settings.colorspace << endl;
+	}
 
 	// Encode
 	void* blob = NULL;
 	size_t blob_size = 0;
 	{
-		akoSettings settings = akoDefaultSettings();
 		akoCallbacks callbacks = akoDefaultCallbacks();
 		akoStatus status = AKO_ERROR;
 
@@ -162,7 +206,7 @@ void AkoEnc(const vector<string>& args)
 		                         &blob, &status);
 
 		if (blob_size == 0)
-			throw Modern::Error("Ako error '" + string(akoStatusString(status)) + "'");
+			throw Modern::Error("Ako encode error: '" + string(akoStatusString(status)) + "'");
 	}
 
 	// Write

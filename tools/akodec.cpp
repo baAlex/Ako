@@ -40,27 +40,27 @@ const char* help_string = "help_string";
 class AkoImage
 {
   private:
-	size_t _width;
-	size_t _height;
-	size_t _channels;
-	void* _data;
+	size_t width_;
+	size_t height_;
+	size_t channels_;
+	void* data_;
 
-	enum akoWrap _wrap;
-	enum akoWavelet _wavelet;
-	enum akoColorspace _colorspace;
-	size_t _tiles_dimension;
+	enum akoWrap wrap_;
+	enum akoWavelet wavelet_;
+	enum akoColorspace colorspace_;
+	size_t tiles_dimension_;
 
   public:
 	// clang-format off
-	size_t width() const     { return _width; };
-	size_t height() const    { return _height; };
-	size_t channels() const  { return _channels; };
-	const void* data() const { return (const void*)(_data); };
+	size_t width() const     { return width_; };
+	size_t height() const    { return height_; };
+	size_t channels() const  { return channels_; };
+	const void* data() const { return (const void*)(data_); };
 
-	enum akoWrap wrap() const             { return _wrap; };
-	enum akoWavelet wavelet() const       { return _wavelet; };
-	enum akoColorspace colorspace() const { return _colorspace; };
-	size_t tiles_dimension() const        { return _tiles_dimension; };
+	enum akoWrap wrap() const             { return wrap_; };
+	enum akoWavelet wavelet() const       { return wavelet_; };
+	enum akoColorspace colorspace() const { return colorspace_; };
+	size_t tiles_dimension() const        { return tiles_dimension_; };
 	// clang-format on
 
 	AkoImage(const string& filename)
@@ -86,21 +86,21 @@ class AkoImage
 		akoStatus status = AKO_ERROR;
 		akoSettings settings;
 
-		_data = (void*)akoDecodeExt(&callbacks, blob->size(), blob->data(), &settings, &_channels, &_width, &_height,
+		data_ = (void*)akoDecodeExt(&callbacks, blob->size(), blob->data(), &settings, &channels_, &width_, &height_,
 		                            &status);
 
-		if (_data == NULL)
-			throw Modern::Error("Ako error '" + string(akoStatusString(status)) + "'");
+		if (data_ == NULL)
+			throw Modern::Error("Ako decode error: '" + string(akoStatusString(status)) + "'");
 
-		_wrap = settings.wrap;
-		_wavelet = settings.wavelet;
-		_colorspace = settings.colorspace;
-		_tiles_dimension = settings.tiles_dimension;
+		wrap_ = settings.wrap;
+		wavelet_ = settings.wavelet;
+		colorspace_ = settings.colorspace;
+		tiles_dimension_ = settings.tiles_dimension;
 	}
 
 	~AkoImage()
 	{
-		akoDefaultFree(_data);
+		akoDefaultFree(data_);
 	}
 };
 
@@ -147,8 +147,13 @@ void AkoDec(const vector<string>& args)
 	const auto ako = make_unique<AkoImage>(filename_input);
 
 	if (verbose == true)
-		cout << "Input: '" << filename_input << "', " << ako->channels() << " channel(s), " << ako->width() << "x"
+	{
+		cout << "AkoDec: '" << filename_input << "', " << ako->channels() << " channel(s), " << ako->width() << "x"
 		     << ako->height() << " pixels" << endl;
+
+		cout << " - tiles dimension: " << ako->tiles_dimension() << " px, wrap mode: " << (int)ako->wrap()
+		     << ", wavelet: " << (int)ako->wavelet() << ", colorspace: " << ako->colorspace() << endl;
+	}
 }
 
 

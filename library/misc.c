@@ -85,8 +85,106 @@ const char* akoStatusString(enum akoStatus status)
 	case AKO_INVALID_MAGIC: return "Invalid magic (not an Ako file)";
 	case AKO_UNSUPPORTED_VERSION: return "Unsupported version";
 	case AKO_NO_ENOUGH_MEMORY: return "No enough memory";
+	case AKO_INVALID_FLAGS: return "Invalid flags";
 	default: break;
 	}
 
 	return "Unknown status code";
+}
+
+
+size_t akoDividePlusOneRule(size_t x)
+{
+	return (x % 2 == 0) ? (x / 2) : ((x + 1) / 2);
+}
+
+
+size_t akoTileDataSize(size_t tile_w, size_t tile_h)
+{
+	/*
+	    If 'tile_w' and 'tile_h' equals, are a power-of-two (2, 4, 8, 16, etc), and
+	    function 'log2' operates on integers whitout rounding errors; then:
+
+	    TileDataSize(d) = (d * d * W + log2(d / 2) * L + T)
+
+	    Where, d = Tile dimension (either 'tile_w' or 'tile_h')
+	           W = Size of wavelet
+	           L = Size of lift head
+	           T = Size of tile head
+
+	    If not, is a recursive function, where we add 1 to tile dimensions
+	    on lift steps that are not divisible by 2 (DividePlusOne rule). Lift
+	    steps with their respective head. And finally one tile head at the end.
+
+	    This later approach is used in below C code.
+	*/
+
+	size_t size = 0;
+
+	while (tile_w > 2 && tile_h > 2) // For each lift step...
+	{
+		tile_w = akoDividePlusOneRule(tile_w);
+		tile_h = akoDividePlusOneRule(tile_h);
+		size += (tile_w * tile_h) * sizeof(wavelet_t) * 3; // Three highpasses...
+		size += sizeof(struct akoLiftHead);                // One lift head...
+	}
+
+	size += (tile_w * tile_h) * sizeof(wavelet_t); // One lowpass
+	size += sizeof(struct akoTileHead);            // And one tile head...
+
+	return size;
+}
+
+
+size_t akoTileDimension(size_t x, size_t image_w, size_t tiles_dimension)
+{
+	if (tiles_dimension == 0)
+		return image_w;
+
+	if (x + tiles_dimension > image_w)
+		return (image_w % tiles_dimension);
+
+	return tiles_dimension;
+}
+
+
+static size_t sMax(size_t a, size_t b)
+{
+	return (a > b) ? a : b;
+}
+
+static size_t sMin(size_t a, size_t b)
+{
+	return (a < b) ? a : b;
+}
+
+size_t akoImageMaxTileDataSize(size_t image_w, size_t image_h, size_t tiles_dimension)
+{
+	if (tiles_dimension == 0 || (tiles_dimension >= image_w && tiles_dimension >= image_h))
+		return akoTileDataSize(image_w, image_h);
+
+	if ((image_w % tiles_dimension) == 0 && (image_w % tiles_dimension) == 0)
+		return akoTileDataSize(tiles_dimension, tiles_dimension);
+
+	// Tiles of varying size on image borders
+	// (in this horrible way because TileDataSize() is recursive, and my brain hurts)
+	const size_t a = akoTileDataSize(tiles_dimension, tiles_dimension);
+	const size_t b = akoTileDataSize(sMin(tiles_dimension, (image_w % tiles_dimension)), tiles_dimension);
+	const size_t c = akoTileDataSize(tiles_dimension, sMin(tiles_dimension, (image_h % tiles_dimension)));
+
+	return sMax(sMax(a, b), c);
+}
+
+
+size_t akoImageTilesNo(size_t image_w, size_t image_h, size_t tiles_dimension)
+{
+	if (tiles_dimension == 0)
+		return 1;
+
+	size_t tiles_x = (image_w / tiles_dimension);
+	size_t tiles_y = (image_h / tiles_dimension);
+	tiles_x = (image_w % tiles_dimension != 0) ? (tiles_x + 1) : tiles_x;
+	tiles_y = (image_h % tiles_dimension != 0) ? (tiles_y + 1) : tiles_y;
+
+	return (tiles_x * tiles_y);
 }
