@@ -72,7 +72,7 @@ enum akoStatus akoHeadWrite(size_t channels, size_t width, size_t height, const 
 		if (((size_t)1 << binary_tiles_dimension) != s->tiles_dimension)
 			return AKO_INVALID_TILES_DIMENSIONS;
 
-		binary_tiles_dimension -= 3; // As AKO_MIN_TILES_DIMENSION is 8
+		binary_tiles_dimension -= 2; // As AKO_MIN_TILES_DIMENSION is 8
 	}
 
 	// Validate
@@ -114,14 +114,22 @@ enum akoStatus akoHeadRead(const void* in, size_t* out_channels, size_t* out_wid
 	if (h->version != AKO_FORMAT_VERSION)
 		return AKO_UNSUPPORTED_VERSION;
 
+	if ((h->flags >> 15) != 0)
+		return AKO_INVALID_FLAGS;
+
 	const size_t channels = (size_t)((h->flags & 0x000F)) + 1;
 	const enum akoWrap wrap = (enum akoWrap)((h->flags >> 4) & 0x0003);
 	const enum akoWavelet wavelet = (enum akoWavelet)((h->flags >> 6) & 0x0003);
 	const enum akoColorspace colorspace = (enum akoColorspace)((h->flags >> 8) & 0x0003);
 
 	size_t tiles_dimension = ((h->flags >> 10) & 0x001F);
-	if (tiles_dimension > 0 && tiles_dimension < (32 - 3))
-		tiles_dimension = 1 << (tiles_dimension + 3);
+	if (tiles_dimension != 0)
+	{
+		if (tiles_dimension < (32 - 2))
+			tiles_dimension = (size_t)1 << (tiles_dimension + 2);
+		else
+			return AKO_INVALID_TILES_DIMENSIONS;
+	}
 
 	const enum akoStatus validation =
 	    sValidate(channels, (size_t)h->width, (size_t)h->height, tiles_dimension, wrap, wavelet, colorspace);

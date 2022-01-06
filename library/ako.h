@@ -31,6 +31,7 @@ enum akoStatus
 	AKO_INVALID_MAGIC,
 	AKO_UNSUPPORTED_VERSION,
 	AKO_NO_ENOUGH_MEMORY,
+	AKO_INVALID_FLAGS,
 };
 
 enum akoWrap
@@ -76,17 +77,18 @@ struct akoCallbacks
 struct akoHead
 {
 	uint8_t magic[3]; // "Ako"
-	uint8_t version;
+	uint8_t version;  // 2 (AKO_FORMAT_VERSION)
 
 	uint32_t width;  // 0 = Invalid
 	uint32_t height; // Ditto
 
 	uint32_t flags;
-	// bits 0-3 = channels,          0 = Gray, 1 = Gray + Alpha, 2 = RGB, 3 = RGBA
-	// bits 4-5 = wrap,              0 = Clamp, 1 = Repeat, 2 = Set to zero
-	// bits 6-7 = wavelet,           0 = DD137, 1 = CDF53, 2 = Haar, 3 = None
-	// bits 8-9 = colorspace,        0 = YCOCG, 1 = YCOCG-R, 2 = RGB
-	// bits 10-14 = tiles dimension, 0 = No tiles, 1 = 8x8, 2 = 16x16, 3 = 32x32, 4 = 64x64, etc...
+	// bits 0-3   : Channels,        0 = Gray, 1 = Gray + Alpha, 2 = RGB, 3 = RGBA
+	// bits 4-5   : Wrap,            0 = Clamp, 1 = Repeat, 2 = Set to zero
+	// bits 6-7   : Wavelet,         0 = DD137, 1 = CDF53, 2 = Haar, 3 = None
+	// bits 8-9   : Colorspace,      0 = YCOCG, 1 = YCOCG-R, 2 = RGB
+	// bits 10-14 : Tiles dimension, 0 = No tiles, 1 = 8x8, 2 = 16x16, 3 = 32x32, 4 = 64x64, etc...
+	// bits 15-32 : Unused bits
 };
 
 
