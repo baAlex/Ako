@@ -103,6 +103,8 @@ void akoDefaultFree(void*);
 
 const char* akoStatusString(enum akoStatus);
 
+void akoSavePgmU8(size_t width, size_t height, size_t in_stride, const uint8_t* in, const char* filename);
+
 int akoVersionMajor();
 int akoVersionMinor();
 int akoVersionPatch();

@@ -5,11 +5,12 @@
 #include "ako.h"
 
 
+#if (AKO_FREESTANDING == 0)
 #include <stdio.h>
+#include <stdlib.h>
 #define DEV_PRINTF(...) printf(__VA_ARGS__)
+#endif
 
-
-typedef int16_t wavelet_t; // Technically a 'wavelet coefficient'
 
 struct akoTileHead
 {
@@ -21,6 +22,10 @@ struct akoLiftHead
 	uint16_t quantization;
 };
 
+
+// developer.c:
+
+void akoSavePgmI16(size_t width, size_t height, size_t in_stride, const int16_t* in, const char* filename);
 
 // format.c:
 

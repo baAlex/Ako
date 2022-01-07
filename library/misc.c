@@ -27,11 +27,6 @@ SOFTWARE.
 #include "ako-private.h"
 
 
-#if (AKO_FREESTANDING == 0)
-#include <stdlib.h>
-#endif
-
-
 struct akoSettings akoDefaultSettings()
 {
 	struct akoSettings s = {0};
@@ -108,7 +103,7 @@ size_t akoTileDataSize(size_t tile_w, size_t tile_h)
 	    TileDataSize(d) = (d * d * W + log2(d / 2) * L + T)
 
 	    Where, d = Tile dimension (either 'tile_w' or 'tile_h')
-	           W = Size of wavelet
+	           W = Size of wavelet coefficient
 	           L = Size of lift head
 	           T = Size of tile head
 
@@ -125,12 +120,12 @@ size_t akoTileDataSize(size_t tile_w, size_t tile_h)
 	{
 		tile_w = akoDividePlusOneRule(tile_w);
 		tile_h = akoDividePlusOneRule(tile_h);
-		size += (tile_w * tile_h) * sizeof(wavelet_t) * 3; // Three highpasses...
-		size += sizeof(struct akoLiftHead);                // One lift head...
+		size += (tile_w * tile_h) * sizeof(int16_t) * 3; // Three highpasses...
+		size += sizeof(struct akoLiftHead);              // One lift head...
 	}
 
-	size += (tile_w * tile_h) * sizeof(wavelet_t); // One lowpass
-	size += sizeof(struct akoTileHead);            // And one tile head...
+	size += (tile_w * tile_h) * sizeof(int16_t); // One lowpass
+	size += sizeof(struct akoTileHead);          // And one tile head...
 
 	return size;
 }
@@ -163,7 +158,7 @@ size_t akoImageMaxTileDataSize(size_t image_w, size_t image_h, size_t tiles_dime
 	if (tiles_dimension == 0 || (tiles_dimension >= image_w && tiles_dimension >= image_h))
 		return akoTileDataSize(image_w, image_h);
 
-	if ((image_w % tiles_dimension) == 0 && (image_w % tiles_dimension) == 0)
+	if ((image_w % tiles_dimension) == 0 && (image_h % tiles_dimension) == 0)
 		return akoTileDataSize(tiles_dimension, tiles_dimension);
 
 	// Tiles of varying size on image borders

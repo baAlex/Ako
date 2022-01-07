@@ -37,8 +37,10 @@ uint8_t* akoDecodeExt(const struct akoCallbacks* c, size_t input_size, const voi
 	size_t image_w;
 	size_t image_h;
 
-	wavelet_t* workarea_a = NULL;
-	wavelet_t* workarea_b = NULL;
+	uint8_t* in_cursor = in;
+
+	int16_t* workarea_a = NULL;
+	int16_t* workarea_b = NULL;
 
 	// Check callbacks
 	const struct akoCallbacks checked_c = (c != NULL) ? *c : akoDefaultCallbacks();
@@ -82,10 +84,18 @@ uint8_t* akoDecodeExt(const struct akoCallbacks* c, size_t input_size, const voi
 	{
 		const size_t tile_w = akoTileDimension(tile_x, image_w, s.tiles_dimension);
 		const size_t tile_h = akoTileDimension(tile_y, image_h, s.tiles_dimension);
-		const size_t tile_size = akoTileDataSize(tile_w, tile_h) * channels;
+		const size_t tile_size = (s.wavelet != AKO_WAVELET_NONE)
+		                             ? (akoTileDataSize(tile_w, tile_h) * channels)
+		                             : (tile_w * tile_h * channels * sizeof(int16_t)); // No wavelet is a rare case
 
-		DEV_PRINTF("D\tTile %zu at %zu:%zu, %zux%zu px, size: %zu bytes\n", t, tile_x, tile_y, tile_w, tile_h,
-		           tile_size);
+		// Developers, developers, developers
+		if (t < 10)
+		{
+			DEV_PRINTF("D\tTile %zu at %zu:%zu, %zux%zu px, size: %zu bytes\n", t, tile_x, tile_y, tile_w, tile_h,
+			           tile_size);
+		}
+		else if (t == 11)
+			DEV_PRINTF("D\t...\n");
 
 		// Next tile
 		tile_x += s.tiles_dimension;

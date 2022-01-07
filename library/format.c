@@ -27,56 +27,43 @@ SOFTWARE.
 #include "ako-private.h"
 
 
-static inline void sDeinterleave(int keep_transparent_pixels, size_t channels, size_t width, size_t in_stride,
+static inline void sDeinterleave(int discard_transparent_pixels, size_t channels, size_t width, size_t in_stride,
                                  size_t out_plane, const uint8_t* in, const uint8_t* in_end, int16_t* out)
 {
-	if (keep_transparent_pixels != 0)
+	if (discard_transparent_pixels != 0)
 	{
 		for (; in < in_end; in += in_stride, out += width)
 			for (size_t col = 0; col < width; col++)
 			{
 				out[out_plane * (channels - 1) + col] = (int16_t)(in[col * channels + (channels - 1)]);
 
-				// clang-format off
 				if (in[col * channels + (channels - 1)] != 0)
 				{
-					#ifdef __clang__
-					#pragma clang loop unroll_count(4)
 					for (size_t ch = 0; ch < (channels - 1); ch++)
 						out[out_plane * ch + col] = (int16_t)(in[col * channels + ch]);
-					#endif
 				}
 				else
 				{
-					#ifdef __clang__
-					#pragma clang loop unroll_count(4)
 					for (size_t ch = 0; ch < (channels - 1); ch++)
 						out[out_plane * ch + col] = 0;
-					#endif
 				}
-				// clang-format on
 			}
 	}
 	else
 	{
-		// clang-format off
 		for (; in < in_end; in += in_stride, out += width)
 			for (size_t col = 0; col < width; col++)
 			{
-				#ifdef __clang__
-				#pragma clang loop unroll_count(4)
 				for (size_t ch = 0; ch < channels; ch++)
 					out[out_plane * ch + col] = (int16_t)(in[col * channels + ch]);
-				#endif
 			}
-		// clang-format on
 	}
 }
 
 
-void akoFormatToPlanarI16Yuv(int keep_transparent_pixels, enum akoColorspace colorspace, size_t channels, size_t width,
-                             size_t height, size_t input_stride, size_t out_planes_spacing, const uint8_t* in,
-                             int16_t* out)
+void akoFormatToPlanarI16Yuv(int discard_transparent_pixels, enum akoColorspace colorspace, size_t channels,
+                             size_t width, size_t height, size_t input_stride, size_t out_planes_spacing,
+                             const uint8_t* in, int16_t* out)
 {
 	// Deinterleave, convert from u8 to i16, and remove (or not) transparent pixels
 	{
@@ -88,9 +75,9 @@ void akoFormatToPlanarI16Yuv(int keep_transparent_pixels, enum akoColorspace col
 		if (channels == 3)
 			sDeinterleave(0, 3, width, in_stride, out_plane, in, in_end, out);
 		else if (channels == 4)
-			sDeinterleave(keep_transparent_pixels, 4, width, in_stride, out_plane, in, in_end, out);
+			sDeinterleave(discard_transparent_pixels, 4, width, in_stride, out_plane, in, in_end, out);
 		else if (channels == 2)
-			sDeinterleave(keep_transparent_pixels, 2, width, in_stride, out_plane, in, in_end, out);
+			sDeinterleave(discard_transparent_pixels, 2, width, in_stride, out_plane, in, in_end, out);
 		else
 			sDeinterleave(0, channels, width, in_stride, out_plane, in, in_end, out);
 	}
@@ -189,34 +176,24 @@ static inline void sYCoCgRToRgb(size_t channels, size_t width, size_t height, si
 
 static inline void sSaturateRgb(size_t channels, size_t width, size_t height, size_t in_plane, int16_t* in)
 {
-	// clang-format off
-	#ifdef __clang__
-	#pragma clang loop unroll_count(4)
 	for (size_t ch = 0; ch < channels; ch++)
 		for (size_t c = 0; c < (width * height); c++)
 		{
 			const int16_t v = *(in + in_plane * ch + c);
 			in[in_plane * ch + c] = (int16_t)((v > 0) ? (v < 255) ? v : 255 : 0);
 		}
-	#endif
-	// clang-format on
 }
 
 
 static inline void sInterleave(size_t channels, size_t width, size_t in_plane, size_t out_stride, const int16_t* in,
                                uint8_t* out, const uint8_t* out_end)
 {
-	// clang-format off
 	for (; out < out_end; out += out_stride, in += width)
 		for (size_t col = 0; col < width; col++)
 		{
-		#ifdef __clang__
-		#pragma clang loop unroll_count(4)
 			for (size_t ch = 0; ch < channels; ch++)
 				out[col * channels + ch] = (uint8_t)(in[in_plane * ch + col]);
-		#endif
 		}
-	// clang-format on
 }
 
 
