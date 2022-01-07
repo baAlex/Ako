@@ -19,6 +19,7 @@ endif ()
 
 set(AKO_SOURCES
 	"./library/decode.c"
+	"./library/developer.c"
 	"./library/encode.c"
 	"./library/format.c"
 	"./library/head.c"

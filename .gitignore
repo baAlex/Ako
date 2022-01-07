@@ -1,21 +1,7 @@
-/akoenc
-/akodec
-
-/resources/prob
-
-/*.a
-/*.so
-
-*.ako
-*.pgm
-/*.png
-
-/.ninja_log
-/.ninja_deps
 
 /build/
 /build-debug/
 /build-release/
-/objects/
+
 /dev/
 /.vscode/

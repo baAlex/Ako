@@ -31,13 +31,12 @@ size_t akoEncodeExt(const struct akoCallbacks* c, const struct akoSettings* s, s
                     size_t image_h, const void* in, void** out, enum akoStatus* out_status)
 {
 	enum akoStatus status;
-	struct akoHead* h;
 
 	size_t blob_size = 0;
-	void* blob = NULL;
+	uint8_t* blob = NULL;
 
-	wavelet_t* workarea_a = NULL;
-	wavelet_t* workarea_b = NULL;
+	int16_t* workarea_a = NULL;
+	int16_t* workarea_b = NULL;
 
 	// Check callbacks and settings
 	const struct akoCallbacks checked_c = (c != NULL) ? *c : akoDefaultCallbacks();
@@ -60,8 +59,7 @@ size_t akoEncodeExt(const struct akoCallbacks* c, const struct akoSettings* s, s
 	}
 
 	// Write head
-	h = blob;
-	if ((status = akoHeadWrite(channels, image_w, image_h, &checked_s, h)) != AKO_OK)
+	if ((status = akoHeadWrite(channels, image_w, image_h, &checked_s, blob)) != AKO_OK)
 		goto return_failure;
 
 	// Allocate workareas
@@ -87,12 +85,60 @@ size_t akoEncodeExt(const struct akoCallbacks* c, const struct akoSettings* s, s
 	{
 		const size_t tile_w = akoTileDimension(tile_x, image_w, checked_s.tiles_dimension);
 		const size_t tile_h = akoTileDimension(tile_y, image_h, checked_s.tiles_dimension);
-		const size_t tile_size = akoTileDataSize(tile_w, tile_h) * channels;
+		const size_t tile_size =
+		    (checked_s.wavelet != AKO_WAVELET_NONE)
+		        ? (akoTileDataSize(tile_w, tile_h) * channels)
+		        : (tile_w * tile_h * channels * sizeof(int16_t)); // No wavelet is a rare case, so those 16 bits
+		                                                          // (format in which following steps operate) are
+		                                                          // a waste of space
 
-		DEV_PRINTF("E\tTile %zu at %zu:%zu, %zux%zu px, size: %zu bytes\n", t, tile_x, tile_y, tile_w, tile_h,
-		           tile_size);
+		// 1. Format
+		akoFormatToPlanarI16Yuv(checked_s.discard_transparent_pixels, checked_s.colorspace, channels, tile_w, tile_h,
+		                        image_w, 0, (const uint8_t*)in + ((image_w * tile_y) + tile_x) * channels, workarea_a);
 
-		// Next tile
+		// 2. Wavelet transform
+		// if (checked_s.wavelet != AKO_WAVELET_NONE)
+		{
+		    // TODO
+		}
+
+		// 3. Compression
+		// if (checked_s.compression == AKO_COMPRESSION_NONE)
+		{
+			// Make space
+			void* updated_blob = checked_c.realloc(blob, blob_size + tile_size);
+			if (updated_blob == NULL)
+			{
+				status = AKO_NO_ENOUGH_MEMORY;
+				goto return_failure;
+			}
+
+			// Copy as is
+			blob = updated_blob;
+			for (size_t i = 0; i < tile_size; i++)
+				blob[blob_size + i] = ((uint8_t*)workarea_a)[i];
+
+			blob_size += tile_size; // Update
+		}
+
+		// 4. Developers, developers, developers
+		if (t < 10)
+		{
+			char filename[64];
+
+			DEV_PRINTF("E\tTile %zu at %zu:%zu, %zux%zu px, size: %zu bytes, blob size: %zu bytes\n", t, tile_x, tile_y,
+			           tile_w, tile_h, tile_size, blob_size);
+
+			for (size_t ch = 0; ch < channels; ch++)
+			{
+				snprintf(filename, 64, "E tile%zu ch%zu.pgm", t, ch);
+				akoSavePgmI16(tile_w, tile_h, tile_w, workarea_a + (tile_w * tile_h) * ch, filename);
+			}
+		}
+		else if (t == 11)
+			DEV_PRINTF("E\t...\n");
+
+		// 5. Next tile
 		tile_x += checked_s.tiles_dimension;
 		if (tile_x >= image_w)
 		{
