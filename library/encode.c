@@ -35,10 +35,10 @@ size_t akoEncodeExt(const struct akoCallbacks* c, const struct akoSettings* s, s
 	size_t blob_size = 0;
 	uint8_t* blob = NULL;
 
-	int16_t* workarea_a = NULL;
-	int16_t* workarea_b = NULL;
+	void* workarea_a = NULL;
+	void* workarea_b = NULL;
 
-	// Check callbacks and settings
+	// Check callbacks, settings and input
 	const struct akoCallbacks checked_c = (c != NULL) ? *c : akoDefaultCallbacks();
 	const struct akoSettings checked_s = (s != NULL) ? *s : akoDefaultSettings();
 
@@ -48,11 +48,16 @@ size_t akoEncodeExt(const struct akoCallbacks* c, const struct akoSettings* s, s
 		goto return_failure;
 	}
 
+	if (in == NULL)
+	{
+		status = AKO_INVALID_INPUT;
+		goto return_failure;
+	}
+
 	// Allocate blob
 	blob_size = sizeof(struct akoHead);
-	blob = checked_c.malloc(blob_size);
 
-	if (blob == NULL)
+	if ((blob = checked_c.malloc(blob_size)) == NULL)
 	{
 		status = AKO_NO_ENOUGH_MEMORY;
 		goto return_failure;
@@ -88,9 +93,9 @@ size_t akoEncodeExt(const struct akoCallbacks* c, const struct akoSettings* s, s
 		const size_t tile_size =
 		    (checked_s.wavelet != AKO_WAVELET_NONE)
 		        ? (akoTileDataSize(tile_w, tile_h) * channels)
-		        : (tile_w * tile_h * channels * sizeof(int16_t)); // No wavelet is a rare case, so those 16 bits
-		                                                          // (format in which following steps operate) are
-		                                                          // a waste of space
+		        : (tile_w * tile_h * channels * sizeof(int16_t)); // No wavelet is a rare case so those 16 bits
+		                                                          // while wasting space, are a requirement as is the
+		                                                          // format in which following steps operate
 
 		// 1. Format
 		akoFormatToPlanarI16Yuv(checked_s.discard_transparent_pixels, checked_s.colorspace, channels, tile_w, tile_h,
@@ -102,7 +107,7 @@ size_t akoEncodeExt(const struct akoCallbacks* c, const struct akoSettings* s, s
 		    // TODO
 		}
 
-		// 3. Compression
+		// 3. Compress
 		// if (checked_s.compression == AKO_COMPRESSION_NONE)
 		{
 			// Make space
@@ -124,16 +129,15 @@ size_t akoEncodeExt(const struct akoCallbacks* c, const struct akoSettings* s, s
 		// 4. Developers, developers, developers
 		if (t < 10)
 		{
-			char filename[64];
-
 			DEV_PRINTF("E\tTile %zu at %zu:%zu, %zux%zu px, size: %zu bytes, blob size: %zu bytes\n", t, tile_x, tile_y,
 			           tile_w, tile_h, tile_size, blob_size);
 
-			for (size_t ch = 0; ch < channels; ch++)
-			{
-				snprintf(filename, 64, "E tile%zu ch%zu.pgm", t, ch);
-				akoSavePgmI16(tile_w, tile_h, tile_w, workarea_a + (tile_w * tile_h) * ch, filename);
-			}
+			// char filename[64];
+			// for (size_t ch = 0; ch < channels; ch++)
+			// {
+			// 	snprintf(filename, 64, "Tile%zuCh%zuE.pgm", t, ch);
+			// 	akoSavePgmI16(tile_w, tile_h, tile_w, ((int16_t*)workarea_a) + (tile_w * tile_h) * ch, filename);
+			// }
 		}
 		else if (t == 11)
 			DEV_PRINTF("E\t...\n");

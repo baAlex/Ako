@@ -27,7 +27,7 @@ SOFTWARE.
 #include "ako-private.h"
 
 
-uint8_t* akoDecodeExt(const struct akoCallbacks* c, size_t input_size, const void* in, struct akoSettings* out_s,
+uint8_t* akoDecodeExt(const struct akoCallbacks* c, size_t input_size, const void* input, struct akoSettings* out_s,
                       size_t* out_channels, size_t* out_w, size_t* out_h, enum akoStatus* out_status)
 {
 	struct akoSettings s = {0};
@@ -37,12 +37,13 @@ uint8_t* akoDecodeExt(const struct akoCallbacks* c, size_t input_size, const voi
 	size_t image_w;
 	size_t image_h;
 
-	uint8_t* in_cursor = in;
+	uint8_t* image = NULL;
+	const uint8_t* blob = input;
 
-	int16_t* workarea_a = NULL;
-	int16_t* workarea_b = NULL;
+	void* workarea_a = NULL;
+	void* workarea_b = NULL;
 
-	// Check callbacks
+	// Check callbacks and input
 	const struct akoCallbacks checked_c = (c != NULL) ? *c : akoDefaultCallbacks();
 
 	if (checked_c.malloc == NULL || checked_c.realloc == NULL || checked_c.free == NULL)
@@ -51,17 +52,25 @@ uint8_t* akoDecodeExt(const struct akoCallbacks* c, size_t input_size, const voi
 		goto return_failure;
 	}
 
-	// Read head
-	if (in == NULL || input_size < sizeof(struct akoHead))
+	if (input == NULL)
 	{
 		status = AKO_INVALID_INPUT;
 		goto return_failure;
 	}
 
-	if ((status = akoHeadRead(in, &channels, &image_w, &image_h, &s)) != AKO_OK)
+	// Read head
+	if ((blob + sizeof(struct akoHead)) > (const uint8_t*)input + sizeof(struct akoHead))
+	{
+		status = AKO_BROKEN_INPUT;
+		goto return_failure;
+	}
+
+	if ((status = akoHeadRead(blob, &channels, &image_w, &image_h, &s)) != AKO_OK)
 		goto return_failure;
 
-	// Allocate workareas
+	blob += sizeof(struct akoHead); // Update
+
+	// Allocate workareas and image
 	const size_t tiles_no = akoImageTilesNo(image_w, image_h, s.tiles_dimension);
 	const size_t tile_max_size = akoImageMaxTileDataSize(image_w, image_h, s.tiles_dimension) * channels;
 
@@ -73,6 +82,17 @@ uint8_t* akoDecodeExt(const struct akoCallbacks* c, size_t input_size, const voi
 		status = AKO_NO_ENOUGH_MEMORY;
 		goto return_failure;
 	}
+
+	if (tiles_no > 1)
+	{
+		if ((image = checked_c.malloc(image_w * image_h * channels)) == NULL)
+		{
+			status = AKO_NO_ENOUGH_MEMORY;
+			goto return_failure;
+		}
+	}
+	else
+		image = workarea_b; // Yup, recycling
 
 	DEV_PRINTF("D\tTiles no: %zu, Max tile size: %zu\n", tiles_no, tile_max_size);
 
@@ -88,16 +108,51 @@ uint8_t* akoDecodeExt(const struct akoCallbacks* c, size_t input_size, const voi
 		                             ? (akoTileDataSize(tile_w, tile_h) * channels)
 		                             : (tile_w * tile_h * channels * sizeof(int16_t)); // No wavelet is a rare case
 
-		// Developers, developers, developers
+		// 1. Decompress
+		// if (s.compression == AKO_COMPRESSION_NONE)
+		{
+			// Check input
+			if ((blob + tile_size) > (const uint8_t*)input + input_size)
+			{
+				status = AKO_BROKEN_INPUT;
+				goto return_failure;
+			}
+
+			// Copy as is
+			for (size_t i = 0; i < tile_size; i++)
+				((uint8_t*)workarea_a)[i] = blob[i];
+
+			blob += tile_size; // Update
+		}
+
+		// 2. Wavelet transform
+		// if (checked_s.wavelet != AKO_WAVELET_NONE)
+		{
+			// TODO
+		}
+
+		// 3. Developers, developers, developers
+		// (before the format step destroys workarea a)
 		if (t < 10)
 		{
-			DEV_PRINTF("D\tTile %zu at %zu:%zu, %zux%zu px, size: %zu bytes\n", t, tile_x, tile_y, tile_w, tile_h,
-			           tile_size);
+			DEV_PRINTF("D\tTile %zu at %zu:%zu, %zux%zu px, size: %zu bytes, cursor: %zu bytes\n", t, tile_x, tile_y,
+			           tile_w, tile_h, tile_size, (size_t)(blob - (const uint8_t*)input));
+
+			// char filename[64];
+			// for (size_t ch = 0; ch < channels; ch++)
+			// {
+			// 	snprintf(filename, 64, "Tile%zuCh%zuD.pgm", t, ch);
+			// 	akoSavePgmI16(tile_w, tile_h, tile_w, ((int16_t*)workarea_a) + (tile_w * tile_h) * ch, filename);
+			// }
 		}
 		else if (t == 11)
 			DEV_PRINTF("D\t...\n");
 
-		// Next tile
+		// 4. Format
+		akoFormatToInterleavedU8Rgb(s.colorspace, channels, tile_w, tile_h, 0, image_w, workarea_a,
+		                            image + (image_w * tile_y + tile_x) * channels);
+
+		// 5. Next tile
 		tile_x += s.tiles_dimension;
 		if (tile_x >= image_w)
 		{
@@ -110,7 +165,9 @@ uint8_t* akoDecodeExt(const struct akoCallbacks* c, size_t input_size, const voi
 
 	// Bye!
 	checked_c.free(workarea_a);
-	checked_c.free(workarea_b);
+
+	if (tiles_no > 1)
+		checked_c.free(workarea_b);
 
 	if (out_s != NULL)
 		*out_s = s;
@@ -124,9 +181,11 @@ uint8_t* akoDecodeExt(const struct akoCallbacks* c, size_t input_size, const voi
 	if (out_status != NULL)
 		*out_status = AKO_OK;
 
-	return checked_c.malloc(1); // TODO
+	return image;
 
 return_failure:
+	if (tiles_no > 1 && image != NULL)
+		checked_c.free(image);
 	if (workarea_a != NULL)
 		checked_c.free(workarea_a);
 	if (workarea_b != NULL)

@@ -28,21 +28,6 @@ SOFTWARE.
 
 
 #if (AKO_FREESTANDING == 0)
-void akoSavePgmU8(size_t width, size_t height, size_t in_stride, const uint8_t* in, const char* filename)
-{
-	FILE* fp = fopen(filename, "wb");
-	if (fp != NULL)
-	{
-		fprintf(fp, "P5\n%zu\n%zu\n255\n", width, height);
-
-		for (size_t row = 0; row < height; row++)
-			fwrite(in + (row * in_stride), 1, width, fp);
-
-		fclose(fp);
-	}
-}
-
-
 void akoSavePgmI16(size_t width, size_t height, size_t in_stride, const int16_t* in, const char* filename)
 {
 	FILE* fp = fopen(filename, "wb");

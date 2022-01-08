@@ -209,18 +209,8 @@ void AkoEnc(const vector<string>& args)
 			throw Modern::Error("Ako encode error: '" + string(akoStatusString(status)) + "'");
 	}
 
-	// Write
-	if (filename_output != "")
-	{
-		auto fp = make_unique<fstream>(filename_output, std::ios::binary | ios_base::out);
-
-		fp->write((char*)blob, blob_size);
-
-		if (fp->fail() == true)
-			throw Modern::Error("Write error");
-	}
-
 	// Bye!
+	Modern::WriteBlob(filename_output, blob, blob_size);
 	akoDefaultFree(blob);
 }
 

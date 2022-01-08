@@ -32,6 +32,7 @@ enum akoStatus
 	AKO_UNSUPPORTED_VERSION,
 	AKO_NO_ENOUGH_MEMORY,
 	AKO_INVALID_FLAGS,
+	AKO_BROKEN_INPUT,
 };
 
 enum akoWrap
@@ -102,8 +103,6 @@ struct akoCallbacks akoDefaultCallbacks();
 void akoDefaultFree(void*);
 
 const char* akoStatusString(enum akoStatus);
-
-void akoSavePgmU8(size_t width, size_t height, size_t in_stride, const uint8_t* in, const char* filename);
 
 int akoVersionMajor();
 int akoVersionMinor();
