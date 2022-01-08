@@ -154,6 +154,21 @@ void AkoDec(const vector<string>& args)
 		cout << " - tiles dimension: " << ako->tiles_dimension() << " px, wrap mode: " << (int)ako->wrap()
 		     << ", wavelet: " << (int)ako->wavelet() << ", colorspace: " << ako->colorspace() << endl;
 	}
+
+	// Encode
+	void* blob = NULL;
+	size_t blob_size = 0;
+	{
+		unsigned error = lodepng_encode_memory((unsigned char**)(&blob), &blob_size, (unsigned char*)ako->data(),
+		                                       (unsigned)ako->width(), (unsigned)ako->height(), LCT_RGB, 8);
+
+		if (error != 0)
+			throw Modern::Error("LodePng error: '" + string(lodepng_error_text(error)) + "'");
+	}
+
+	// Bye!
+	Modern::WriteBlob(filename_output, blob, blob_size);
+	akoDefaultFree(blob);
 }
 
 

@@ -81,6 +81,7 @@ const char* akoStatusString(enum akoStatus status)
 	case AKO_UNSUPPORTED_VERSION: return "Unsupported version";
 	case AKO_NO_ENOUGH_MEMORY: return "No enough memory";
 	case AKO_INVALID_FLAGS: return "Invalid flags";
+	case AKO_BROKEN_INPUT: return "Broken input/premature end";
 	default: break;
 	}
 

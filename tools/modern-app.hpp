@@ -44,6 +44,19 @@ inline int CheckArgumentPair(const std::string arg1, const std::string arg2,
 
 	return 1;
 }
+
+inline void WriteBlob(const std::string filename, const void* blob, size_t size)
+{
+	if (filename != "")
+	{
+		auto fp = std::make_unique<std::fstream>(filename, std::ios::binary | std::ios_base::out);
+
+		fp->write((char*)blob, size);
+
+		if (fp->fail() == true)
+			throw Modern::Error("Write error");
+	}
+}
 } // namespace Modern
 
 #endif
