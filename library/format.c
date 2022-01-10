@@ -78,6 +78,8 @@ void akoFormatToPlanarI16Yuv(int discard_transparent_pixels, enum akoColorspace 
 			sDeinterleave(discard_transparent_pixels, 4, width, in_stride, out_plane, in, in_end, out);
 		else if (channels == 2)
 			sDeinterleave(discard_transparent_pixels, 2, width, in_stride, out_plane, in, in_end, out);
+		else if (channels == 1)
+			sDeinterleave(0, 1, width, in_stride, out_plane, in, in_end, out);
 		else
 			sDeinterleave(0, channels, width, in_stride, out_plane, in, in_end, out);
 	}
@@ -244,6 +246,10 @@ void akoFormatToInterleavedU8Rgb(enum akoColorspace colorspace, size_t channels,
 			sInterleave(3, width, in_plane, out_stride, in, out, out_end);
 		else if (channels == 4)
 			sInterleave(4, width, in_plane, out_stride, in, out, out_end);
+		else if (channels == 2)
+			sInterleave(2, width, in_plane, out_stride, in, out, out_end);
+		else if (channels == 1)
+			sInterleave(1, width, in_plane, out_stride, in, out, out_end);
 		else
 			sInterleave(channels, width, in_plane, out_stride, in, out, out_end);
 	}

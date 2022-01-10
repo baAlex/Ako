@@ -27,7 +27,7 @@ SOFTWARE.
 #include "ako-private.h"
 
 
-struct akoSettings akoDefaultSettings()
+AKO_EXPORT struct akoSettings akoDefaultSettings()
 {
 	struct akoSettings s = {0};
 
@@ -46,24 +46,27 @@ struct akoSettings akoDefaultSettings()
 
 
 #if (AKO_FREESTANDING == 0)
-struct akoCallbacks akoDefaultCallbacks()
+AKO_EXPORT struct akoCallbacks akoDefaultCallbacks()
 {
 	struct akoCallbacks c = {0};
 	c.malloc = malloc;
 	c.realloc = realloc;
 	c.free = free;
 
+	c.events = NULL;
+	c.events_data = NULL;
+
 	return c;
 }
 
-void akoDefaultFree(void* ptr)
+AKO_EXPORT void akoDefaultFree(void* ptr)
 {
 	free(ptr);
 }
 #endif
 
 
-const char* akoStatusString(enum akoStatus status)
+AKO_EXPORT const char* akoStatusString(enum akoStatus status)
 {
 	switch (status)
 	{

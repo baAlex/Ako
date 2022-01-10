@@ -25,13 +25,8 @@ SOFTWARE.
 
 
 #include "modern-app.hpp"
-#include "thirdparty/lodepng.h"
 using namespace std;
 
-extern "C"
-{
-#include "ako.h"
-}
 
 const char* version_string = "version_string";
 const char* help_string = "help_string";
@@ -111,6 +106,7 @@ void AkoEnc(const vector<string>& args)
 	string filename_input = "";
 	string filename_output = "";
 	bool verbose = false;
+	bool benchmark = false;
 
 	akoSettings settings = akoDefaultSettings();
 
@@ -135,6 +131,8 @@ void AkoEnc(const vector<string>& args)
 		}
 		else if (Modern::CheckArgumentSingle("-verbose", "--verbose", it) == 0)
 			verbose = true;
+		else if (Modern::CheckArgumentSingle("-b", "--benchmark", it) == 0)
+			benchmark = true;
 		else if (Modern::CheckArgumentPair("-i", "--input", it, it_end) == 0)
 			filename_input = *it;
 		else if (Modern::CheckArgumentPair("-o", "--output", it, it_end) == 0)
@@ -193,6 +191,9 @@ void AkoEnc(const vector<string>& args)
 
 		cout << " - tiles dimension: " << settings.tiles_dimension << " px, wrap mode: " << (int)settings.wrap
 		     << ", wavelet: " << (int)settings.wavelet << ", colorspace: " << settings.colorspace << endl;
+
+		if (benchmark == true)
+			cout << endl;
 	}
 
 	// Encode
@@ -201,6 +202,13 @@ void AkoEnc(const vector<string>& args)
 	{
 		akoCallbacks callbacks = akoDefaultCallbacks();
 		akoStatus status = AKO_ERROR;
+
+		if (benchmark == true)
+		{
+			Modern::EventsData events_data;
+			callbacks.events = Modern::EventsCallback;
+			callbacks.events_data = &events_data;
+		}
 
 		blob_size = akoEncodeExt(&callbacks, &settings, png->channels(), png->width(), png->height(), png->data(),
 		                         &blob, &status);

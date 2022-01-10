@@ -27,8 +27,17 @@ SOFTWARE.
 #include "ako-private.h"
 
 
-uint8_t* akoDecodeExt(const struct akoCallbacks* c, size_t input_size, const void* input, struct akoSettings* out_s,
-                      size_t* out_channels, size_t* out_w, size_t* out_h, enum akoStatus* out_status)
+static inline void sEvent(size_t tile_no, size_t total_tiles, enum akoEvent event, void* data,
+                          void (*callback)(size_t, size_t, enum akoEvent, void*))
+{
+	if (callback != NULL)
+		callback(tile_no, total_tiles, event, data);
+}
+
+
+AKO_EXPORT uint8_t* akoDecodeExt(const struct akoCallbacks* c, size_t input_size, const void* input,
+                                 struct akoSettings* out_s, size_t* out_channels, size_t* out_w, size_t* out_h,
+                                 enum akoStatus* out_status)
 {
 	struct akoSettings s = {0};
 	enum akoStatus status;
@@ -94,7 +103,7 @@ uint8_t* akoDecodeExt(const struct akoCallbacks* c, size_t input_size, const voi
 	else
 		image = workarea_b; // Yup, recycling
 
-	DEV_PRINTF("D\tTiles no: %zu, Max tile size: %zu\n", tiles_no, tile_max_size);
+	// AKO_DEV_PRINTF("D\tTiles no: %zu, Max tile size: %zu\n", tiles_no, tile_max_size);
 
 	// Iterate tiles
 	size_t tile_x = 0;
@@ -109,6 +118,7 @@ uint8_t* akoDecodeExt(const struct akoCallbacks* c, size_t input_size, const voi
 		                             : (tile_w * tile_h * channels * sizeof(int16_t)); // No wavelet is a rare case
 
 		// 1. Decompress
+		sEvent(t, tiles_no, AKO_EVENT_COMPRESSION_START, checked_c.events_data, checked_c.events);
 		// if (s.compression == AKO_COMPRESSION_NONE)
 		{
 			// Check input
@@ -124,19 +134,22 @@ uint8_t* akoDecodeExt(const struct akoCallbacks* c, size_t input_size, const voi
 
 			blob += tile_size; // Update
 		}
+		sEvent(t, tiles_no, AKO_EVENT_COMPRESSION_END, checked_c.events_data, checked_c.events);
 
 		// 2. Wavelet transform
+		sEvent(t, tiles_no, AKO_EVENT_WAVELET_START, checked_c.events_data, checked_c.events);
 		// if (checked_s.wavelet != AKO_WAVELET_NONE)
 		{
 			// TODO
 		}
+		sEvent(t, tiles_no, AKO_EVENT_WAVELET_END, checked_c.events_data, checked_c.events);
 
 		// 3. Developers, developers, developers
 		// (before the format step destroys workarea a)
 		if (t < 10)
 		{
-			DEV_PRINTF("D\tTile %zu at %zu:%zu, %zux%zu px, size: %zu bytes, cursor: %zu bytes\n", t, tile_x, tile_y,
-			           tile_w, tile_h, tile_size, (size_t)(blob - (const uint8_t*)input));
+			// AKO_DEV_PRINTF("D\tTile %zu at %zu:%zu, %zux%zu px, size: %zu bytes, cursor: %zu bytes\n", t, tile_x,
+			//                tile_y, tile_w, tile_h, tile_size, (size_t)(blob - (const uint8_t*)input));
 
 			// char filename[64];
 			// for (size_t ch = 0; ch < channels; ch++)
@@ -146,11 +159,15 @@ uint8_t* akoDecodeExt(const struct akoCallbacks* c, size_t input_size, const voi
 			// }
 		}
 		else if (t == 11)
-			DEV_PRINTF("D\t...\n");
+		{
+			// AKO_DEV_PRINTF("D\t...\n");
+		}
 
 		// 4. Format
+		sEvent(t, tiles_no, AKO_EVENT_FORMAT_START, checked_c.events_data, checked_c.events);
 		akoFormatToInterleavedU8Rgb(s.colorspace, channels, tile_w, tile_h, 0, image_w, workarea_a,
 		                            image + (image_w * tile_y + tile_x) * channels);
+		sEvent(t, tiles_no, AKO_EVENT_FORMAT_END, checked_c.events_data, checked_c.events);
 
 		// 5. Next tile
 		tile_x += s.tiles_dimension;
@@ -161,7 +178,7 @@ uint8_t* akoDecodeExt(const struct akoCallbacks* c, size_t input_size, const voi
 		}
 	}
 
-	DEV_PRINTF("\n");
+	// AKO_DEV_PRINTF("\n");
 
 	// Bye!
 	checked_c.free(workarea_a);

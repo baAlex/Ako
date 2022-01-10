@@ -57,6 +57,17 @@ enum akoColorspace
 	AKO_COLORSPACE_RGB,
 };
 
+enum akoEvent
+{
+	AKO_EVENT_NONE = 0,
+	AKO_EVENT_FORMAT_START,
+	AKO_EVENT_FORMAT_END,
+	AKO_EVENT_WAVELET_START,
+	AKO_EVENT_WAVELET_END,
+	AKO_EVENT_COMPRESSION_START,
+	AKO_EVENT_COMPRESSION_END,
+};
+
 struct akoSettings
 {
 	enum akoWrap wrap;
@@ -73,6 +84,9 @@ struct akoCallbacks
 	void* (*malloc)(size_t);
 	void* (*realloc)(void*, size_t);
 	void (*free)(void*);
+
+	void (*events)(size_t, size_t, enum akoEvent, void*);
+	void* events_data;
 };
 
 struct akoHead

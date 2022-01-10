@@ -8,8 +8,15 @@
 #if (AKO_FREESTANDING == 0)
 #include <stdio.h>
 #include <stdlib.h>
-#define DEV_PRINTF(...) printf(__VA_ARGS__)
+#define AKO_DEV_PRINTF(...) printf(__VA_ARGS__)
+#else
+// clang-format off
+#define AKO_DEV_PRINTF(...) {} // Whitespace
+// clang-format on
 #endif
+
+
+#define AKO_EXPORT __attribute__((visibility("default")))
 
 
 struct akoTileHead

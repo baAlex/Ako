@@ -31,6 +31,9 @@ if (AKO_SHARED)
 	add_library("ako" SHARED ${AKO_SOURCES})
 	target_include_directories("ako" PUBLIC "./library/")
 
+	set_property(TARGET "ako" PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
+	set_property(TARGET "ako" PROPERTY C_VISIBILITY_PRESET hidden)
+
 	if (NOT MSVC)
 		target_link_libraries("ako" PRIVATE "m")
 	endif ()
@@ -39,6 +42,9 @@ endif ()
 if (AKO_STATIC)
 	add_library("ako-static" STATIC ${AKO_SOURCES})
 	target_include_directories("ako-static" PUBLIC "./library/")
+
+	set_property(TARGET "ako-static" PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
+	set_property(TARGET "ako-static" PROPERTY C_VISIBILITY_PRESET hidden)
 
 	if (NOT MSVC)
 		target_link_libraries("ako-static" PRIVATE "m")
