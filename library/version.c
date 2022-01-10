@@ -24,19 +24,22 @@ SOFTWARE.
 */
 
 
-int akoVersionMajor()
+#include "ako-private.h"
+
+
+AKO_EXPORT int akoVersionMajor()
 {
 	return 0;
 }
 
 
-int akoVersionMinor()
+AKO_EXPORT int akoVersionMinor()
 {
 	return 2;
 }
 
 
-int akoVersionPatch()
+AKO_EXPORT int akoVersionPatch()
 {
 	return 0;
 }

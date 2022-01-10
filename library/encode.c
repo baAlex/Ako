@@ -27,8 +27,16 @@ SOFTWARE.
 #include "ako-private.h"
 
 
-size_t akoEncodeExt(const struct akoCallbacks* c, const struct akoSettings* s, size_t channels, size_t image_w,
-                    size_t image_h, const void* in, void** out, enum akoStatus* out_status)
+static inline void sEvent(size_t tile_no, size_t total_tiles, enum akoEvent event, void* data,
+                          void (*callback)(size_t, size_t, enum akoEvent, void*))
+{
+	if (callback != NULL)
+		callback(tile_no, total_tiles, event, data);
+}
+
+
+AKO_EXPORT size_t akoEncodeExt(const struct akoCallbacks* c, const struct akoSettings* s, size_t channels,
+                               size_t image_w, size_t image_h, const void* in, void** out, enum akoStatus* out_status)
 {
 	enum akoStatus status;
 
@@ -80,7 +88,7 @@ size_t akoEncodeExt(const struct akoCallbacks* c, const struct akoSettings* s, s
 		goto return_failure;
 	}
 
-	DEV_PRINTF("E\tTiles no: %zu, Max tile size: %zu\n", tiles_no, tile_max_size);
+	// AKO_DEV_PRINTF("E\tTiles no: %zu, Max tile size: %zu\n", tiles_no, tile_max_size);
 
 	// Iterate tiles
 	size_t tile_x = 0;
@@ -98,16 +106,24 @@ size_t akoEncodeExt(const struct akoCallbacks* c, const struct akoSettings* s, s
 		                                                          // format in which following steps operate
 
 		// 1. Format
-		akoFormatToPlanarI16Yuv(checked_s.discard_transparent_pixels, checked_s.colorspace, channels, tile_w, tile_h,
-		                        image_w, 0, (const uint8_t*)in + ((image_w * tile_y) + tile_x) * channels, workarea_a);
+		sEvent(t, tiles_no, AKO_EVENT_FORMAT_START, checked_c.events_data, checked_c.events);
+		{
+			akoFormatToPlanarI16Yuv(checked_s.discard_transparent_pixels, checked_s.colorspace, channels, tile_w,
+			                        tile_h, image_w, 0, (const uint8_t*)in + ((image_w * tile_y) + tile_x) * channels,
+			                        workarea_a);
+		}
+		sEvent(t, tiles_no, AKO_EVENT_FORMAT_END, checked_c.events_data, checked_c.events);
 
 		// 2. Wavelet transform
+		sEvent(t, tiles_no, AKO_EVENT_WAVELET_START, checked_c.events_data, checked_c.events);
 		// if (checked_s.wavelet != AKO_WAVELET_NONE)
 		{
-		    // TODO
+			// TODO
 		}
+		sEvent(t, tiles_no, AKO_EVENT_WAVELET_END, checked_c.events_data, checked_c.events);
 
 		// 3. Compress
+		sEvent(t, tiles_no, AKO_EVENT_COMPRESSION_START, checked_c.events_data, checked_c.events);
 		// if (checked_s.compression == AKO_COMPRESSION_NONE)
 		{
 			// Make space
@@ -125,12 +141,13 @@ size_t akoEncodeExt(const struct akoCallbacks* c, const struct akoSettings* s, s
 
 			blob_size += tile_size; // Update
 		}
+		sEvent(t, tiles_no, AKO_EVENT_COMPRESSION_END, checked_c.events_data, checked_c.events);
 
 		// 4. Developers, developers, developers
 		if (t < 10)
 		{
-			DEV_PRINTF("E\tTile %zu at %zu:%zu, %zux%zu px, size: %zu bytes, blob size: %zu bytes\n", t, tile_x, tile_y,
-			           tile_w, tile_h, tile_size, blob_size);
+			// AKO_DEV_PRINTF("E\tTile %zu at %zu:%zu, %zux%zu px, size: %zu bytes, blob size: %zu bytes\n", t, tile_x,
+			//                tile_y, tile_w, tile_h, tile_size, blob_size);
 
 			// char filename[64];
 			// for (size_t ch = 0; ch < channels; ch++)
@@ -140,7 +157,9 @@ size_t akoEncodeExt(const struct akoCallbacks* c, const struct akoSettings* s, s
 			// }
 		}
 		else if (t == 11)
-			DEV_PRINTF("E\t...\n");
+		{
+			// AKO_DEV_PRINTF("E\t...\n");
+		}
 
 		// 5. Next tile
 		tile_x += checked_s.tiles_dimension;
@@ -151,7 +170,7 @@ size_t akoEncodeExt(const struct akoCallbacks* c, const struct akoSettings* s, s
 		}
 	}
 
-	DEV_PRINTF("\n");
+	// AKO_DEV_PRINTF("\n");
 
 	// Bye!
 	checked_c.free(workarea_a);

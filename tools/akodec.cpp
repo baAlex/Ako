@@ -25,13 +25,8 @@ SOFTWARE.
 
 
 #include "modern-app.hpp"
-#include "thirdparty/lodepng.h"
 using namespace std;
 
-extern "C"
-{
-#include "ako.h"
-}
 
 const char* version_string = "version_string";
 const char* help_string = "help_string";
@@ -63,7 +58,7 @@ class AkoImage
 	size_t tiles_dimension() const        { return tiles_dimension_; };
 	// clang-format on
 
-	AkoImage(const string& filename)
+	AkoImage(const string& filename, bool benchmark)
 	{
 		// Open/read file
 		auto blob = make_unique<vector<uint8_t>>();
@@ -85,6 +80,13 @@ class AkoImage
 		akoCallbacks callbacks = akoDefaultCallbacks();
 		akoStatus status = AKO_ERROR;
 		akoSettings settings;
+
+		if (benchmark == true)
+		{
+			Modern::EventsData events_data;
+			callbacks.events = Modern::EventsCallback;
+			callbacks.events_data = &events_data;
+		}
 
 		data_ = (void*)akoDecodeExt(&callbacks, blob->size(), blob->data(), &settings, &channels_, &width_, &height_,
 		                            &status);
@@ -110,6 +112,7 @@ void AkoDec(const vector<string>& args)
 	string filename_input = "";
 	string filename_output = "";
 	bool verbose = false;
+	bool benchmark = false;
 
 	// Check arguments
 	if (args.size() == 1)
@@ -132,6 +135,8 @@ void AkoDec(const vector<string>& args)
 		}
 		else if (Modern::CheckArgumentSingle("-verbose", "--verbose", it) == 0)
 			verbose = true;
+		else if (Modern::CheckArgumentSingle("-b", "--benchmark", it) == 0)
+			benchmark = true;
 		else if (Modern::CheckArgumentPair("-i", "--input", it, it_end) == 0)
 			filename_input = *it;
 		else if (Modern::CheckArgumentPair("-o", "--output", it, it_end) == 0)
@@ -144,10 +149,13 @@ void AkoDec(const vector<string>& args)
 		throw Modern::Error("No input filename specified");
 
 	// Open input
-	const auto ako = make_unique<AkoImage>(filename_input);
+	const auto ako = make_unique<AkoImage>(filename_input, benchmark);
 
 	if (verbose == true)
 	{
+		if (benchmark == true)
+			cout << endl;
+
 		cout << "AkoDec: '" << filename_input << "', " << ako->channels() << " channel(s), " << ako->width() << "x"
 		     << ako->height() << " pixels" << endl;
 
@@ -159,8 +167,18 @@ void AkoDec(const vector<string>& args)
 	void* blob = NULL;
 	size_t blob_size = 0;
 	{
+		LodePNGColorType color;
+		switch (ako->channels())
+		{
+		case 1: color = LCT_GREY; break;
+		case 2: color = LCT_GREY_ALPHA; break;
+		case 3: color = LCT_RGB; break;
+		case 4: color = LCT_RGBA; break;
+		default: throw Modern::Error("Unsupported channels number (" + to_string(ako->channels()) + ")");
+		}
+
 		unsigned error = lodepng_encode_memory((unsigned char**)(&blob), &blob_size, (unsigned char*)ako->data(),
-		                                       (unsigned)ako->width(), (unsigned)ako->height(), LCT_RGB, 8);
+		                                       (unsigned)ako->width(), (unsigned)ako->height(), color, 8);
 
 		if (error != 0)
 			throw Modern::Error("LodePng error: '" + string(lodepng_error_text(error)) + "'");
