@@ -4,48 +4,36 @@ Ako
 
 Lossy image codec using discrete wavelet transform.
 
-**A toy-project**. It is me learning how image codecs works, having fun following a bunch of papers. :)
-
 It supports/implements:
 - Deslauriers-Dubuc 13/7 wavelet.
-- Up to 4 channels.
+- Up to 16 channels.
 - 8 bits per component.
-- YCoCg colorspace (can be disabled at compilation time).
+- YCoCg/YCoCg-R colorspaces.
 - Configurable quality loss (examples below).
 - Simple Elias-gamma entropy compression, nonetheless the codec can handle ratios of 1:10 before artifacts became obvious.
-- A "good" performance. There is some care on cache and memory usage, and almost everything is done with integers... still there is space for improvement.
+- A "good" performance. There is care on cache and memory usage, and everything is done with integers... still there is space for improvement.
 
 
 Compilation
 -----------
-Build requirements are [git][14] and [cmake][15] or [ninja][16]. As runtime dependency [libpng][17].
+Aside from C and C++ compilers (the later only needed to build executable tools), the only requirement is [cmake][14]. On Ubuntu you can install it with:
 
-On Ubuntu you can install them with:
 ```
-sudo apt install git ninja-build cmake libpng-dev
+sudo apt install cmake
 ```
 
-### Using Cmake
+Then compile with:
 ```
-git clone https://github.com/baAlex/Ako
-cd Ako
 mkdir build
 cd build
-cmake -DCMAKE_BUILD_TYPE=Release ..
-cmake --build .
-```
-
-### Using Ninja
-```
-git clone https://github.com/baAlex/Ako
-cd Ako
-ninja
+cmake .. -DCMAKE_BUILD_TYPE=Release
+cmake --build . --config Release
 ```
 
 
 Usage
 -----
-Two executables: `akoenc` and `akodec` will let you try the codec. Run them whitout any argument to read the usage help. Is simple as:
+Two executables: `akoenc` and `akodec` will let you try the codec. Run them whitout any argument to read the usage help. But, in most cases is:
 
 ```
 akoenc -q 16 -i "input.png" -o "out.ako"
@@ -56,7 +44,7 @@ akoenc -q 16 -i "input.png" -o "out.ako"
 
 Examples
 --------
-Following examples are mere illustrations. The codec is mostly a prototype, and chosen compression ratios are too high to be useful in real life. So, for most purposes below examples serve as a showcase on how a simple wavelet-based codec degrades images, and what kind of artifacts expect of it.
+Following examples are mere illustrations. Chosen compression ratios are too high to be useful in real life. For most purposes is a showcase on how a simple wavelet-based codec degrades images, and what kind of artifacts expect of it.
 
 Note that there is no blocks; and how fine details are lost while sharp lines and overall shapes remain somewhat intact. All modern codecs do this, but here is remarkable since (right now) there is no analysis, quality estimation nor any rate-distortion optimization (tasks to improve the codec further).
 
@@ -127,7 +115,4 @@ ____
 
 [13]: ./LICENSE
 
-[14]: https://git-scm.com/
-[15]: https://cmake.org/
-[16]: https://ninja-build.org/
-[17]: http://www.libpng.org/pub/png/libpng.html
+[14]: https://cmake.org/

@@ -70,51 +70,56 @@ inline void WriteBlob(const std::string filename, const void* blob, size_t size)
 }
 
 
+class Stopwatch
+{
+  private:
+	std::chrono::steady_clock::time_point last_point;
+	std::chrono::duration<double, std::milli> duration;
+
+  public:
+	void start(bool fresh_start)
+	{
+		last_point = std::chrono::steady_clock::now();
+
+		if (fresh_start == true)
+			duration = duration.zero();
+	}
+
+	void pause_stop(bool print, const char* name, const char* suffix = "")
+	{
+		const auto now = std::chrono::steady_clock::now();
+		duration += (now - last_point); // std::chrono::duration<double, std::milli>
+
+		if (print == true)
+			std::cout << name << duration.count() << " ms" << suffix << std::endl;
+	}
+};
+
 struct EventsData
 {
-	std::chrono::steady_clock::time_point last_format;
-	std::chrono::steady_clock::time_point last_compression;
-	std::chrono::duration<double, std::milli> duration_format;
-	std::chrono::duration<double, std::milli> duration_compression;
+	Stopwatch format;
+	Stopwatch wavelet;
+	Stopwatch compression;
 };
 
 
 void EventsCallback(size_t tile_no, size_t total_tiles, akoEvent e, void* raw_data)
 {
-	EventsData* data = (EventsData*)raw_data;
-	const auto now = std::chrono::steady_clock::now();
+	EventsData* stopwatches = (EventsData*)raw_data;
 
-	// Accumulate durations, print if apropiate
-	if (e == AKO_EVENT_FORMAT_END)
-	{
-		data->duration_format += (now - data->last_format); // std::chrono::duration<double, std::milli>
-
-		if (tile_no == total_tiles - 1)
-			std::cout << "Benchmark | Format:      " << data->duration_format.count() << " ms" << std::endl;
-	}
-	else if (e == AKO_EVENT_COMPRESSION_END)
-	{
-		data->duration_compression += (now - data->last_compression);
-
-		if (tile_no == total_tiles - 1)
-			std::cout << "Benchmark | Compression: " << data->duration_compression.count() << " ms" << std::endl;
-	}
-
-	// Start clocks, reset durations if apropiate
-	else if (e == AKO_EVENT_FORMAT_START)
-	{
-		data->last_format = now;
-
-		if (tile_no == 0)
-			data->duration_format = data->duration_format.zero();
-	}
+	if (e == AKO_EVENT_FORMAT_START)
+		stopwatches->format.start((bool)(tile_no == 0));
+	else if (e == AKO_EVENT_WAVELET_START)
+		stopwatches->wavelet.start((bool)(tile_no == 0));
 	else if (e == AKO_EVENT_COMPRESSION_START)
-	{
-		data->last_compression = now;
+		stopwatches->compression.start((bool)(tile_no == 0));
 
-		if (tile_no == 0)
-			data->duration_compression = data->duration_compression.zero();
-	}
+	else if (e == AKO_EVENT_FORMAT_END)
+		stopwatches->format.pause_stop((bool)(tile_no == total_tiles - 1), "Benchmark | Format:      ");
+	else if (e == AKO_EVENT_WAVELET_END)
+		stopwatches->wavelet.pause_stop((bool)(tile_no == total_tiles - 1), "Benchmark | Wavelet:     ");
+	else if (e == AKO_EVENT_COMPRESSION_END)
+		stopwatches->compression.pause_stop((bool)(tile_no == total_tiles - 1), "Benchmark | Compression: ");
 }
 } // namespace Modern
 

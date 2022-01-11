@@ -128,8 +128,7 @@ size_t akoTileDataSize(size_t tile_w, size_t tile_h)
 		size += sizeof(struct akoLiftHead);              // One lift head...
 	}
 
-	size += (tile_w * tile_h) * sizeof(int16_t); // One lowpass
-	size += sizeof(struct akoTileHead);          // And one tile head...
+	size += (tile_w * tile_h) * sizeof(int16_t); // ... And one lowpass
 
 	return size;
 }

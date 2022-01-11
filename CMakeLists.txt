@@ -13,7 +13,7 @@ option(AKO_DEC "Build decoding tool"       ON)
 if (MSVC)
 	add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
 else ()
-	add_compile_options(-Werror -Wall -Wextra -pedantic -Wno-unused-function -Wno-unused-parameter)
+	add_compile_options(-Werror -Wall -Wextra -pedantic -Wno-unused-function -Wno-unused-parameter -Wno-unused-variable)
 endif ()
 
 
@@ -23,6 +23,7 @@ set(AKO_SOURCES
 	"./library/encode.c"
 	"./library/format.c"
 	"./library/head.c"
+	"./library/lifting.c"
 	"./library/misc.c"
 	"./library/version.c")
 
