@@ -8,21 +8,20 @@
 #if (AKO_FREESTANDING == 0)
 #include <stdio.h>
 #include <stdlib.h>
-#define AKO_DEV_PRINTF(...) printf(__VA_ARGS__)
-#else
-// clang-format off
-#define AKO_DEV_PRINTF(...) {} // Whitespace
-// clang-format on
+//#define AKO_DEV_PRINTF(...) printf(__VA_ARGS__)
 #endif
+
+// clang-format off
+#ifndef AKO_DEV_PRINTF
+#define AKO_DEV_PRINTF(...) {} // Whitespace
+#endif
+// clang-format on
+
+#define AKO_DEV_NOISE 10
 
 
 #define AKO_EXPORT __attribute__((visibility("default")))
 
-
-struct akoTileHead
-{
-	uint16_t unused;
-};
 
 struct akoLiftHead
 {
@@ -48,6 +47,13 @@ void akoFormatToInterleavedU8Rgb(enum akoColorspace, size_t channels, size_t wid
 enum akoStatus akoHeadWrite(size_t channels, size_t image_w, size_t image_h, const struct akoSettings*, void* out);
 enum akoStatus akoHeadRead(const void* in, size_t* out_channels, size_t* out_image_w, size_t* out_image_h,
                            struct akoSettings* out_s);
+
+// lifting.c
+
+void akoLift(size_t tile_no, const struct akoSettings*, size_t channels, size_t tile_w, size_t tile_h,
+             size_t planes_space, int16_t* in, int16_t* output);
+void akoUnlift(size_t tile_no, const struct akoSettings* s, size_t channels, size_t tile_w, size_t tile_h,
+               size_t planes_space, int16_t* input, int16_t* out);
 
 // misc.c:
 

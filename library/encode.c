@@ -88,7 +88,7 @@ AKO_EXPORT size_t akoEncodeExt(const struct akoCallbacks* c, const struct akoSet
 		goto return_failure;
 	}
 
-	// AKO_DEV_PRINTF("E\tTiles no: %zu, Max tile size: %zu\n", tiles_no, tile_max_size);
+	AKO_DEV_PRINTF("\nE\tTiles no: %zu, Max tile size: %zu\n", tiles_no, tile_max_size);
 
 	// Iterate tiles
 	size_t tile_x = 0;
@@ -118,7 +118,7 @@ AKO_EXPORT size_t akoEncodeExt(const struct akoCallbacks* c, const struct akoSet
 		sEvent(t, tiles_no, AKO_EVENT_WAVELET_START, checked_c.events_data, checked_c.events);
 		// if (checked_s.wavelet != AKO_WAVELET_NONE)
 		{
-			// TODO
+			akoLift(t, &checked_s, channels, tile_w, tile_h, 0, workarea_a, workarea_b);
 		}
 		sEvent(t, tiles_no, AKO_EVENT_WAVELET_END, checked_c.events_data, checked_c.events);
 
@@ -144,10 +144,10 @@ AKO_EXPORT size_t akoEncodeExt(const struct akoCallbacks* c, const struct akoSet
 		sEvent(t, tiles_no, AKO_EVENT_COMPRESSION_END, checked_c.events_data, checked_c.events);
 
 		// 4. Developers, developers, developers
-		if (t < 10)
+		if (t < AKO_DEV_NOISE)
 		{
-			// AKO_DEV_PRINTF("E\tTile %zu at %zu:%zu, %zux%zu px, size: %zu bytes, blob size: %zu bytes\n", t, tile_x,
-			//                tile_y, tile_w, tile_h, tile_size, blob_size);
+			AKO_DEV_PRINTF("E\tTile %zu at %zu:%zu, %zux%zu px, size: %zu bytes, blob size: %zu bytes\n", t, tile_x,
+			               tile_y, tile_w, tile_h, tile_size, blob_size);
 
 			// char filename[64];
 			// for (size_t ch = 0; ch < channels; ch++)
@@ -156,9 +156,9 @@ AKO_EXPORT size_t akoEncodeExt(const struct akoCallbacks* c, const struct akoSet
 			// 	akoSavePgmI16(tile_w, tile_h, tile_w, ((int16_t*)workarea_a) + (tile_w * tile_h) * ch, filename);
 			// }
 		}
-		else if (t == 11)
+		else if (t == AKO_DEV_NOISE + 1)
 		{
-			// AKO_DEV_PRINTF("E\t...\n");
+			AKO_DEV_PRINTF("E\t...\n");
 		}
 
 		// 5. Next tile
@@ -169,8 +169,6 @@ AKO_EXPORT size_t akoEncodeExt(const struct akoCallbacks* c, const struct akoSet
 			tile_y += checked_s.tiles_dimension;
 		}
 	}
-
-	// AKO_DEV_PRINTF("\n");
 
 	// Bye!
 	checked_c.free(workarea_a);

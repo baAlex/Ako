@@ -200,11 +200,14 @@ void AkoEnc(const vector<string>& args)
 	void* blob = NULL;
 	size_t blob_size = 0;
 	{
+		Modern::Stopwatch total_benchmark;
 		akoCallbacks callbacks = akoDefaultCallbacks();
 		akoStatus status = AKO_ERROR;
 
 		if (benchmark == true)
 		{
+			total_benchmark.start(true);
+
 			Modern::EventsData events_data;
 			callbacks.events = Modern::EventsCallback;
 			callbacks.events_data = &events_data;
@@ -212,6 +215,9 @@ void AkoEnc(const vector<string>& args)
 
 		blob_size = akoEncodeExt(&callbacks, &settings, png->channels(), png->width(), png->height(), png->data(),
 		                         &blob, &status);
+
+		if (benchmark == true)
+			total_benchmark.pause_stop(true, "Benchmark | ------------ ", " Total encode");
 
 		if (blob_size == 0)
 			throw Modern::Error("Ako encode error: '" + string(akoStatusString(status)) + "'");

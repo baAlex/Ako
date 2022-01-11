@@ -77,22 +77,30 @@ class AkoImage
 		}
 
 		// Decode
-		akoCallbacks callbacks = akoDefaultCallbacks();
-		akoStatus status = AKO_ERROR;
 		akoSettings settings;
-
-		if (benchmark == true)
 		{
-			Modern::EventsData events_data;
-			callbacks.events = Modern::EventsCallback;
-			callbacks.events_data = &events_data;
+			Modern::Stopwatch total_benchmark;
+			akoCallbacks callbacks = akoDefaultCallbacks();
+			akoStatus status = AKO_ERROR;
+
+			if (benchmark == true)
+			{
+				total_benchmark.start(true);
+
+				Modern::EventsData events_data;
+				callbacks.events = Modern::EventsCallback;
+				callbacks.events_data = &events_data;
+			}
+
+			data_ = (void*)akoDecodeExt(&callbacks, blob->size(), blob->data(), &settings, &channels_, &width_,
+			                            &height_, &status);
+
+			if (benchmark == true)
+				total_benchmark.pause_stop(true, "Benchmark | ------------ ", " Total decode");
+
+			if (data_ == NULL)
+				throw Modern::Error("Ako decode error: '" + string(akoStatusString(status)) + "'");
 		}
-
-		data_ = (void*)akoDecodeExt(&callbacks, blob->size(), blob->data(), &settings, &channels_, &width_, &height_,
-		                            &status);
-
-		if (data_ == NULL)
-			throw Modern::Error("Ako decode error: '" + string(akoStatusString(status)) + "'");
 
 		wrap_ = settings.wrap;
 		wavelet_ = settings.wavelet;
