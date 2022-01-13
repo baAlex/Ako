@@ -17,6 +17,11 @@ extern "C"
 }
 
 
+#define TOOLS_VERSION_MAJOR 0
+#define TOOLS_VERSION_MINOR 2
+#define TOOLS_VERSION_PATCH 0
+
+
 namespace Modern // Cpp newbie here! (a sarcastic one)
 {
 struct Error
@@ -58,15 +63,12 @@ inline int CheckArgumentPair(const std::string arg1, const std::string arg2,
 
 inline void WriteBlob(const std::string filename, const void* blob, size_t size)
 {
-	if (filename != "")
-	{
-		auto fp = std::make_unique<std::fstream>(filename, std::ios::binary | std::ios_base::out);
+	auto fp = std::make_unique<std::fstream>(filename, std::ios::binary | std::ios_base::out);
 
-		fp->write((char*)blob, size);
+	fp->write((char*)blob, size);
 
-		if (fp->fail() == true)
-			throw Modern::Error("Write error");
-	}
+	if (fp->fail() == true)
+		throw Modern::Error("Write error");
 }
 
 
@@ -115,11 +117,39 @@ void EventsCallback(size_t tile_no, size_t total_tiles, akoEvent e, void* raw_da
 		stopwatches->compression.start((bool)(tile_no == 0));
 
 	else if (e == AKO_EVENT_FORMAT_END)
-		stopwatches->format.pause_stop((bool)(tile_no == total_tiles - 1), "Benchmark | Format:      ");
+		stopwatches->format.pause_stop((bool)(tile_no == total_tiles - 1), " - Format: ");
 	else if (e == AKO_EVENT_WAVELET_END)
-		stopwatches->wavelet.pause_stop((bool)(tile_no == total_tiles - 1), "Benchmark | Wavelet:     ");
+		stopwatches->wavelet.pause_stop((bool)(tile_no == total_tiles - 1), " - Wavelet transformation: ");
 	else if (e == AKO_EVENT_COMPRESSION_END)
-		stopwatches->compression.pause_stop((bool)(tile_no == total_tiles - 1), "Benchmark | Compression: ");
+		stopwatches->compression.pause_stop((bool)(tile_no == total_tiles - 1), " - Compression: ");
+}
+
+
+uint32_t Adler32(const uint8_t* data, size_t len)
+{
+	// Borrowed from LodePng
+	uint32_t s1 = 1u & 0xffffu;
+	uint32_t s2 = (1u >> 16u) & 0xffffu;
+
+	while (len != 0u)
+	{
+		uint32_t i;
+
+		// (Lode) At least 5552 sums can be done before the sums overflow, saving a lot of module divisions
+		uint32_t amount = len > 5552u ? 5552u : len;
+		len -= amount;
+
+		for (i = 0; i != amount; ++i)
+		{
+			s1 += (*data++);
+			s2 += s1;
+		}
+
+		s1 %= 65521u;
+		s2 %= 65521u;
+	}
+
+	return (s2 << 16u) | s1;
 }
 } // namespace Modern
 

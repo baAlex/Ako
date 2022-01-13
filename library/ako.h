@@ -5,8 +5,12 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#define AKO_VERSION_MAJOR 0
+#define AKO_VERSION_MINOR 2
+#define AKO_VERSION_PATCH 0
 
 #define AKO_FORMAT_VERSION 2
+
 #define AKO_MAX_CHANNELS 16
 #define AKO_MAX_WIDTH 4294967295
 #define AKO_MAX_HEIGHT 4294967295
@@ -121,5 +125,7 @@ const char* akoStatusString(enum akoStatus);
 int akoVersionMajor();
 int akoVersionMinor();
 int akoVersionPatch();
+
+int akoFormatVersion();
 
 #endif

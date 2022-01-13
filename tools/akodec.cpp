@@ -90,13 +90,15 @@ class AkoImage
 				Modern::EventsData events_data;
 				callbacks.events = Modern::EventsCallback;
 				callbacks.events_data = &events_data;
+
+				cout << "Benchmark: " << endl;
 			}
 
 			data_ = (void*)akoDecodeExt(&callbacks, blob->size(), blob->data(), &settings, &channels_, &width_,
 			                            &height_, &status);
 
 			if (benchmark == true)
-				total_benchmark.pause_stop(true, "Benchmark | ------------ ", " Total decode");
+				total_benchmark.pause_stop(true, " - Total: ");
 
 			if (data_ == NULL)
 				throw Modern::Error("Ako decode error: '" + string(akoStatusString(status)) + "'");
@@ -120,6 +122,7 @@ void AkoDec(const vector<string>& args)
 	string filename_input = "";
 	string filename_output = "";
 	bool verbose = false;
+	bool checksum = false;
 	bool benchmark = false;
 
 	// Check arguments
@@ -143,6 +146,8 @@ void AkoDec(const vector<string>& args)
 		}
 		else if (Modern::CheckArgumentSingle("-verbose", "--verbose", it) == 0)
 			verbose = true;
+		else if (Modern::CheckArgumentSingle("-ch", "--checksum", it) == 0)
+			checksum = true;
 		else if (Modern::CheckArgumentSingle("-b", "--benchmark", it) == 0)
 			benchmark = true;
 		else if (Modern::CheckArgumentPair("-i", "--input", it, it_end) == 0)
@@ -157,24 +162,47 @@ void AkoDec(const vector<string>& args)
 		throw Modern::Error("No input filename specified");
 
 	// Open input
+	if (verbose == true)
+	{
+		cout << "# AkoDec v" << TOOLS_VERSION_MAJOR << "." << TOOLS_VERSION_MINOR << "." << TOOLS_VERSION_PATCH;
+		cout << " (format " << akoFormatVersion() << ", library v" << akoVersionMajor() << "." << akoVersionMinor()
+		     << "." << akoVersionPatch() << ")" << endl;
+
+		cout << "Opening input: '" << filename_input << "'..." << endl;
+	}
+
 	const auto ako = make_unique<AkoImage>(filename_input, benchmark);
 
 	if (verbose == true)
+		cout << "Input data: " << ako->channels() << " channels, " << ako->width() << "x" << ako->height() << " px"
+		     << endl;
+
+	// Checksum data
+	if (checksum == true)
 	{
-		if (benchmark == true)
-			cout << endl;
+		auto value = Modern::Adler32((uint8_t*)ako->data(), ako->width() * ako->height() * ako->channels());
 
-		cout << "AkoDec: '" << filename_input << "', " << ako->channels() << " channel(s), " << ako->width() << "x"
-		     << ako->height() << " pixels" << endl;
-
-		cout << " - tiles dimension: " << ako->tiles_dimension() << " px, wrap mode: " << (int)ako->wrap()
-		     << ", wavelet: " << (int)ako->wavelet() << ", colorspace: " << ako->colorspace() << endl;
+		if (verbose == true)
+			cout << "Input data checksum: " << std::hex << value << std::dec << std::endl;
+		else
+			cout << "Checksum of input '" << filename_input << "' data: " << std::hex << value << std::dec << std::endl;
 	}
 
 	// Encode
+	if (verbose == true) // TODO, should messages reflect workflow order?, right now is kinda human-readable
+	{
+		cout << "[Colorspace: " << (int)ako->colorspace();
+		cout << ", Wrap: " << (int)ako->wrap();
+		cout << ", Wavelet: " << (int)ako->wavelet();
+		cout << ", Tiles dimension: " << (int)ako->tiles_dimension() << "]" << endl;
+	}
+
 	void* blob = NULL;
 	size_t blob_size = 0;
 	{
+		if (verbose == true)
+			cout << "Encoding output: '" << filename_output << "'..." << endl;
+
 		LodePNGColorType color;
 		switch (ako->channels())
 		{
@@ -193,8 +221,15 @@ void AkoDec(const vector<string>& args)
 	}
 
 	// Bye!
-	Modern::WriteBlob(filename_output, blob, blob_size);
-	akoDefaultFree(blob);
+	if (filename_output != "")
+	{
+		if (verbose == true)
+			cout << "Writing output: '" << filename_output << "'..." << endl;
+
+		Modern::WriteBlob(filename_output, blob, blob_size);
+	}
+
+	free(blob);
 }
 
 
