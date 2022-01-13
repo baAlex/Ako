@@ -29,17 +29,23 @@ SOFTWARE.
 
 AKO_EXPORT int akoVersionMajor()
 {
-	return 0;
+	return AKO_VERSION_MAJOR;
 }
 
 
 AKO_EXPORT int akoVersionMinor()
 {
-	return 2;
+	return AKO_VERSION_MINOR;
 }
 
 
 AKO_EXPORT int akoVersionPatch()
 {
-	return 0;
+	return AKO_VERSION_PATCH;
+}
+
+
+AKO_EXPORT int akoFormatVersion()
+{
+	return AKO_FORMAT_VERSION;
 }

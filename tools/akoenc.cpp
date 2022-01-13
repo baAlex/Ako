@@ -28,8 +28,12 @@ SOFTWARE.
 using namespace std;
 
 
-const char* version_string = "version_string";
+const char* version_string = "version_string"; // TODO: Add thanks to Lode Vandevenne (LodePng)
 const char* help_string = "help_string";
+
+#define TOOL_VERSION_MAJOR 0
+#define TOOL_VERSION_MINOR 2
+#define TOOL_VERSION_PATCH 0
 
 
 class PngImage
@@ -106,6 +110,7 @@ void AkoEnc(const vector<string>& args)
 	string filename_input = "";
 	string filename_output = "";
 	bool verbose = false;
+	bool checksum = false;
 	bool benchmark = false;
 
 	akoSettings settings = akoDefaultSettings();
@@ -131,13 +136,15 @@ void AkoEnc(const vector<string>& args)
 		}
 		else if (Modern::CheckArgumentSingle("-verbose", "--verbose", it) == 0)
 			verbose = true;
+		else if (Modern::CheckArgumentSingle("-ch", "--checksum", it) == 0)
+			checksum = true;
 		else if (Modern::CheckArgumentSingle("-b", "--benchmark", it) == 0)
 			benchmark = true;
 		else if (Modern::CheckArgumentPair("-i", "--input", it, it_end) == 0)
 			filename_input = *it;
 		else if (Modern::CheckArgumentPair("-o", "--output", it, it_end) == 0)
 			filename_output = *it;
-		else if (Modern::CheckArgumentPair("-r", "--wrap", it, it_end) == 0)
+		else if (Modern::CheckArgumentPair("-wr", "--wrap", it, it_end) == 0)
 		{
 			if (*it == "clamp" || *it == "0")
 				settings.wrap = AKO_WRAP_CLAMP;
@@ -174,6 +181,15 @@ void AkoEnc(const vector<string>& args)
 		}
 		else if (Modern::CheckArgumentPair("-t", "--tiles", it, it_end) == 0)
 			settings.tiles_dimension = stol(*it);
+		else if (Modern::CheckArgumentPair("-d", "--discard-transparent-pixels", it, it_end) == 0) // :)
+		{
+			if (*it == "1" || *it == "true" || *it == "yes" || *it == "yup" || *it == "si")
+				settings.discard_transparent_pixels = 1;
+			else if (*it == "0" || *it == "false" || *it == "no" || *it == "nop")
+				settings.discard_transparent_pixels = 0;
+			else
+				throw Modern::Error("Unknown boolean value '" + *it + "' for discard-transparent-pixels argument");
+		}
 		else
 			throw Modern::Error("Unknown argument '" + *it + "'");
 	}
@@ -182,24 +198,48 @@ void AkoEnc(const vector<string>& args)
 		throw Modern::Error("No input filename specified");
 
 	// Open input
+	if (verbose == true)
+	{
+		cout << "# AkoEnc v" << TOOLS_VERSION_MAJOR << "." << TOOLS_VERSION_MINOR << "." << TOOLS_VERSION_PATCH;
+		cout << " (format " << akoFormatVersion() << ", library v" << akoVersionMajor() << "." << akoVersionMinor()
+		     << "." << akoVersionPatch() << ")" << endl;
+
+		cout << "Opening input: '" << filename_input << "'..." << endl;
+	}
+
 	const auto png = make_unique<PngImage>(filename_input);
 
 	if (verbose == true)
+		cout << "Input data: " << png->channels() << " channels, " << png->width() << "x" << png->height() << " px"
+		     << endl;
+
+	// Checksum data
+	if (checksum == true)
 	{
-		cout << "AkoEnc: '" << filename_input << "', " << png->channels() << " channel(s), " << png->width() << "x"
-		     << png->height() << " pixels" << endl;
+		auto value = Modern::Adler32((uint8_t*)png->data(), png->width() * png->height() * png->channels());
 
-		cout << " - tiles dimension: " << settings.tiles_dimension << " px, wrap mode: " << (int)settings.wrap
-		     << ", wavelet: " << (int)settings.wavelet << ", colorspace: " << settings.colorspace << endl;
-
-		if (benchmark == true)
-			cout << endl;
+		if (verbose == true)
+			cout << "Input data checksum: " << std::hex << value << std::dec << std::endl;
+		else
+			cout << "Checksum of input '" << filename_input << "' data: " << std::hex << value << std::dec << std::endl;
 	}
 
 	// Encode
+	if (verbose == true)
+	{
+		cout << "[Colorspace: " << (int)settings.colorspace;
+		cout << ", Wrap: " << (int)settings.wrap;
+		cout << ", Wavelet: " << (int)settings.wavelet;
+		cout << ", Tiles dimension: " << (int)settings.tiles_dimension;
+		cout << ", Discard transparent pixels: " << (bool)settings.discard_transparent_pixels << "]" << endl;
+	}
+
 	void* blob = NULL;
 	size_t blob_size = 0;
 	{
+		if (verbose == true)
+			cout << "Encoding output: '" << filename_output << "'..." << endl;
+
 		Modern::Stopwatch total_benchmark;
 		akoCallbacks callbacks = akoDefaultCallbacks();
 		akoStatus status = AKO_ERROR;
@@ -211,20 +251,29 @@ void AkoEnc(const vector<string>& args)
 			Modern::EventsData events_data;
 			callbacks.events = Modern::EventsCallback;
 			callbacks.events_data = &events_data;
+
+			cout << "Benchmark: " << endl;
 		}
 
 		blob_size = akoEncodeExt(&callbacks, &settings, png->channels(), png->width(), png->height(), png->data(),
 		                         &blob, &status);
 
 		if (benchmark == true)
-			total_benchmark.pause_stop(true, "Benchmark | ------------ ", " Total encode");
+			total_benchmark.pause_stop(true, " - Total: ");
 
 		if (blob_size == 0)
 			throw Modern::Error("Ako encode error: '" + string(akoStatusString(status)) + "'");
 	}
 
 	// Bye!
-	Modern::WriteBlob(filename_output, blob, blob_size);
+	if (filename_output != "")
+	{
+		if (verbose == true)
+			cout << "Writing output: '" << filename_output << "'..." << endl;
+
+		Modern::WriteBlob(filename_output, blob, blob_size);
+	}
+
 	akoDefaultFree(blob);
 }
 
