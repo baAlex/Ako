@@ -66,28 +66,7 @@ void akoHaarLiftV(size_t half_len, size_t stride, const int16_t* in, int16_t* ou
 }
 
 
-void akoHaarUnliftH(size_t half_len, int ignore_last, const int16_t* in, int16_t* out)
-{
-	for (size_t i = 0; i < (half_len - (size_t)ignore_last); i++)
-	{
-		const int16_t lp = in[i];
-		const int16_t hp = in[half_len + i];
-
-		out[(i << 1) + 0] = lp;      // Even
-		out[(i << 1) + 1] = lp + hp; // Odd
-	}
-
-	if (ignore_last != 0)
-	{
-		const size_t i = (half_len - 1);
-		const int16_t lp = in[i];
-
-		out[(i << 1) + 0] = lp; // Just even
-	}
-}
-
-
-void akoHaarUnliftH2(size_t half_len, int ignore_last, const int16_t* in_lp, const int16_t* in_hp, int16_t* out)
+void akoHaarUnliftH(size_t half_len, int ignore_last, const int16_t* in_lp, const int16_t* in_hp, int16_t* out)
 {
 	for (size_t i = 0; i < (half_len - (size_t)ignore_last); i++)
 	{
@@ -108,40 +87,15 @@ void akoHaarUnliftH2(size_t half_len, int ignore_last, const int16_t* in_lp, con
 }
 
 
-void akoHaarUnliftV(size_t half_len, size_t stride, const int16_t* lowpass, const int16_t* highpass, int16_t* out)
+void akoHaarInPlaceishUnliftV(size_t half_len, size_t stride, const int16_t* lowpass, const int16_t* highpass,
+                              int16_t* out_lowpass, int16_t* out_highpass)
 {
 	for (size_t i = 0; i < half_len; i++)
 	{
 		const int16_t lp = lowpass[stride * i];
 		const int16_t hp = highpass[stride * i];
 
-		out[(stride << 1) * ((i << 1) + 0)] = lp;      // Even
-		out[(stride << 1) * ((i << 1) + 1)] = lp + hp; // Odd
-	}
-}
-
-
-void akoHaarInPlaceUnliftV(size_t half_len, size_t stride, const int16_t* lowpass, int16_t* highpass, int16_t* out_lp)
-{
-	for (size_t i = 0; i < half_len; i++)
-	{
-		const int16_t lp = lowpass[stride * i];
-		const int16_t hp = highpass[stride * i];
-
-		out_lp[stride * i] = lp;        // Even
-		highpass[stride * i] = lp + hp; // Odd
-	}
-}
-
-
-void akoHaarInPlaceUnliftV2(size_t half_len, size_t stride, int16_t* lowpass, int16_t* highpass)
-{
-	for (size_t i = 0; i < half_len; i++)
-	{
-		const int16_t lp = lowpass[stride * i];
-		const int16_t hp = highpass[stride * i];
-
-		lowpass[stride * i] = lp;       // Even
-		highpass[stride * i] = lp + hp; // Odd
+		out_lowpass[stride * i] = lp;       // Even
+		out_highpass[stride * i] = lp + hp; // Odd
 	}
 }
