@@ -92,9 +92,16 @@ AKO_EXPORT const char* akoStatusString(enum akoStatus status)
 }
 
 
-size_t akoDividePlusOneRule(size_t x)
+inline size_t akoDividePlusOneRule(size_t v)
 {
-	return (x % 2 == 0) ? (x / 2) : ((x + 1) / 2);
+	return (v % 2 == 0) ? (v / 2) : ((v + 1) / 2);
+}
+
+
+inline size_t akoPlanesSpacing(size_t tile_w, size_t tile_h)
+{
+	size_t spacing = (tile_w % 2 == 0) ? 0 : (tile_w * 2);
+	return spacing + ((tile_h % 2 == 0) ? 0 : (tile_h * 2));
 }
 
 
@@ -134,24 +141,24 @@ size_t akoTileDataSize(size_t tile_w, size_t tile_h)
 }
 
 
-size_t akoTileDimension(size_t x, size_t image_w, size_t tiles_dimension)
+size_t akoTileDimension(size_t d, size_t image_d, size_t tiles_dimension)
 {
 	if (tiles_dimension == 0)
-		return image_w;
+		return image_d;
 
-	if (x + tiles_dimension > image_w)
-		return (image_w % tiles_dimension);
+	if (d + tiles_dimension > image_d)
+		return (image_d % tiles_dimension);
 
 	return tiles_dimension;
 }
 
 
-static size_t sMax(size_t a, size_t b)
+static inline size_t sMax(size_t a, size_t b)
 {
 	return (a > b) ? a : b;
 }
 
-static size_t sMin(size_t a, size_t b)
+static inline size_t sMin(size_t a, size_t b)
 {
 	return (a < b) ? a : b;
 }

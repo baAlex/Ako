@@ -25,7 +25,8 @@ set(AKO_SOURCES
 	"./library/head.c"
 	"./library/lifting.c"
 	"./library/misc.c"
-	"./library/version.c")
+	"./library/version.c"
+	"./library/wavelet-haar.c")
 
 
 if (AKO_SHARED)

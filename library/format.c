@@ -230,6 +230,10 @@ void akoFormatToInterleavedU8Rgb(enum akoColorspace colorspace, size_t channels,
 				sSaturateRgb(3, width, height, in_plane, in);
 			else if (channels == 4)
 				sSaturateRgb(4, width, height, in_plane, in);
+			else if (channels == 2)
+				sSaturateRgb(2, width, height, in_plane, in);
+			else if (channels == 1)
+				sSaturateRgb(1, width, height, in_plane, in);
 			else
 				sSaturateRgb(channels, width, height, in_plane, in);
 		}
