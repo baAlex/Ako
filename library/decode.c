@@ -92,16 +92,11 @@ AKO_EXPORT uint8_t* akoDecodeExt(const struct akoCallbacks* c, size_t input_size
 		goto return_failure;
 	}
 
-	if (tiles_no > 1)
+	if ((image = checked_c.malloc(image_w * image_h * channels)) == NULL) // TODO, try to recycle when 'tiles_no == 1'
 	{
-		if ((image = checked_c.malloc(image_w * image_h * channels)) == NULL)
-		{
-			status = AKO_NO_ENOUGH_MEMORY;
-			goto return_failure;
-		}
+		status = AKO_NO_ENOUGH_MEMORY;
+		goto return_failure;
 	}
-	else
-		image = workarea_b; // Yup, recycling
 
 	AKO_DEV_PRINTF("\nD\tTiles no: %zu, Max tile size: %zu\n", tiles_no, tile_max_size);
 
@@ -109,54 +104,58 @@ AKO_EXPORT uint8_t* akoDecodeExt(const struct akoCallbacks* c, size_t input_size
 	size_t tile_x = 0;
 	size_t tile_y = 0;
 
+	size_t out_tile_size;
+	size_t planes_spacing = 0; // Space in order to follow the akoDividePlusOneRule()
+
 	for (size_t t = 0; t < tiles_no; t++)
 	{
 		const size_t tile_w = akoTileDimension(tile_x, image_w, s.tiles_dimension);
 		const size_t tile_h = akoTileDimension(tile_y, image_h, s.tiles_dimension);
-		const size_t tile_size = (s.wavelet != AKO_WAVELET_NONE)
-		                             ? (akoTileDataSize(tile_w, tile_h) * channels)
-		                             : (tile_w * tile_h * channels * sizeof(int16_t)); // No wavelet is a rare case
+
+		if (s.wavelet != AKO_WAVELET_NONE)
+		{
+			out_tile_size = akoTileDataSize(tile_w, tile_h) * channels;
+			planes_spacing = akoPlanesSpacing(tile_w, tile_h);
+		}
+		else
+			out_tile_size = (tile_w * tile_h * channels * sizeof(int16_t));
 
 		// 1. Decompress
-		sEvent(t, tiles_no, AKO_EVENT_COMPRESSION_START, checked_c.events_data, checked_c.events);
 		// if (s.compression == AKO_COMPRESSION_NONE)
 		{
+			sEvent(t, tiles_no, AKO_EVENT_COMPRESSION_START, checked_c.events_data, checked_c.events);
+
 			// Check input
-			if ((blob + tile_size) > (const uint8_t*)input + input_size)
+			if ((blob + out_tile_size) > (const uint8_t*)input + input_size)
 			{
 				status = AKO_BROKEN_INPUT;
 				goto return_failure;
 			}
 
 			// Copy as is
-			for (size_t i = 0; i < tile_size; i++)
+			for (size_t i = 0; i < out_tile_size; i++)
 				((uint8_t*)workarea_a)[i] = blob[i];
 
-			blob += tile_size; // Update
+			blob += out_tile_size; // Update
+
+			sEvent(t, tiles_no, AKO_EVENT_COMPRESSION_END, checked_c.events_data, checked_c.events);
 		}
-		sEvent(t, tiles_no, AKO_EVENT_COMPRESSION_END, checked_c.events_data, checked_c.events);
 
 		// 2. Wavelet transform
-		sEvent(t, tiles_no, AKO_EVENT_WAVELET_START, checked_c.events_data, checked_c.events);
-		// if (checked_s.wavelet != AKO_WAVELET_NONE)
+		if (s.wavelet != AKO_WAVELET_NONE)
 		{
-			akoUnlift(t, &s, channels, tile_w, tile_h, 0, workarea_a, workarea_b);
+			sEvent(t, tiles_no, AKO_EVENT_WAVELET_START, checked_c.events_data, checked_c.events);
+			akoUnlift(t, &s, channels, tile_w, tile_h, planes_spacing, workarea_a, workarea_b);
+			sEvent(t, tiles_no, AKO_EVENT_WAVELET_END, checked_c.events_data, checked_c.events);
 		}
-		sEvent(t, tiles_no, AKO_EVENT_WAVELET_END, checked_c.events_data, checked_c.events);
 
 		// 3. Developers, developers, developers
 		// (before the format step destroys workarea a)
 		if (t < AKO_DEV_NOISE)
 		{
-			AKO_DEV_PRINTF("D\tTile %zu at %zu:%zu, %zux%zu px, size: %zu bytes, cursor: %zu bytes\n", t, tile_x,
-			               tile_y, tile_w, tile_h, tile_size, (size_t)(blob - (const uint8_t*)input));
-
-			// char filename[64];
-			// for (size_t ch = 0; ch < channels; ch++)
-			// {
-			// 	snprintf(filename, 64, "Tile%zuCh%zuD.pgm", t, ch);
-			// 	akoSavePgmI16(tile_w, tile_h, tile_w, ((int16_t*)workarea_a) + (tile_w * tile_h) * ch, filename);
-			// }
+			AKO_DEV_PRINTF(
+			    "D\tTile %zu at %zu:%zu, %zux%zu px, planes spacing: %zu, size: %zu bytes, cursor: %zu bytes\n", t,
+			    tile_x, tile_y, tile_w, tile_h, planes_spacing, out_tile_size, (size_t)(blob - (const uint8_t*)input));
 		}
 		else if (t == AKO_DEV_NOISE + 1)
 		{
@@ -164,10 +163,15 @@ AKO_EXPORT uint8_t* akoDecodeExt(const struct akoCallbacks* c, size_t input_size
 		}
 
 		// 4. Format
-		sEvent(t, tiles_no, AKO_EVENT_FORMAT_START, checked_c.events_data, checked_c.events);
-		akoFormatToInterleavedU8Rgb(s.colorspace, channels, tile_w, tile_h, 0, image_w, workarea_a,
-		                            image + (image_w * tile_y + tile_x) * channels);
-		sEvent(t, tiles_no, AKO_EVENT_FORMAT_END, checked_c.events_data, checked_c.events);
+		{
+			sEvent(t, tiles_no, AKO_EVENT_FORMAT_START, checked_c.events_data, checked_c.events);
+
+			int16_t* workarea = (s.wavelet != AKO_WAVELET_NONE) ? workarea_b : workarea_a;
+			akoFormatToInterleavedU8Rgb(s.colorspace, channels, tile_w, tile_h, planes_spacing, image_w, workarea,
+			                            image + (image_w * tile_y + tile_x) * channels);
+
+			sEvent(t, tiles_no, AKO_EVENT_FORMAT_END, checked_c.events_data, checked_c.events);
+		}
 
 		// 5. Next tile
 		tile_x += s.tiles_dimension;
@@ -180,9 +184,7 @@ AKO_EXPORT uint8_t* akoDecodeExt(const struct akoCallbacks* c, size_t input_size
 
 	// Bye!
 	checked_c.free(workarea_a);
-
-	if (tiles_no > 1)
-		checked_c.free(workarea_b);
+	checked_c.free(workarea_b);
 
 	if (out_s != NULL)
 		*out_s = s;
