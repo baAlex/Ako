@@ -9,7 +9,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-//#define AKO_DEV_PRINTF(...) printf(__VA_ARGS__)
+// #define AKO_DEV_PRINTF(...) printf(__VA_ARGS__)
 #endif
 
 // clang-format off
@@ -72,12 +72,8 @@ size_t akoImageTilesNo(size_t image_w, size_t image_h, size_t tiles_dimension);
 void akoHaarLiftH(size_t half_len, int fake_last, const int16_t* in, int16_t* out);
 void akoHaarLiftV(size_t half_len, size_t stride, const int16_t* in, int16_t* out);
 
-void akoHaarUnliftH(size_t half_len, int ignore_last, const int16_t* in, int16_t* out);
-void akoHaarUnliftV(size_t half_len, size_t stride, const int16_t* lp, const int16_t* hp, int16_t* out);
-
-void akoHaarUnliftH2(size_t half_len, int ignore_last, const int16_t* in_lp, const int16_t* in_hp, int16_t* out);
-
-void akoHaarInPlaceUnliftV(size_t half_len, size_t stride, const int16_t* lp, int16_t* hp, int16_t* out_lp);
-void akoHaarInPlaceUnliftV2(size_t half_len, size_t stride, int16_t* lp, int16_t* hp);
+void akoHaarUnliftH(size_t half_len, int ignore_last, const int16_t* in_lp, const int16_t* in_hp, int16_t* out);
+void akoHaarInPlaceishUnliftV(size_t half_len, size_t stride, const int16_t* lowpass, const int16_t* highpass,
+                              int16_t* out_lowpass, int16_t* out_highpass);
 
 #endif

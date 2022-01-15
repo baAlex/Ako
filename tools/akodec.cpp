@@ -197,39 +197,39 @@ void AkoDec(const vector<string>& args)
 		cout << ", Tiles dimension: " << (int)ako->tiles_dimension() << "]" << endl;
 	}
 
-	void* blob = NULL;
-	size_t blob_size = 0;
-	{
-		if (verbose == true)
-			cout << "Encoding output: '" << filename_output << "'..." << endl;
-
-		LodePNGColorType color;
-		switch (ako->channels())
-		{
-		case 1: color = LCT_GREY; break;
-		case 2: color = LCT_GREY_ALPHA; break;
-		case 3: color = LCT_RGB; break;
-		case 4: color = LCT_RGBA; break;
-		default: throw Modern::Error("Unsupported channels number (" + to_string(ako->channels()) + ")");
-		}
-
-		unsigned error = lodepng_encode_memory((unsigned char**)(&blob), &blob_size, (unsigned char*)ako->data(),
-		                                       (unsigned)ako->width(), (unsigned)ako->height(), color, 8);
-
-		if (error != 0)
-			throw Modern::Error("LodePng error: '" + string(lodepng_error_text(error)) + "'");
-	}
-
-	// Bye!
 	if (filename_output != "")
 	{
+		void* blob = NULL;
+		size_t blob_size = 0;
+		{
+			if (verbose == true)
+				cout << "Encoding output: '" << filename_output << "'..." << endl;
+
+			LodePNGColorType color;
+			switch (ako->channels())
+			{
+			case 1: color = LCT_GREY; break;
+			case 2: color = LCT_GREY_ALPHA; break;
+			case 3: color = LCT_RGB; break;
+			case 4: color = LCT_RGBA; break;
+			default: throw Modern::Error("Unsupported channels number (" + to_string(ako->channels()) + ")");
+			}
+
+			unsigned error = lodepng_encode_memory((unsigned char**)(&blob), &blob_size, (unsigned char*)ako->data(),
+			                                       (unsigned)ako->width(), (unsigned)ako->height(), color, 8);
+
+			if (error != 0)
+				throw Modern::Error("LodePng error: '" + string(lodepng_error_text(error)) + "'");
+		}
+
+		// Bye!
 		if (verbose == true)
 			cout << "Writing output: '" << filename_output << "'..." << endl;
 
 		Modern::WriteBlob(filename_output, blob, blob_size);
-	}
 
-	free(blob);
+		free(blob);
+	}
 }
 
 

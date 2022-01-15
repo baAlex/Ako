@@ -79,8 +79,8 @@ AKO_EXPORT size_t akoEncodeExt(const struct akoCallbacks* c, const struct akoSet
 	const size_t tiles_no = akoImageTilesNo(image_w, image_h, checked_s.tiles_dimension);
 	const size_t tile_max_size = akoImageMaxTileDataSize(image_w, image_h, checked_s.tiles_dimension) * channels;
 
-	workarea_a = checked_c.malloc(tile_max_size);
-	workarea_b = checked_c.malloc(tile_max_size);
+	workarea_a = checked_c.malloc(tile_max_size + akoPlanesSpacing(image_w, image_h) * channels * sizeof(int16_t));
+	workarea_b = checked_c.malloc(tile_max_size + akoPlanesSpacing(image_w, image_h) * channels * sizeof(int16_t));
 
 	if (workarea_a == NULL || workarea_b == NULL)
 	{
