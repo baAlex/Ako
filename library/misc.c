@@ -151,12 +151,12 @@ size_t akoTileDataSize(size_t tile_w, size_t tile_h)
 }
 
 
-size_t akoTileDimension(size_t d, size_t image_d, size_t tiles_dimension)
+size_t akoTileDimension(size_t tile_pos, size_t image_d, size_t tiles_dimension)
 {
 	if (tiles_dimension == 0)
 		return image_d;
 
-	if (d + tiles_dimension > image_d)
+	if (tile_pos + tiles_dimension > image_d)
 		return (image_d % tiles_dimension);
 
 	return tiles_dimension;

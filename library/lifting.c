@@ -32,20 +32,18 @@ static void s2dLift(enum akoWavelet wavelet, enum akoWrap wrap, size_t in_stride
 {
 	// Horizontal lift
 	{
-		const int plus_one_col = (current_w % 2 == 0) ? 0 : 1;
+		const int plus_one_col = (target_w * 2) - current_w;
+		const int plus_one_row = (target_h * 2) - current_h;
 
-		for (size_t r = 0; r < current_h; r++) // TODO, move loop inside akoHaarLift()
+		for (size_t r = 0; r < current_h; r++)
 			akoHaarLiftH(target_w, plus_one_col, lp + (r * in_stride), aux + (r * target_w * 2));
 
-		if (current_h % 2 != 0)
+		if (plus_one_row != 0)
 			akoHaarLiftH(target_w, plus_one_col, lp + ((current_h - 1) * in_stride), aux + (current_h * target_w * 2));
 	}
 
 	// Vertical lift
-	{
-		for (size_t c = 0; c < target_w * 2; c++) // TODO, move loop inside akoHaarLift()
-			akoHaarLiftV(target_h, target_w * 2, aux + c, lp + c);
-	}
+	akoHaarLiftV(target_w * 2, target_h, aux, lp);
 }
 
 
@@ -57,13 +55,8 @@ static void s2dUnlift(enum akoWavelet wavelet, enum akoWrap wrap, size_t current
 	int16_t* hp_d = hps + (current_w * current_h) * 2;
 
 	// Vertical unlift
-	{
-		for (size_t c = 0; c < current_w; c++)
-			akoHaarInPlaceishUnliftV(current_h, current_w, lp + c, hp_c + c, aux + c, hp_c + c);
-
-		for (size_t c = 0; c < current_w; c++)
-			akoHaarInPlaceishUnliftV(current_h, current_w, hp_b + c, hp_d + c, hp_b + c, hp_d + c);
-	}
+	akoHaarInPlaceishUnliftV(current_w, current_h, lp, hp_c, aux, hp_c);
+	akoHaarInPlaceishUnliftV(current_w, current_h, hp_b, hp_d, hp_b, hp_d);
 
 	// Horizontal unlift
 	{
@@ -232,7 +225,9 @@ void akoUnlift(size_t tile_no, const struct akoSettings* s, size_t channels, siz
 	{
 		int16_t* lp = out + (tile_w * tile_h + planes_space) * ch;
 
-		memcpy(lp, in, (target_w * target_h) * sizeof(int16_t));
+		for (size_t i = 0; i < (target_w * target_h); i++)
+			lp[i] = ((int16_t*)in)[i];
+
 		in += (target_w * target_h) * sizeof(int16_t); // One lowpass...
 
 		// Developers, developers, developers

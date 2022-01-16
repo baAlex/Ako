@@ -8,7 +8,6 @@
 #if (AKO_FREESTANDING == 0)
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 // #define AKO_DEV_PRINTF(...) printf(__VA_ARGS__)
 #endif
 
@@ -62,7 +61,7 @@ size_t akoDividePlusOneRule(size_t x);
 size_t akoPlanesSpacing(size_t tile_w, size_t tile_h);
 
 size_t akoTileDataSize(size_t tile_w, size_t tile_h);
-size_t akoTileDimension(size_t d, size_t image_d, size_t tiles_dimension);
+size_t akoTileDimension(size_t tile_pos, size_t image_d, size_t tiles_dimension);
 
 size_t akoImageMaxTileDataSize(size_t image_w, size_t image_h, size_t tiles_dimension);
 size_t akoImageTilesNo(size_t image_w, size_t image_h, size_t tiles_dimension);
@@ -70,10 +69,10 @@ size_t akoImageTilesNo(size_t image_w, size_t image_h, size_t tiles_dimension);
 // wavelet-haar.c:
 
 void akoHaarLiftH(size_t half_len, int fake_last, const int16_t* in, int16_t* out);
-void akoHaarLiftV(size_t half_len, size_t stride, const int16_t* in, int16_t* out);
+void akoHaarLiftV(size_t target_w, size_t current_h, const int16_t* in, int16_t* out);
 
 void akoHaarUnliftH(size_t half_len, int ignore_last, const int16_t* in_lp, const int16_t* in_hp, int16_t* out);
-void akoHaarInPlaceishUnliftV(size_t half_len, size_t stride, const int16_t* lowpass, const int16_t* highpass,
+void akoHaarInPlaceishUnliftV(size_t current_w, size_t current_h, const int16_t* lowpass, const int16_t* highpass,
                               int16_t* out_lowpass, int16_t* out_highpass);
 
 #endif

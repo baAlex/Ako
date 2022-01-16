@@ -13,7 +13,7 @@ option(AKO_DEC "Build decoding tool"       ON)
 if (MSVC)
 	add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
 else ()
-	add_compile_options(-Werror -Wall -Wextra -pedantic -Wno-unused-function -Wno-unused-parameter -Wno-unused-variable)
+	add_compile_options(-g -Werror -Wall -Wextra -pedantic -Wno-unused-function -Wno-unused-parameter -Wno-unused-variable)
 endif ()
 
 
