@@ -24,7 +24,7 @@ SOFTWARE.
 */
 
 
-#include "modern-app.hpp"
+#include "shared.hpp"
 using namespace std;
 
 
@@ -224,7 +224,6 @@ void AkoEnc(const vector<string>& args)
 			cout << "Checksum of input '" << filename_input << "' data: " << std::hex << value << std::dec << std::endl;
 	}
 
-	// Encode
 	if (verbose == true)
 	{
 		cout << "[Colorspace: " << (int)settings.colorspace;
@@ -234,6 +233,7 @@ void AkoEnc(const vector<string>& args)
 		cout << ", Discard transparent pixels: " << (bool)settings.discard_transparent_pixels << "]" << endl;
 	}
 
+	// Encode
 	void* blob = NULL;
 	size_t blob_size = 0;
 	{
@@ -265,7 +265,7 @@ void AkoEnc(const vector<string>& args)
 			throw Modern::Error("Ako encode error: '" + string(akoStatusString(status)) + "'");
 	}
 
-	// Bye!
+	// Write
 	if (filename_output != "")
 	{
 		if (verbose == true)
@@ -274,6 +274,7 @@ void AkoEnc(const vector<string>& args)
 		Modern::WriteBlob(filename_output, blob, blob_size);
 	}
 
+	// Bye!
 	akoDefaultFree(blob);
 }
 

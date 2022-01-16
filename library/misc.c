@@ -115,6 +115,13 @@ inline size_t akoPlanesSpacing(size_t tile_w, size_t tile_h)
 }
 
 
+inline size_t akoImageMaxPlanesSpacingSize(size_t image_w, size_t image_h, size_t tiles_dimension)
+{
+	return sizeof(int16_t) * akoPlanesSpacing(akoTileDimension(0, image_w, tiles_dimension),
+	                                          akoTileDimension(0, image_h, tiles_dimension));
+}
+
+
 size_t akoTileDataSize(size_t tile_w, size_t tile_h)
 {
 	/*

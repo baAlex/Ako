@@ -24,7 +24,7 @@ SOFTWARE.
 */
 
 
-#include "modern-app.hpp"
+#include "shared.hpp"
 using namespace std;
 
 
@@ -124,6 +124,7 @@ void AkoDec(const vector<string>& args)
 	bool verbose = false;
 	bool checksum = false;
 	bool benchmark = false;
+	bool fast_png = false;
 
 	// Check arguments
 	if (args.size() == 1)
@@ -150,6 +151,8 @@ void AkoDec(const vector<string>& args)
 			checksum = true;
 		else if (Modern::CheckArgumentSingle("-b", "--benchmark", it) == 0)
 			benchmark = true;
+		else if (Modern::CheckArgumentSingle("-f", "--fast", it) == 0)
+			fast_png = true;
 		else if (Modern::CheckArgumentPair("-i", "--input", it, it_end) == 0)
 			filename_input = *it;
 		else if (Modern::CheckArgumentPair("-o", "--output", it, it_end) == 0)
@@ -188,8 +191,7 @@ void AkoDec(const vector<string>& args)
 			cout << "Checksum of input '" << filename_input << "' data: " << std::hex << value << std::dec << std::endl;
 	}
 
-	// Encode
-	if (verbose == true) // TODO, should messages reflect workflow order?, right now is kinda human-readable
+	if (verbose == true)
 	{
 		cout << "[Colorspace: " << (int)ako->colorspace();
 		cout << ", Wrap: " << (int)ako->wrap();
@@ -197,39 +199,51 @@ void AkoDec(const vector<string>& args)
 		cout << ", Tiles dimension: " << (int)ako->tiles_dimension() << "]" << endl;
 	}
 
-	if (filename_output != "")
+	// Encode
+	if (filename_output == "")
+		return;
+
+	void* blob = NULL;
+	size_t blob_size = 0;
 	{
-		void* blob = NULL;
-		size_t blob_size = 0;
+		if (verbose == true)
+			cout << "Encoding output: '" << filename_output << "'..." << endl;
+
+		LodePNGState state;
+
+		lodepng_state_init(&state);
+		state.info_raw.bitdepth = 8;
+
+		switch (ako->channels())
 		{
-			if (verbose == true)
-				cout << "Encoding output: '" << filename_output << "'..." << endl;
-
-			LodePNGColorType color;
-			switch (ako->channels())
-			{
-			case 1: color = LCT_GREY; break;
-			case 2: color = LCT_GREY_ALPHA; break;
-			case 3: color = LCT_RGB; break;
-			case 4: color = LCT_RGBA; break;
-			default: throw Modern::Error("Unsupported channels number (" + to_string(ako->channels()) + ")");
-			}
-
-			unsigned error = lodepng_encode_memory((unsigned char**)(&blob), &blob_size, (unsigned char*)ako->data(),
-			                                       (unsigned)ako->width(), (unsigned)ako->height(), color, 8);
-
-			if (error != 0)
-				throw Modern::Error("LodePng error: '" + string(lodepng_error_text(error)) + "'");
+		case 1: state.info_raw.colortype = LCT_GREY; break;
+		case 2: state.info_raw.colortype = LCT_GREY_ALPHA; break;
+		case 3: state.info_raw.colortype = LCT_RGB; break;
+		case 4: state.info_raw.colortype = LCT_RGBA; break;
+		default: throw Modern::Error("Unsupported channels number (" + to_string(ako->channels()) + ")");
 		}
 
-		// Bye!
-		if (verbose == true)
-			cout << "Writing output: '" << filename_output << "'..." << endl;
+		if (fast_png != 0)
+		{
+			state.encoder.zlibsettings.btype = 0;     // No compression
+			state.encoder.filter_strategy = LFS_ZERO; // No prediction
+		}
 
-		Modern::WriteBlob(filename_output, blob, blob_size);
+		unsigned error = lodepng_encode((unsigned char**)(&blob), &blob_size, (unsigned char*)ako->data(),
+		                                (unsigned)ako->width(), (unsigned)ako->height(), &state);
 
-		free(blob);
+		if (error != 0)
+			throw Modern::Error("LodePng error: '" + string(lodepng_error_text(error)) + "'");
 	}
+
+	// Write
+	if (verbose == true)
+		cout << "Writing output: '" << filename_output << "'..." << endl;
+
+	Modern::WriteBlob(filename_output, blob, blob_size);
+
+	// Bye!
+	free(blob);
 }
 
 
