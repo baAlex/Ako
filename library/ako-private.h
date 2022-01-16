@@ -63,8 +63,9 @@ size_t akoPlanesSpacing(size_t tile_w, size_t tile_h);
 size_t akoTileDataSize(size_t tile_w, size_t tile_h);
 size_t akoTileDimension(size_t tile_pos, size_t image_d, size_t tiles_dimension);
 
-size_t akoImageMaxTileDataSize(size_t image_w, size_t image_h, size_t tiles_dimension);
 size_t akoImageTilesNo(size_t image_w, size_t image_h, size_t tiles_dimension);
+size_t akoImageMaxTileDataSize(size_t image_w, size_t image_h, size_t tiles_dimension);
+size_t akoImageMaxPlanesSpacingSize(size_t image_w, size_t image_h, size_t tiles_dimension);
 
 // wavelet-haar.c:
 

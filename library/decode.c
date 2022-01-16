@@ -81,11 +81,12 @@ AKO_EXPORT uint8_t* akoDecodeExt(const struct akoCallbacks* c, size_t input_size
 
 	// Allocate workareas and image
 	const size_t tiles_no = akoImageTilesNo(image_w, image_h, s.tiles_dimension);
-	const size_t tile_max_size = akoImageMaxTileDataSize(image_w, image_h, s.tiles_dimension) * channels;
+	const size_t tile_total_size = (akoImageMaxTileDataSize(image_w, image_h, s.tiles_dimension) +
+	                                akoImageMaxPlanesSpacingSize(image_w, image_h, s.tiles_dimension)) *
+	                               channels;
 
-	// TODO, 'image_w/h' is too much when 'tiles_no > 1'
-	workarea_a = checked_c.malloc(tile_max_size + akoPlanesSpacing(image_w, image_h) * channels * sizeof(int16_t));
-	workarea_b = checked_c.malloc(tile_max_size + akoPlanesSpacing(image_w, image_h) * channels * sizeof(int16_t));
+	workarea_a = checked_c.malloc(tile_total_size);
+	workarea_b = checked_c.malloc(tile_total_size);
 
 	if (workarea_a == NULL || workarea_b == NULL)
 	{
@@ -93,13 +94,23 @@ AKO_EXPORT uint8_t* akoDecodeExt(const struct akoCallbacks* c, size_t input_size
 		goto return_failure;
 	}
 
-	if ((image = checked_c.malloc(image_w * image_h * channels)) == NULL) // TODO, try to recycle when 'tiles_no == 1'
+	if (tiles_no > 1) // Recycle
 	{
-		status = AKO_NO_ENOUGH_MEMORY;
-		goto return_failure;
+		if ((image = checked_c.malloc(image_w * image_h * channels)) == NULL)
+		{
+			status = AKO_NO_ENOUGH_MEMORY;
+			goto return_failure;
+		}
+	}
+	else
+	{
+		if (s.wavelet != AKO_WAVELET_NONE)
+			image = workarea_a;
+		else
+			image = workarea_b;
 	}
 
-	AKO_DEV_PRINTF("\nD\tTiles no: %zu, Max tile size: %zu\n", tiles_no, tile_max_size);
+	AKO_DEV_PRINTF("\nD\tTiles no: %zu, Tile total size: %zu\n", tiles_no, tile_total_size);
 
 	// Iterate tiles
 	size_t tile_x = 0;
@@ -184,8 +195,10 @@ AKO_EXPORT uint8_t* akoDecodeExt(const struct akoCallbacks* c, size_t input_size
 	}
 
 	// Bye!
-	checked_c.free(workarea_a);
-	checked_c.free(workarea_b);
+	if (workarea_a != image)
+		checked_c.free(workarea_a);
+	if (workarea_b != image)
+		checked_c.free(workarea_b);
 
 	if (out_s != NULL)
 		*out_s = s;
@@ -202,7 +215,7 @@ AKO_EXPORT uint8_t* akoDecodeExt(const struct akoCallbacks* c, size_t input_size
 	return image;
 
 return_failure:
-	if (tiles_no > 1 && image != NULL)
+	if (image != workarea_a && image != workarea_b)
 		checked_c.free(image);
 	if (workarea_a != NULL)
 		checked_c.free(workarea_a);
