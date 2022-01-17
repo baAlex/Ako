@@ -100,18 +100,7 @@ inline size_t akoDividePlusOneRule(size_t v)
 
 inline size_t akoPlanesSpacing(size_t tile_w, size_t tile_h)
 {
-	size_t spacing = 0;
-
-	while (tile_w > 2 && tile_h > 2) // For each lift step...
-	{
-		spacing += (tile_w % 2 == 0) ? 0 : (tile_w * 2);
-		spacing += ((tile_h % 2 == 0) ? 0 : (tile_h * 2));
-
-		tile_w = akoDividePlusOneRule(tile_w);
-		tile_h = akoDividePlusOneRule(tile_h);
-	}
-
-	return spacing;
+	return tile_w * 2 + tile_h * 2;
 }
 
 
