@@ -110,9 +110,6 @@ void akoLift(size_t tile_no, const struct akoSettings* s, size_t channels, size_
 		// Developers, developers, developers
 		if (tile_no == 0)
 		{
-			if (current_w != tile_w)
-				AKO_DEV_PRINTF("E\tLiftHeadCh0 at %zu\n", (size_t)(out - (uint8_t*)output));
-
 			AKO_DEV_PRINTF("E\t%zux%zu -> %zux%zu (%li, %li)\n", current_w, current_h, target_w, target_h,
 			               (target_w * 2 - current_w), (target_h * 2 - current_h));
 		}
@@ -123,15 +120,38 @@ void akoLift(size_t tile_no, const struct akoSettings* s, size_t channels, size_
 			// 1. Lift
 			int16_t* lp = in + (tile_w * tile_h + planes_space) * ch;
 
-			if (current_w == tile_w)
+			if (current_w != tile_w)
 			{
-				int16_t* aux = output;
-				s2dLift(s->wavelet, s->wrap, current_w * 1, current_w, current_h, target_w, target_h, lp, aux);
+				// PLACE OF INTEREST, take you screenshot, lovely code tourist!:
+
+				// What follows determines what akoPlanesSpacing() should return, the idea is that:
+				// 1. Planes don't overlap when they add one to they dimensions
+				// 2. Vertical/horizontal lifts don't overlap either
+				// 3. Recycle memory :)
+
+				int16_t* aux = lp + ((target_w * 2) * (target_h * 2)) * 2; // Cache friendly
+
+				// Almost all encoding errors so far happened because of the above pointer
+
+				// And don't worry, this shouldn't happen on the decoder side as it
+				// uses in-place lifting (without recycling memory)
+
+				// Here a shame-showcase of past pointer mathematics:
+				// lp + ((tile_w + 1) * (tile_h + 1)) / 2;       // Safest, ruins cache locality
+				// lp + tile_w * (tile_h / 2 + 1);               // Ditto
+				// lp + ((current_w + 1) * (current_h + 1)) * 2; // Cache friendly, but always
+				//                                                  accounts for an extra col/row
+
+				s2dLift(s->wavelet, s->wrap, current_w * 2, current_w, current_h, target_w, target_h, lp, aux);
+
+				// END OF PLACE OF INTEREST
 			}
 			else
 			{
-				int16_t* aux = lp + tile_w * (tile_h / 2 + 1);
-				s2dLift(s->wavelet, s->wrap, current_w * 2, current_w, current_h, target_w, target_h, lp, aux);
+				int16_t* aux = output; // First lift is to big to allow us to use the
+				                       // same workarea as auxiliary memory. Luckily
+				                       // since is the first one, 'output' is empty
+				s2dLift(s->wavelet, s->wrap, current_w * 1, current_w, current_h, target_w, target_h, lp, aux);
 			}
 
 			// 2. Write coefficients
@@ -154,12 +174,15 @@ void akoLift(size_t tile_no, const struct akoSettings* s, size_t channels, size_
 			((struct akoLiftHead*)out)->quantization = 1;
 
 			// Developers, developers, developers
-			// if (tile_no == 0)
-			// {
-			// 	char filename[64];
-			// 	snprintf(filename, 64, "LiftV%zux%zuCh%zuE.pgm", target_w * 2, target_h * 2, ch);
-			// 	akoSavePgmI16(target_w * 2, target_h * 2, target_w * 2, lp, filename);
-			// }
+			if (tile_no == 0)
+			{
+				if (ch == 0)
+					AKO_DEV_PRINTF("E\tLiftHeadCh0 at %zu\n", (size_t)(out - (uint8_t*)output));
+
+				// char filename[64];
+				// snprintf(filename, 64, "LiftV%zux%zuCh%zuE.pgm", target_w * 2, target_h * 2, ch);
+				// akoSavePgmI16(target_w * 2, target_h * 2, target_w * 2, lp, filename);
+			}
 		}
 	}
 
