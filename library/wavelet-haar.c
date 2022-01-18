@@ -27,81 +27,132 @@ SOFTWARE.
 #include "ako-private.h"
 
 
-void akoHaarLiftH(size_t half_len, int fake_last, const int16_t* in, int16_t* out)
+static void sHaarLiftH(size_t current_h, size_t target_w, size_t fake_last, size_t in_stride, const int16_t* in,
+                       int16_t* out)
 {
-	// Iterate, omit last value if indicated
-	for (size_t i = 0; i < (half_len - (size_t)fake_last); i++)
+	for (size_t r = 0; r < current_h; r++)
 	{
-		const int16_t even = in[(i << 1) + 0];
-		const int16_t odd = in[(i << 1) + 1];
+		for (size_t c = 0; c < (target_w - fake_last); c++)
+		{
+			const int16_t even = in[(r * in_stride) + (c * 2 + 0)];
+			const int16_t odd = in[(r * in_stride) + (c * 2 + 1)];
 
-		out[i] = even;                  // LP
-		out[half_len + i] = odd - even; // HP
-	}
+			out[(r * target_w * 2) + c + 0] = even;                         // LP
+			out[(r * target_w * 2) + c + target_w] = (int16_t)(odd - even); // HP
+		}
 
-	// Our caller indicated that we need to fake the last value
-	if (fake_last != 0)
-	{
-		const size_t i = (half_len - 1);
+		if (fake_last != 0)
+		{
+			const size_t c = (target_w - 1);
 
-		const int16_t even = in[(i << 1) + 0];
-		const int16_t odd = in[(i << 1) + 0]; // <- Here
+			const int16_t even = in[(r * in_stride) + (c * 2 + 0)];
+			const int16_t odd = in[(r * in_stride) + (c * 2 + 0)];
 
-		out[i] = even;                  // LP
-		out[half_len + i] = odd - even; // HP
+			out[(r * target_w * 2) + c + 0] = even;                         // LP
+			out[(r * target_w * 2) + c + target_w] = (int16_t)(odd - even); // HP
+		}
 	}
 }
 
 
-void akoHaarLiftV(size_t target_w, size_t current_h, const int16_t* in, int16_t* out)
+static void sHaarLiftV(size_t target_w, size_t current_h, const int16_t* in, int16_t* out)
 {
 	for (size_t r = 0; r < current_h; r++)
 	{
 		for (size_t c = 0; c < target_w; c++)
 		{
-			const int16_t even = in[c + target_w * (r * 2 + 0)];
-			const int16_t odd = in[c + target_w * (r * 2 + 1)];
+			const int16_t even = in[(r * 2 + 0) * target_w + c];
+			const int16_t odd = in[(r * 2 + 1) * target_w + c];
 
-			out[c + target_w * r] = even;                                // LP
-			out[c + target_w * (current_h + r)] = (int16_t)(odd - even); // HP
+			out[(target_w * r) + c] = even;                                // LP
+			out[(target_w * (current_h + r)) + c] = (int16_t)(odd - even); // HP
 		}
 	}
 }
 
 
-void akoHaarUnliftH(size_t half_len, int ignore_last, const int16_t* in_lp, const int16_t* in_hp, int16_t* out)
+static void sHaarUnliftH(size_t current_w, size_t current_h, size_t out_stride, size_t ignore_last,
+                         const int16_t* in_lp, const int16_t* in_hp, int16_t* out)
 {
-	for (size_t i = 0; i < (half_len - (size_t)ignore_last); i++)
+	for (size_t r = 0; r < current_h; r++)
 	{
-		const int16_t lp = in_lp[i];
-		const int16_t hp = in_hp[i];
+		for (size_t c = 0; c < (current_w - ignore_last); c++)
+		{
+			const int16_t lp = in_lp[(r * current_w) + c];
+			const int16_t hp = in_hp[(r * current_w) + c];
 
-		out[(i << 1) + 0] = lp;      // Even
-		out[(i << 1) + 1] = lp + hp; // Odd
-	}
+			out[(r * out_stride) + (c * 2 + 0)] = lp;                 // Even
+			out[(r * out_stride) + (c * 2 + 1)] = (int16_t)(lp + hp); // Odd
+		}
 
-	if (ignore_last != 0)
-	{
-		const size_t i = (half_len - 1);
-		const int16_t lp = in_lp[i];
+		if (ignore_last != 0)
+		{
+			const size_t c = (current_w - 1);
+			const int16_t lp = in_lp[(r * current_w) + c];
 
-		out[(i << 1) + 0] = lp; // Just even
+			out[(r * out_stride) + (c * 2 + 0)] = lp; // Just even
+		}
 	}
 }
 
 
-void akoHaarInPlaceishUnliftV(size_t current_w, size_t current_h, const int16_t* lowpass, const int16_t* highpass,
-                              int16_t* out_lowpass, int16_t* out_highpass)
+static void sHaarInPlaceishUnliftV(size_t current_w, size_t current_h, const int16_t* in_lp, const int16_t* in_hp,
+                                   int16_t* out_lp, int16_t* out_hp)
 {
 	for (size_t r = 0; r < current_h; r++)
 	{
 		for (size_t c = 0; c < current_w; c++)
 		{
-			const int16_t lp0 = lowpass[c + current_w * r];
-			const int16_t hp0 = highpass[c + current_w * r];
+			const int16_t lp = in_lp[(current_w * r) + c];
+			const int16_t hp = in_hp[(current_w * r) + c];
 
-			out_lowpass[c + current_w * r] = lp0;                   // Even
-			out_highpass[c + current_w * r] = (int16_t)(lp0 + hp0); // Odd
+			out_lp[(current_w * r) + c] = lp;                 // Even
+			out_hp[(current_w * r) + c] = (int16_t)(lp + hp); // Odd
 		}
 	}
+}
+
+
+//
+
+
+void akoHaarLift(enum akoWrap wrap, size_t in_stride, size_t current_w, size_t current_h, size_t target_w,
+                 size_t target_h, int16_t* lp, int16_t* aux)
+{
+	(void)wrap;
+
+	const size_t fake_last_col = (target_w * 2) - current_w;
+	const size_t fake_last_row = (target_h * 2) - current_h;
+
+	// Horizontal lift
+	sHaarLiftH(current_h, target_w, fake_last_col, in_stride, lp, aux);
+
+	if (fake_last_row != 0)
+		sHaarLiftH(1, target_w, fake_last_col, 0, lp + in_stride * (current_h - 1), aux + current_h * target_w * 2);
+
+	// Vertical lift
+	sHaarLiftV(target_w * 2, target_h, aux, lp);
+}
+
+
+void akoHaarUnlift(enum akoWrap wrap, size_t current_w, size_t current_h, size_t target_w, size_t target_h, int16_t* lp,
+                   int16_t* hps, int16_t* aux)
+{
+	(void)wrap;
+
+	const size_t ignore_last_col = (current_w * 2) - target_w;
+	const size_t ignore_last_row = (current_h * 2) - target_h;
+
+	int16_t* hp_c = hps + (current_w * current_h) * 0;
+	int16_t* hp_b = hps + (current_w * current_h) * 1;
+	int16_t* hp_d = hps + (current_w * current_h) * 2;
+
+	// Vertical unlift
+	sHaarInPlaceishUnliftV(current_w, current_h, lp, hp_c, aux, hp_c);
+	sHaarInPlaceishUnliftV(current_w, current_h - ignore_last_row, hp_b, hp_d, hp_b, hp_d);
+
+	// Horizontal unlift
+	// (with care on that the vertical unlift, done in-place, interleave-ed rows)
+	sHaarUnliftH(current_w, current_h, target_w * 2, ignore_last_col, aux, hp_b, lp + 0);
+	sHaarUnliftH(current_w, current_h - ignore_last_row, target_w * 2, ignore_last_col, hp_c, hp_d, lp + target_w);
 }

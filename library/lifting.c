@@ -27,56 +27,6 @@ SOFTWARE.
 #include "ako-private.h"
 
 
-static void s2dLift(enum akoWavelet wavelet, enum akoWrap wrap, size_t in_stride, size_t current_w, size_t current_h,
-                    size_t target_w, size_t target_h, int16_t* lp, int16_t* aux)
-{
-	// Horizontal lift
-	{
-		const int plus_one_col = (target_w * 2) - current_w;
-		const int plus_one_row = (target_h * 2) - current_h;
-
-		for (size_t r = 0; r < current_h; r++)
-			akoHaarLiftH(target_w, plus_one_col, lp + (r * in_stride), aux + (r * target_w * 2));
-
-		if (plus_one_row != 0)
-			akoHaarLiftH(target_w, plus_one_col, lp + ((current_h - 1) * in_stride), aux + (current_h * target_w * 2));
-	}
-
-	// Vertical lift
-	akoHaarLiftV(target_w * 2, target_h, aux, lp);
-}
-
-
-static void s2dUnlift(enum akoWavelet wavelet, enum akoWrap wrap, size_t current_w, size_t current_h, size_t target_w,
-                      size_t target_h, int16_t* lp, int16_t* hps, int16_t* aux)
-{
-	int16_t* hp_c = hps + (current_w * current_h) * 0;
-	int16_t* hp_b = hps + (current_w * current_h) * 1;
-	int16_t* hp_d = hps + (current_w * current_h) * 2;
-
-	// Vertical unlift
-	akoHaarInPlaceishUnliftV(current_w, current_h, lp, hp_c, aux, hp_c);
-	akoHaarInPlaceishUnliftV(current_w, current_h, hp_b, hp_d, hp_b, hp_d);
-
-	// Horizontal unlift
-	{
-		const int less_one_col = (current_w * 2) - target_w;
-		const size_t less_one_row = (current_h * 2) - target_h;
-
-		for (size_t r = 0; r < current_h; r++)
-			akoHaarUnliftH(current_w, less_one_col, aux + (r * current_w), hp_b + (r * current_w),
-			               lp + ((r * 2) * target_w));
-
-		for (size_t r = 0; r < current_h - less_one_row; r++)
-			akoHaarUnliftH(current_w, less_one_col, hp_c + (r * current_w), hp_d + (r * current_w),
-			               lp + ((r * 2 + 1) * target_w));
-	}
-}
-
-
-//
-
-
 static inline void s2dMemcpy(size_t w, size_t h, size_t in_stride, const int16_t* in, int16_t* out)
 {
 	for (size_t r = 0; r < h; r++)
@@ -142,7 +92,7 @@ void akoLift(size_t tile_no, const struct akoSettings* s, size_t channels, size_
 				// lp + ((current_w + 1) * (current_h + 1)) * 2; // Cache friendly, but always
 				//                                                  accounts for an extra col/row
 
-				s2dLift(s->wavelet, s->wrap, current_w * 2, current_w, current_h, target_w, target_h, lp, aux);
+				akoHaarLift(s->wrap, current_w * 2, current_w, current_h, target_w, target_h, lp, aux);
 
 				// END OF PLACE OF INTEREST
 			}
@@ -151,7 +101,7 @@ void akoLift(size_t tile_no, const struct akoSettings* s, size_t channels, size_
 				int16_t* aux = output; // First lift is to big to allow us to use the
 				                       // same workarea as auxiliary memory. Luckily
 				                       // since is the first one, 'output' is empty
-				s2dLift(s->wavelet, s->wrap, current_w * 1, current_w, current_h, target_w, target_h, lp, aux);
+				akoHaarLift(s->wrap, current_w * 1, current_w, current_h, target_w, target_h, lp, aux);
 			}
 
 			// 2. Write coefficients
@@ -287,7 +237,7 @@ void akoUnlift(size_t tile_no, const struct akoSettings* s, size_t channels, siz
 			int16_t* lp = out + (tile_w * tile_h + planes_space) * ch;
 			int16_t* hps = (int16_t*)in;
 
-			s2dUnlift(s->wavelet, s->wrap, current_w, current_h, target_w, target_h, lp, hps, input);
+			akoHaarUnlift(s->wrap, current_w, current_h, target_w, target_h, lp, hps, input);
 
 			in += (current_w * current_h) * sizeof(int16_t) * 3; // ... And three highpasses
 		}
