@@ -69,11 +69,9 @@ size_t akoImageMaxPlanesSpacingSize(size_t image_w, size_t image_h, size_t tiles
 
 // wavelet-haar.c:
 
-void akoHaarLiftH(size_t half_len, int fake_last, const int16_t* in, int16_t* out);
-void akoHaarLiftV(size_t target_w, size_t current_h, const int16_t* in, int16_t* out);
-
-void akoHaarUnliftH(size_t half_len, int ignore_last, const int16_t* in_lp, const int16_t* in_hp, int16_t* out);
-void akoHaarInPlaceishUnliftV(size_t current_w, size_t current_h, const int16_t* lowpass, const int16_t* highpass,
-                              int16_t* out_lowpass, int16_t* out_highpass);
+void akoHaarLift(enum akoWrap wrap, size_t in_stride, size_t current_w, size_t current_h, size_t target_w,
+                 size_t target_h, int16_t* lp, int16_t* aux);
+void akoHaarUnlift(enum akoWrap wrap, size_t current_w, size_t current_h, size_t target_w, size_t target_h, int16_t* lp,
+                   int16_t* hps, int16_t* aux);
 
 #endif
