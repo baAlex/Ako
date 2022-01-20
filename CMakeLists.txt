@@ -8,6 +8,7 @@ option(AKO_SHARED "Build shared library"   ON)
 option(AKO_STATIC "Build static library"   ON)
 option(AKO_ENC "Build encoding tool"       ON)
 option(AKO_DEC "Build decoding tool"       ON)
+option(AKO_TESTS "Build tests"             ON)
 
 
 if (MSVC)
@@ -23,10 +24,14 @@ set(AKO_SOURCES
 	"./library/encode.c"
 	"./library/format.c"
 	"./library/head.c"
+	"./library/kagari.c"
 	"./library/lifting.c"
 	"./library/misc.c"
 	"./library/version.c"
 	"./library/wavelet-haar.c")
+
+
+add_library("lodepng-static" STATIC "./tools/thirdparty/lodepng.cpp")
 
 
 if (AKO_SHARED)
@@ -40,6 +45,7 @@ if (AKO_SHARED)
 		target_link_libraries("ako" PRIVATE "m")
 	endif ()
 endif ()
+
 
 if (AKO_STATIC)
 	add_library("ako-static" STATIC ${AKO_SOURCES})
@@ -55,14 +61,24 @@ endif ()
 
 
 if (AKO_ENC)
-	add_executable("akoenc" "./tools/akoenc.cpp"
-	                        "./tools/thirdparty/lodepng.cpp")
+	add_executable("akoenc" "./tools/akoenc.cpp")
 	target_link_libraries("akoenc" PRIVATE "ako-static")
+	target_link_libraries("akoenc" PRIVATE "lodepng-static")
 endif ()
 
 
 if (AKO_DEC)
-	add_executable("akodec" "./tools/akodec.cpp"
-	                        "./tools/thirdparty/lodepng.cpp")
+	add_executable("akodec" "./tools/akodec.cpp")
 	target_link_libraries("akodec" PRIVATE "ako-static")
+	target_link_libraries("akodec" PRIVATE "lodepng-static")
+endif ()
+
+
+if (AKO_TESTS)
+
+	add_executable("elias-test" "./tests/elias-test.c")
+	target_link_libraries("elias-test" PRIVATE "ako-static")
+
+	enable_testing()
+	add_test(NAME "elias-test" COMMAND "elias-test")
 endif ()

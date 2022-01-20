@@ -48,6 +48,41 @@ enum akoStatus akoHeadWrite(size_t channels, size_t image_w, size_t image_h, con
 enum akoStatus akoHeadRead(const void* in, size_t* out_channels, size_t* out_image_w, size_t* out_image_h,
                            struct akoSettings* out_s);
 
+// kagari.c
+
+#define AKO_ELIAS_ACCUMULATOR_LEN 64 // In bits
+#define AKO_ELIAS_MAX 65535
+#define AKO_ELIAS_MIN 1
+
+struct akoEliasStateE
+{
+	uint8_t* out_end;
+	uint8_t* out_cursor;
+
+	uint64_t accumulator;
+	int accumulator_usage;
+};
+
+struct akoEliasStateD
+{
+	const uint8_t* input_end;
+	const uint8_t* input_cursor;
+
+	uint64_t accumulator;
+	int accumulator_usage;
+};
+
+struct akoEliasStateE akoEliasEncodeSet(void* buffer, size_t size);
+struct akoEliasStateD akoEliasDecodeSet(const void* buffer, size_t size);
+
+int akoEliasEncodeStep(struct akoEliasStateE* s, uint16_t v);
+size_t akoEliasEncodeEnd(struct akoEliasStateE* s, void* out_start);
+
+int akoEliasDecodeStep(struct akoEliasStateD* s, uint16_t* v_out);
+
+size_t akoKagariEncode(const void* input, size_t input_size, void* output, size_t output_size);
+size_t akoKagariDecode(size_t no, const void* input, size_t input_size, void* output, size_t output_size);
+
 // lifting.c
 
 void akoLift(size_t tile_no, const struct akoSettings*, size_t channels, size_t tile_w, size_t tile_h,

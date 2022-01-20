@@ -137,21 +137,35 @@ AKO_EXPORT uint8_t* akoDecodeExt(const struct akoCallbacks* c, size_t input_size
 		{
 			sEvent(t, tiles_no, AKO_EVENT_COMPRESSION_START, checked_c.events_data, checked_c.events);
 
-			// Check input
-			if ((blob + out_tile_size) > (const uint8_t*)input + input_size)
+			const size_t decompressed_size =
+			    akoKagariDecode(out_tile_size / 2, blob, out_tile_size, workarea_a, out_tile_size);
+
+			if (decompressed_size == 0)
 			{
 				status = AKO_BROKEN_INPUT;
 				goto return_failure;
 			}
 
-			// Copy as is
-			for (size_t i = 0; i < out_tile_size; i++)
-				((uint8_t*)workarea_a)[i] = blob[i];
-
-			blob += out_tile_size; // Update
-
 			sEvent(t, tiles_no, AKO_EVENT_COMPRESSION_END, checked_c.events_data, checked_c.events);
 		}
+		/*{
+		    sEvent(t, tiles_no, AKO_EVENT_COMPRESSION_START, checked_c.events_data, checked_c.events);
+
+		    // Check input
+		    if ((blob + out_tile_size) > (const uint8_t*)input + input_size)
+		    {
+		        status = AKO_BROKEN_INPUT;
+		        goto return_failure;
+		    }
+
+		    // Copy as is
+		    for (size_t i = 0; i < out_tile_size; i++)
+		        ((uint8_t*)workarea_a)[i] = blob[i];
+
+		    blob += out_tile_size; // Update
+
+		    sEvent(t, tiles_no, AKO_EVENT_COMPRESSION_END, checked_c.events_data, checked_c.events);
+		}*/
 
 		// 2. Wavelet transform
 		if (s.wavelet != AKO_WAVELET_NONE)
