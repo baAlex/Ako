@@ -33,11 +33,9 @@ AKO_EXPORT struct akoSettings akoDefaultSettings()
 
 	s.wrap = AKO_WRAP_CLAMP;
 	s.wavelet = AKO_WAVELET_DD137;
-	s.colorspace = AKO_COLORSPACE_YCOCG;
+	s.color = AKO_COLOR_YCOCG;
+	s.compression = AKO_COMPRESSION_ELIAS_RLE;
 	s.tiles_dimension = 0;
-
-	for (size_t i = 0; i < AKO_MAX_CHANNELS; i++)
-		s.quantization[i] = 1.0F;
 
 	s.discard_transparent_pixels = 0;
 
@@ -75,9 +73,10 @@ AKO_EXPORT const char* akoStatusString(enum akoStatus status)
 	case AKO_INVALID_CHANNELS_NO: return "Invalid channels number";
 	case AKO_INVALID_DIMENSIONS: return "Invalid dimensions";
 	case AKO_INVALID_TILES_DIMENSIONS: return "Invalid tiles dimensions";
-	case AKO_INVALID_WRAP: return "Invalid wrap mode";
-	case AKO_INVALID_WAVELET: return "Invalid wavelet";
-	case AKO_INVALID_COLORSPACE: return "Invalid colorspace";
+	case AKO_INVALID_WRAP_MODE: return "Invalid wrap mode";
+	case AKO_INVALID_WAVELET_TRANSFORMATION: return "Invalid wavelet transformation";
+	case AKO_INVALID_COLOR_TRANSFORMATION: return "Invalid color transformation";
+	case AKO_INVALID_COMPRESSION_METHOD: return "Invalid compression method";
 	case AKO_INVALID_INPUT: return "Invalid input";
 	case AKO_INVALID_CALLBACKS: return "Invalid callbacks";
 	case AKO_INVALID_MAGIC: return "Invalid magic (not an Ako file)";

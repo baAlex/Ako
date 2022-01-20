@@ -61,9 +61,9 @@ static inline void sDeinterleave(int discard_transparent_pixels, size_t channels
 }
 
 
-void akoFormatToPlanarI16Yuv(int discard_transparent_pixels, enum akoColorspace colorspace, size_t channels,
-                             size_t width, size_t height, size_t input_stride, size_t out_planes_spacing,
-                             const uint8_t* in, int16_t* out)
+void akoFormatToPlanarI16Yuv(int discard_transparent_pixels, enum akoColor color, size_t channels, size_t width,
+                             size_t height, size_t input_stride, size_t out_planes_spacing, const uint8_t* in,
+                             int16_t* out)
 {
 	// Deinterleave, convert from u8 to i16, and remove (or not) transparent pixels
 	{
@@ -84,14 +84,14 @@ void akoFormatToPlanarI16Yuv(int discard_transparent_pixels, enum akoColorspace 
 			sDeinterleave(0, channels, width, in_stride, out_plane, in, in_end, out);
 	}
 
-	// To Yuv
+	// Color transformation (to Yuv)
 	if (channels >= 3)
 	{
-		// https://en.wikipedia.org/wiki/YCoCg#Conversion_with_the_RGB_color_model
 		const size_t out_plane = (width * height) + out_planes_spacing;
 
-		if (colorspace == AKO_COLORSPACE_YCOCG)
+		if (color == AKO_COLOR_YCOCG)
 		{
+			// https://en.wikipedia.org/wiki/YCoCg#Conversion_with_the_RGB_color_model
 			for (size_t c = 0; c < (width * height); c++) // SIMD friendly :)
 			{
 				const int16_t r = out[out_plane * 0 + c];
@@ -103,7 +103,7 @@ void akoFormatToPlanarI16Yuv(int discard_transparent_pixels, enum akoColorspace 
 				out[out_plane * 2 + c] = (int16_t)(-(r >> 2) + (g >> 1) - (b >> 2));
 			}
 		}
-		else if (colorspace == AKO_COLORSPACE_YCOCG_R)
+		else if (color == AKO_COLOR_YCOCG_R)
 		{
 			for (size_t c = 0; c < (width * height); c++)
 			{
@@ -115,6 +115,20 @@ void akoFormatToPlanarI16Yuv(int discard_transparent_pixels, enum akoColorspace 
 				const int16_t temp = (int16_t)(b + ((r - b) >> 1));
 				out[out_plane * 2 + c] = (int16_t)(g - temp);
 				out[out_plane * 0 + c] = (int16_t)(temp + ((g - temp) >> 1));
+			}
+		}
+		else if (color == AKO_COLOR_SUBTRACT_G)
+		{
+			// https://developers.google.com/speed/webp/docs/compression#subtract_green_transform
+			for (size_t c = 0; c < (width * height); c++)
+			{
+				const int16_t r = out[out_plane * 0 + c];
+				const int16_t g = out[out_plane * 1 + c];
+				const int16_t b = out[out_plane * 2 + c];
+
+				out[out_plane * 0 + c] = (int16_t)(g);
+				out[out_plane * 1 + c] = (int16_t)(r - g);
+				out[out_plane * 2 + c] = (int16_t)(b - g);
 			}
 		}
 	}
@@ -176,6 +190,33 @@ static inline void sYCoCgRToRgb(size_t channels, size_t width, size_t height, si
 }
 
 
+static inline void sSubtractGToRgb(size_t channels, size_t width, size_t height, size_t in_plane, int16_t* in)
+{
+	for (size_t c = 0; c < (width * height); c++)
+	{
+		const int16_t y = in[in_plane * 0 + c];
+		const int16_t u = in[in_plane * 1 + c];
+		const int16_t v = in[in_plane * 2 + c];
+
+		const int16_t r = (int16_t)(u + y);
+		const int16_t g = (int16_t)(y);
+		const int16_t b = (int16_t)(v + y);
+
+		// Saturate
+		in[in_plane * 0 + c] = (int16_t)((r > 0) ? (r < 255) ? r : 255 : 0);
+		in[in_plane * 1 + c] = (int16_t)((g > 0) ? (g < 255) ? g : 255 : 0);
+		in[in_plane * 2 + c] = (int16_t)((b > 0) ? (b < 255) ? b : 255 : 0);
+	}
+
+	for (size_t ch = 3; ch < channels; ch++)
+		for (size_t c = 0; c < (width * height); c++)
+		{
+			const int16_t v = *(in + in_plane * ch + c);
+			in[in_plane * ch + c] = (int16_t)((v > 0) ? (v < 255) ? v : 255 : 0);
+		}
+}
+
+
 static inline void sSaturateRgb(size_t channels, size_t width, size_t height, size_t in_plane, int16_t* in)
 {
 	for (size_t ch = 0; ch < channels; ch++)
@@ -199,14 +240,14 @@ static inline void sInterleave(size_t channels, size_t width, size_t in_plane, s
 }
 
 
-void akoFormatToInterleavedU8Rgb(enum akoColorspace colorspace, size_t channels, size_t width, size_t height,
+void akoFormatToInterleavedU8Rgb(enum akoColor color, size_t channels, size_t width, size_t height,
                                  size_t in_planes_spacing, size_t output_stride, int16_t* in, uint8_t* out)
 {
-	// To Rgb (destroys 'in')
+	// Color transformation (to Rgb) (destroys 'in')
 	{
 		const size_t in_plane = (width * height) + in_planes_spacing;
 
-		if (colorspace == AKO_COLORSPACE_YCOCG && channels >= 3)
+		if (color == AKO_COLOR_YCOCG && channels >= 3)
 		{
 			if (channels == 3)
 				sYCoCgToRgb(3, width, height, in_plane, in);
@@ -215,7 +256,7 @@ void akoFormatToInterleavedU8Rgb(enum akoColorspace colorspace, size_t channels,
 			else
 				sYCoCgToRgb(channels, width, height, in_plane, in);
 		}
-		else if (colorspace == AKO_COLORSPACE_YCOCG_R && channels >= 3)
+		else if (color == AKO_COLOR_YCOCG_R && channels >= 3)
 		{
 			if (channels == 3)
 				sYCoCgRToRgb(3, width, height, in_plane, in);
@@ -223,6 +264,15 @@ void akoFormatToInterleavedU8Rgb(enum akoColorspace colorspace, size_t channels,
 				sYCoCgRToRgb(4, width, height, in_plane, in);
 			else
 				sYCoCgRToRgb(channels, width, height, in_plane, in);
+		}
+		else if (color == AKO_COLOR_SUBTRACT_G && channels >= 3)
+		{
+			if (channels == 3)
+				sSubtractGToRgb(3, width, height, in_plane, in);
+			else if (channels == 4)
+				sSubtractGToRgb(4, width, height, in_plane, in);
+			else
+				sSubtractGToRgb(channels, width, height, in_plane, in);
 		}
 		else
 		{
