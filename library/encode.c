@@ -134,26 +134,48 @@ AKO_EXPORT size_t akoEncodeExt(const struct akoCallbacks* c, const struct akoSet
 		{
 			sEvent(t, tiles_no, AKO_EVENT_COMPRESSION_START, checked_c.events_data, checked_c.events);
 
+			const size_t compressed_size = akoKagariEncode(workarea_b, out_tile_size, workarea_a, out_tile_size);
+
 			// Make space
-			void* updated_blob = checked_c.realloc(blob, blob_size + out_tile_size);
+			void* updated_blob = checked_c.realloc(blob, blob_size + compressed_size);
 			if (updated_blob == NULL)
 			{
 				status = AKO_NO_ENOUGH_MEMORY;
 				goto return_failure;
 			}
 
-			// Copy as is
-			uint8_t* workarea =
-			    (checked_s.wavelet != AKO_WAVELET_NONE) ? ((uint8_t*)workarea_b) : ((uint8_t*)workarea_a);
-
+			// Copy
 			blob = updated_blob;
-			for (size_t i = 0; i < out_tile_size; i++)
-				blob[blob_size + i] = workarea[i];
+			for (size_t i = 0; i < compressed_size; i++)
+				blob[blob_size + i] = ((uint8_t*)workarea_a)[i];
 
-			blob_size += out_tile_size; // Update
+			blob_size += compressed_size; // Update
 
 			sEvent(t, tiles_no, AKO_EVENT_COMPRESSION_END, checked_c.events_data, checked_c.events);
 		}
+		/*{
+		    sEvent(t, tiles_no, AKO_EVENT_COMPRESSION_START, checked_c.events_data, checked_c.events);
+
+		    // Make space
+		    void* updated_blob = checked_c.realloc(blob, blob_size + out_tile_size);
+		    if (updated_blob == NULL)
+		    {
+		        status = AKO_NO_ENOUGH_MEMORY;
+		        goto return_failure;
+		    }
+
+		    // Copy as is
+		    uint8_t* workarea =
+		        (checked_s.wavelet != AKO_WAVELET_NONE) ? ((uint8_t*)workarea_b) : ((uint8_t*)workarea_a);
+
+		    blob = updated_blob;
+		    for (size_t i = 0; i < out_tile_size; i++)
+		        blob[blob_size + i] = workarea[i];
+
+		    blob_size += out_tile_size; // Update
+
+		    sEvent(t, tiles_no, AKO_EVENT_COMPRESSION_END, checked_c.events_data, checked_c.events);
+		}*/
 
 		// 4. Developers, developers, developers
 		if (t < AKO_DEV_NOISE)

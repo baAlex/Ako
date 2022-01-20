@@ -7,6 +7,7 @@ cfiles="./library/decode.c
         ./library/encode.c
         ./library/format.c
         ./library/head.c
+        ./library/kagari.c
         ./library/lifting.c
         ./library/misc.c
         ./library/version.c
