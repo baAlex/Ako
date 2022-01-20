@@ -8,9 +8,9 @@ It supports/implements:
 - Deslauriers-Dubuc 13/7 wavelet.
 - Up to 16 channels.
 - 8 bits per component.
-- YCoCg/YCoCg-R colorspaces.
+- YCoCg, YCoCg-R, SubtractGreen, color transformations.
 - Configurable quality loss (examples below).
-- Simple Elias-gamma entropy compression, nonetheless the codec can handle ratios of 1:10 before artifacts became obvious.
+- Elias coding + Rle compression, nonetheless the codec can handle ratios of 1:10 before artifacts became obvious.
 - A "good" performance. There is care on cache and memory usage, and everything is done with integers... still there is space for improvement.
 
 

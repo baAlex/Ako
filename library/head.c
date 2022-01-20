@@ -32,7 +32,8 @@ SOFTWARE.
 
 
 static inline enum akoStatus sValidate(size_t channels, size_t width, size_t height, size_t tiles_dimension,
-                                       enum akoWrap wrap, enum akoWavelet wavelet, enum akoColorspace colorspace)
+                                       enum akoWrap wrap, enum akoWavelet wavelet, enum akoColor color,
+                                       enum akoCompression compression)
 {
 	if (channels > AKO_MAX_CHANNELS)
 		return AKO_INVALID_CHANNELS_NO;
@@ -45,14 +46,18 @@ static inline enum akoStatus sValidate(size_t channels, size_t width, size_t hei
 		return AKO_INVALID_TILES_DIMENSIONS;
 
 	if (wrap != AKO_WRAP_CLAMP && wrap != AKO_WRAP_REPEAT && wrap != AKO_WRAP_ZERO)
-		return AKO_INVALID_WRAP;
+		return AKO_INVALID_WRAP_MODE;
 
 	if (wavelet != AKO_WAVELET_DD137 && wavelet != AKO_WAVELET_CDF53 && wavelet != AKO_WAVELET_HAAR &&
 	    wavelet != AKO_WAVELET_NONE)
-		return AKO_INVALID_WAVELET;
+		return AKO_INVALID_WAVELET_TRANSFORMATION;
 
-	if (colorspace != AKO_COLORSPACE_YCOCG && colorspace != AKO_COLORSPACE_YCOCG_R && colorspace != AKO_COLORSPACE_RGB)
-		return AKO_INVALID_COLORSPACE;
+	if (color != AKO_COLOR_YCOCG && color != AKO_COLOR_YCOCG_R && color != AKO_COLOR_SUBTRACT_G &&
+	    color != AKO_COLOR_RGB)
+		return AKO_INVALID_COLOR_TRANSFORMATION;
+
+	if (compression != AKO_COMPRESSION_ELIAS_RLE && compression != AKO_COMPRESSION_NONE)
+		return AKO_INVALID_COMPRESSION_METHOD;
 
 	return AKO_OK;
 }
@@ -77,7 +82,7 @@ enum akoStatus akoHeadWrite(size_t channels, size_t width, size_t height, const 
 
 	// Validate
 	const enum akoStatus validation =
-	    sValidate(channels, width, height, s->tiles_dimension, s->wrap, s->wavelet, s->colorspace);
+	    sValidate(channels, width, height, s->tiles_dimension, s->wrap, s->wavelet, s->color, s->compression);
 
 	if (validation != AKO_OK)
 		return validation;
@@ -94,8 +99,9 @@ enum akoStatus akoHeadWrite(size_t channels, size_t width, size_t height, const 
 	h->flags = (uint32_t)(channels - 1);
 	h->flags |= (uint32_t)(s->wrap) << 4;
 	h->flags |= (uint32_t)(s->wavelet) << 6;
-	h->flags |= (uint32_t)(s->colorspace) << 8;
-	h->flags |= (uint32_t)(binary_tiles_dimension) << 10;
+	h->flags |= (uint32_t)(s->color) << 8;
+	h->flags |= (uint32_t)(s->compression) << 10;
+	h->flags |= (uint32_t)(binary_tiles_dimension) << 12;
 
 	// Bye!
 	return AKO_OK;
@@ -120,9 +126,10 @@ enum akoStatus akoHeadRead(const void* in, size_t* out_channels, size_t* out_wid
 	const size_t channels = (size_t)((h->flags & 0x000F)) + 1;
 	const enum akoWrap wrap = (enum akoWrap)((h->flags >> 4) & 0x0003);
 	const enum akoWavelet wavelet = (enum akoWavelet)((h->flags >> 6) & 0x0003);
-	const enum akoColorspace colorspace = (enum akoColorspace)((h->flags >> 8) & 0x0003);
+	const enum akoColor color = (enum akoColor)((h->flags >> 8) & 0x0003);
+	const enum akoCompression compression = (enum akoCompression)((h->flags >> 10) & 0x0003);
 
-	size_t tiles_dimension = ((h->flags >> 10) & 0x001F);
+	size_t tiles_dimension = ((h->flags >> 12) & 0x001F);
 	if (tiles_dimension != 0)
 	{
 		if (tiles_dimension < (32 - 2))
@@ -132,7 +139,7 @@ enum akoStatus akoHeadRead(const void* in, size_t* out_channels, size_t* out_wid
 	}
 
 	const enum akoStatus validation =
-	    sValidate(channels, (size_t)h->width, (size_t)h->height, tiles_dimension, wrap, wavelet, colorspace);
+	    sValidate(channels, (size_t)h->width, (size_t)h->height, tiles_dimension, wrap, wavelet, color, compression);
 
 	if (validation != AKO_OK)
 		return validation;
@@ -151,7 +158,8 @@ enum akoStatus akoHeadRead(const void* in, size_t* out_channels, size_t* out_wid
 	{
 		out_s->wrap = wrap;
 		out_s->wavelet = wavelet;
-		out_s->colorspace = colorspace;
+		out_s->color = color;
+		out_s->compression = compression;
 		out_s->tiles_dimension = tiles_dimension;
 	}
 

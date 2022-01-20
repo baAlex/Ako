@@ -193,7 +193,7 @@ AKO_EXPORT uint8_t* akoDecodeExt(const struct akoCallbacks* c, size_t input_size
 			sEvent(t, tiles_no, AKO_EVENT_FORMAT_START, checked_c.events_data, checked_c.events);
 
 			int16_t* workarea = (s.wavelet != AKO_WAVELET_NONE) ? workarea_b : workarea_a;
-			akoFormatToInterleavedU8Rgb(s.colorspace, channels, tile_w, tile_h, planes_spacing, image_w, workarea,
+			akoFormatToInterleavedU8Rgb(s.color, channels, tile_w, tile_h, planes_spacing, image_w, workarea,
 			                            image + (image_w * tile_y + tile_x) * channels);
 
 			sEvent(t, tiles_no, AKO_EVENT_FORMAT_END, checked_c.events_data, checked_c.events);

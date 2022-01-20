@@ -42,7 +42,8 @@ class AkoImage
 
 	enum akoWrap wrap_;
 	enum akoWavelet wavelet_;
-	enum akoColorspace colorspace_;
+	enum akoColor color_;
+	enum akoCompression compression_;
 	size_t tiles_dimension_;
 
   public:
@@ -52,10 +53,11 @@ class AkoImage
 	size_t channels() const  { return channels_; };
 	const void* data() const { return (const void*)(data_); };
 
-	enum akoWrap wrap() const             { return wrap_; };
-	enum akoWavelet wavelet() const       { return wavelet_; };
-	enum akoColorspace colorspace() const { return colorspace_; };
-	size_t tiles_dimension() const        { return tiles_dimension_; };
+	enum akoWrap wrap() const               { return wrap_; };
+	enum akoWavelet wavelet() const         { return wavelet_; };
+	enum akoColor color() const             { return color_; };
+	enum akoCompression compression() const { return compression_; };
+	size_t tiles_dimension() const          { return tiles_dimension_; };
 	// clang-format on
 
 	AkoImage(const string& filename, bool benchmark)
@@ -106,7 +108,8 @@ class AkoImage
 
 		wrap_ = settings.wrap;
 		wavelet_ = settings.wavelet;
-		colorspace_ = settings.colorspace;
+		color_ = settings.color;
+		compression_ = settings.compression;
 		tiles_dimension_ = settings.tiles_dimension;
 	}
 
@@ -193,9 +196,10 @@ void AkoDec(const vector<string>& args)
 
 	if (verbose == true)
 	{
-		cout << "[Colorspace: " << (int)ako->colorspace();
-		cout << ", Wrap: " << (int)ako->wrap();
+		cout << "[Compression: " << (int)ako->compression();
+		cout << ", Color: " << (int)ako->color();
 		cout << ", Wavelet: " << (int)ako->wavelet();
+		cout << ", Wrap: " << (int)ako->wrap();
 		cout << ", Tiles dimension: " << (int)ako->tiles_dimension() << "]" << endl;
 	}
 

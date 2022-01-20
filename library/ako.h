@@ -26,9 +26,10 @@ enum akoStatus
 	AKO_INVALID_CHANNELS_NO,
 	AKO_INVALID_DIMENSIONS,
 	AKO_INVALID_TILES_DIMENSIONS,
-	AKO_INVALID_WRAP,
-	AKO_INVALID_WAVELET,
-	AKO_INVALID_COLORSPACE,
+	AKO_INVALID_WRAP_MODE,
+	AKO_INVALID_WAVELET_TRANSFORMATION,
+	AKO_INVALID_COLOR_TRANSFORMATION,
+	AKO_INVALID_COMPRESSION_METHOD,
 
 	AKO_INVALID_INPUT,
 	AKO_INVALID_CALLBACKS,
@@ -39,14 +40,14 @@ enum akoStatus
 	AKO_BROKEN_INPUT,
 };
 
-enum akoWrap
+enum akoWrap // Wrap mode
 {
 	AKO_WRAP_CLAMP = 0,
 	AKO_WRAP_REPEAT,
-	AKO_WRAP_ZERO
+	AKO_WRAP_ZERO,
 };
 
-enum akoWavelet
+enum akoWavelet // Wavelet transformation
 {
 	AKO_WAVELET_DD137 = 0,
 	AKO_WAVELET_CDF53,
@@ -54,11 +55,18 @@ enum akoWavelet
 	AKO_WAVELET_NONE,
 };
 
-enum akoColorspace
+enum akoColor // Color transformation
 {
-	AKO_COLORSPACE_YCOCG = 0,
-	AKO_COLORSPACE_YCOCG_R,
-	AKO_COLORSPACE_RGB,
+	AKO_COLOR_YCOCG = 0,
+	AKO_COLOR_YCOCG_R,
+	AKO_COLOR_SUBTRACT_G,
+	AKO_COLOR_RGB,
+};
+
+enum akoCompression // Compression method
+{
+	AKO_COMPRESSION_ELIAS_RLE = 0,
+	AKO_COMPRESSION_NONE,
 };
 
 enum akoEvent
@@ -76,10 +84,10 @@ struct akoSettings
 {
 	enum akoWrap wrap;
 	enum akoWavelet wavelet;
-	enum akoColorspace colorspace;
+	enum akoColor color;
+	enum akoCompression compression;
 	size_t tiles_dimension;
 
-	float quantization[AKO_MAX_CHANNELS];
 	int discard_transparent_pixels;
 };
 
@@ -102,12 +110,13 @@ struct akoHead
 	uint32_t height; // Ditto
 
 	uint32_t flags;
-	// bits 0-3   : Channels,        0 = Gray, 1 = Gray + Alpha, 2 = RGB, 3 = RGBA
+	// bits 0-3   : Channels,        0 = Gray, 1 = Gray + Alpha, 2 = RGB, 3 = RGBA, etc...
 	// bits 4-5   : Wrap,            0 = Clamp, 1 = Repeat, 2 = Set to zero
 	// bits 6-7   : Wavelet,         0 = DD137, 1 = CDF53, 2 = Haar, 3 = None
-	// bits 8-9   : Colorspace,      0 = YCOCG, 1 = YCOCG-R, 2 = RGB
-	// bits 10-14 : Tiles dimension, 0 = No tiles, 1 = 8x8, 2 = 16x16, 3 = 32x32, 4 = 64x64, etc...
-	// bits 15-32 : Unused bits
+	// bits 8-9   : Color,           0 = YCOCG, 1 = YCOCG-R, 2 = Subtract Green, 3 = RGB
+	// bits 10-11 : Compression,     0 = Elias Coding + Rle, 1 = No compression
+	// bits 12-16 : Tiles dimension, 0 = No tiles, 1 = 8x8, 2 = 16x16, 3 = 32x32, 4 = 64x64, etc...
+	// bits 17-32 : Unused bits (always zero)
 };
 
 

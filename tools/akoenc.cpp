@@ -166,18 +166,20 @@ void AkoEnc(const vector<string>& args)
 			else if (*it == "none" || *it == "3")
 				settings.wavelet = AKO_WAVELET_NONE;
 			else
-				throw Modern::Error("Unknown wavelet '" + *it + "'");
+				throw Modern::Error("Unknown wavelet transformation '" + *it + "'");
 		}
-		else if (Modern::CheckArgumentPair("-c", "--colorspace", it, it_end) == 0)
+		else if (Modern::CheckArgumentPair("-c", "--color", it, it_end) == 0)
 		{
 			if (*it == "ycocg" || *it == "0")
-				settings.colorspace = AKO_COLORSPACE_YCOCG;
+				settings.color = AKO_COLOR_YCOCG;
 			else if (*it == "ycocg-r" || *it == "1")
-				settings.colorspace = AKO_COLORSPACE_YCOCG_R;
-			else if (*it == "rgb" || *it == "2")
-				settings.colorspace = AKO_COLORSPACE_RGB;
+				settings.color = AKO_COLOR_YCOCG_R;
+			else if (*it == "subtract-g" || *it == "2")
+				settings.color = AKO_COLOR_SUBTRACT_G;
+			else if (*it == "rgb" || *it == "3")
+				settings.color = AKO_COLOR_RGB;
 			else
-				throw Modern::Error("Unknown colorspace '" + *it + "'");
+				throw Modern::Error("Unknown color transformation'" + *it + "'");
 		}
 		else if (Modern::CheckArgumentPair("-t", "--tiles", it, it_end) == 0)
 			settings.tiles_dimension = stol(*it);
@@ -226,9 +228,10 @@ void AkoEnc(const vector<string>& args)
 
 	if (verbose == true)
 	{
-		cout << "[Colorspace: " << (int)settings.colorspace;
-		cout << ", Wrap: " << (int)settings.wrap;
+		cout << "[Compression: " << (int)settings.compression;
+		cout << ", Color: " << (int)settings.color;
 		cout << ", Wavelet: " << (int)settings.wavelet;
+		cout << ", Wrap: " << (int)settings.wrap;
 		cout << ", Tiles dimension: " << (int)settings.tiles_dimension;
 		cout << ", Discard transparent pixels: " << (bool)settings.discard_transparent_pixels << "]" << endl;
 	}

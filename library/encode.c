@@ -115,8 +115,8 @@ AKO_EXPORT size_t akoEncodeExt(const struct akoCallbacks* c, const struct akoSet
 		// 1. Format
 		sEvent(t, tiles_no, AKO_EVENT_FORMAT_START, checked_c.events_data, checked_c.events);
 		{
-			akoFormatToPlanarI16Yuv(checked_s.discard_transparent_pixels, checked_s.colorspace, channels, tile_w,
-			                        tile_h, image_w, planes_spacing,
+			akoFormatToPlanarI16Yuv(checked_s.discard_transparent_pixels, checked_s.color, channels, tile_w, tile_h,
+			                        image_w, planes_spacing,
 			                        (const uint8_t*)in + ((image_w * tile_y) + tile_x) * channels, workarea_a);
 		}
 		sEvent(t, tiles_no, AKO_EVENT_FORMAT_END, checked_c.events_data, checked_c.events);
