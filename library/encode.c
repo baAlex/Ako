@@ -96,8 +96,14 @@ AKO_EXPORT size_t akoEncodeExt(const struct akoCallbacks* c, const struct akoSet
 	size_t tile_x = 0;
 	size_t tile_y = 0;
 
-	size_t out_tile_size;
-	size_t planes_spacing = 0; // Space in order to follow the akoDividePlusOneRule()
+	size_t tile_data_size; // Size of data needed to operate per tile.
+	                       // Both encoder/decoder calculate this value just by reading the
+	                       // global header at the beginning. Any incongruence is an error.
+
+	size_t planes_spacing; // Space in order to follow the akoDividePlusOneRule()
+	                       // or: "memory between planes to use when needed".
+	                       // Spacing only lives here, at runtime, is not contained in the file.
+	                       // Saves us from extra mallocs() and helps with cache locality.
 
 	for (size_t t = 0; t < tiles_no; t++)
 	{
@@ -106,11 +112,14 @@ AKO_EXPORT size_t akoEncodeExt(const struct akoCallbacks* c, const struct akoSet
 
 		if (checked_s.wavelet != AKO_WAVELET_NONE)
 		{
-			out_tile_size = akoTileDataSize(tile_w, tile_h) * channels;
+			tile_data_size = akoTileDataSize(tile_w, tile_h) * channels;
 			planes_spacing = akoPlanesSpacing(tile_w, tile_h);
 		}
 		else
-			out_tile_size = (tile_w * tile_h * channels * sizeof(int16_t));
+		{
+			tile_data_size = (tile_w * tile_h * channels * sizeof(int16_t));
+			planes_spacing = 0; // No DWT, no spacing needed
+		}
 
 		// 1. Format
 		sEvent(t, tiles_no, AKO_EVENT_FORMAT_START, checked_c.events_data, checked_c.events);
@@ -130,11 +139,25 @@ AKO_EXPORT size_t akoEncodeExt(const struct akoCallbacks* c, const struct akoSet
 		}
 
 		// 3. Compress
-		// if (checked_s.compression == AKO_COMPRESSION_NONE)
+		sEvent(t, tiles_no, AKO_EVENT_COMPRESSION_START, checked_c.events_data, checked_c.events);
 		{
-			sEvent(t, tiles_no, AKO_EVENT_COMPRESSION_START, checked_c.events_data, checked_c.events);
+			uint8_t* from = (checked_s.wavelet != AKO_WAVELET_NONE) ? ((uint8_t*)workarea_b) : ((uint8_t*)workarea_a);
+			size_t compressed_size = tile_data_size;
 
-			const size_t compressed_size = akoKagariEncode(workarea_b, out_tile_size, workarea_a, out_tile_size);
+			// Compress, or not
+			if (checked_s.compression != AKO_COMPRESSION_NONE)
+			{
+				uint8_t* to = (checked_s.wavelet != AKO_WAVELET_NONE) ? ((uint8_t*)workarea_a) : ((uint8_t*)workarea_b);
+
+				if ((compressed_size = akoCompress(checked_s.compression, tile_data_size,
+				                                   tile_data_size + planes_spacing, from, to)) == 0)
+				{
+					status = AKO_ERROR;
+					goto return_failure;
+				}
+
+				from = to;
+			}
 
 			// Make space
 			void* updated_blob = checked_c.realloc(blob, blob_size + compressed_size);
@@ -144,45 +167,21 @@ AKO_EXPORT size_t akoEncodeExt(const struct akoCallbacks* c, const struct akoSet
 				goto return_failure;
 			}
 
-			// Copy
+			// Copy as is
 			blob = updated_blob;
 			for (size_t i = 0; i < compressed_size; i++)
-				blob[blob_size + i] = ((uint8_t*)workarea_a)[i];
+				blob[blob_size + i] = from[i];
 
-			blob_size += compressed_size; // Update
-
-			sEvent(t, tiles_no, AKO_EVENT_COMPRESSION_END, checked_c.events_data, checked_c.events);
+			blob_size += compressed_size; // Update blob
 		}
-		/*{
-		    sEvent(t, tiles_no, AKO_EVENT_COMPRESSION_START, checked_c.events_data, checked_c.events);
-
-		    // Make space
-		    void* updated_blob = checked_c.realloc(blob, blob_size + out_tile_size);
-		    if (updated_blob == NULL)
-		    {
-		        status = AKO_NO_ENOUGH_MEMORY;
-		        goto return_failure;
-		    }
-
-		    // Copy as is
-		    uint8_t* workarea =
-		        (checked_s.wavelet != AKO_WAVELET_NONE) ? ((uint8_t*)workarea_b) : ((uint8_t*)workarea_a);
-
-		    blob = updated_blob;
-		    for (size_t i = 0; i < out_tile_size; i++)
-		        blob[blob_size + i] = workarea[i];
-
-		    blob_size += out_tile_size; // Update
-
-		    sEvent(t, tiles_no, AKO_EVENT_COMPRESSION_END, checked_c.events_data, checked_c.events);
-		}*/
+		sEvent(t, tiles_no, AKO_EVENT_COMPRESSION_END, checked_c.events_data, checked_c.events);
 
 		// 4. Developers, developers, developers
 		if (t < AKO_DEV_NOISE)
 		{
 			AKO_DEV_PRINTF(
 			    "E\tTile %zu at %zu:%zu, %zux%zu px, planes spacing: %zu, size: %zu bytes, blob size: %zu bytes\n", t,
-			    tile_x, tile_y, tile_w, tile_h, planes_spacing, out_tile_size, blob_size);
+			    tile_x, tile_y, tile_w, tile_h, planes_spacing, tile_data_size, blob_size);
 		}
 		else if (t == AKO_DEV_NOISE + 1)
 		{

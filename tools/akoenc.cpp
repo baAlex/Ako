@@ -144,6 +144,8 @@ void AkoEnc(const vector<string>& args)
 			filename_input = *it;
 		else if (Modern::CheckArgumentPair("-o", "--output", it, it_end) == 0)
 			filename_output = *it;
+		else if (Modern::CheckArgumentSingle("-n", "--no-compression", it) == 0)
+			settings.compression = AKO_COMPRESSION_NONE;
 		else if (Modern::CheckArgumentPair("-wr", "--wrap", it, it_end) == 0)
 		{
 			if (*it == "clamp" || *it == "0")

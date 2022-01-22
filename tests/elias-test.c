@@ -16,15 +16,16 @@ void sTest(size_t len, size_t buffer_size, uint16_t callback_data,
 	// Encode
 	size_t encoded_size = 0;
 	{
-		struct akoEliasStateE e = akoEliasEncodeSet(buffer, buffer_size);
+		struct akoEliasState e = {0};
 		size_t total_bits = 0;
 
 		uint16_t value = 0;
+		uint8_t* out = buffer;
 
 		for (size_t i = 0; i < len; i++)
 		{
 			value = data_callback(i, value, callback_data);
-			const int bits = akoEliasEncodeStep(&e, value);
+			const int bits = akoEliasEncodeStep(&e, value, &out, buffer + buffer_size);
 			total_bits += (size_t)bits;
 
 			// Check
@@ -32,7 +33,7 @@ void sTest(size_t len, size_t buffer_size, uint16_t callback_data,
 			assert(bits != 0);
 		}
 
-		encoded_size = akoEliasEncodeEnd(&e, buffer);
+		encoded_size = akoEliasEncodeEnd(&e, &out, buffer + buffer_size, buffer);
 
 		printf("E %zu total bytes\n\n", encoded_size);
 		assert(encoded_size != 0);
@@ -40,15 +41,16 @@ void sTest(size_t len, size_t buffer_size, uint16_t callback_data,
 
 	// Decode
 	{
-		struct akoEliasStateD d = akoEliasDecodeSet(buffer, encoded_size);
+		struct akoEliasState d = {0};
 		size_t total_bits = 0;
 
 		uint16_t prev_value = 0;
+		const uint8_t* in = buffer;
 
 		for (size_t i = 0; i < len; i++)
 		{
-			uint16_t value = 0;
-			const int bits = akoEliasDecodeStep(&d, &value);
+			int bits = 0;
+			const uint16_t value = akoEliasDecodeStep(&d, &in, buffer + encoded_size, &bits);
 			total_bits += (size_t)bits;
 
 			// Check
