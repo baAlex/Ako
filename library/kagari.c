@@ -32,31 +32,7 @@ SOFTWARE.
 
 
 #define RLE_TRIGGER_LEN 2 // Number of identical consecutive values to activate RLE
-
-
-struct akoEliasStateE akoEliasEncodeSet(void* buffer, size_t size)
-{
-	struct akoEliasStateE e;
-
-	e.out_end = ((uint8_t*)buffer + size);
-	e.out_cursor = buffer;
-	e.accumulator = 0;
-	e.accumulator_usage = 0;
-
-	return e;
-}
-
-struct akoEliasStateD akoEliasDecodeSet(const void* buffer, size_t size)
-{
-	struct akoEliasStateD d;
-
-	d.input_end = ((uint8_t*)buffer + size);
-	d.input_cursor = buffer;
-	d.accumulator = 0;
-	d.accumulator_usage = 0;
-
-	return d;
-}
+#define ELIAS_ACCUMULATOR_FILL_AT 32
 
 
 static inline int sBitsLen(uint16_t v)
@@ -68,21 +44,32 @@ static inline int sBitsLen(uint16_t v)
 	return len;
 }
 
-int akoEliasEncodeStep(struct akoEliasStateE* s, uint16_t v)
+static inline int sLeadingZeros(uint32_t v)
+{
+	int len = 0;
+	for (; (v & (1 << 31)) == 0; v <<= 1)
+		len++;
+
+	return len;
+}
+
+
+int akoEliasEncodeStep(struct akoEliasState* s, uint16_t v, uint8_t** cursor, const uint8_t* end)
 {
 	const int binary_bits = sBitsLen(v);
 	const int total_bits = binary_bits * 2 + 1;
 
 	// Make space
-	if (s->accumulator_usage + total_bits > AKO_ELIAS_ACCUMULATOR_LEN)
+	if (s->accumulator_usage > 8 && s->accumulator_usage + total_bits > AKO_ELIAS_ACCUMULATOR_LEN)
 	{
-		if (s->out_cursor + (s->accumulator_usage / 8) >= s->out_end)
+		if (*cursor + (s->accumulator_usage / 8) >= end)
 			return 0;
 
 		do
 		{
 			s->accumulator_usage -= 8;
-			*s->out_cursor++ = (uint8_t)((s->accumulator >> s->accumulator_usage) & 0xFF);
+			**cursor = (uint8_t)((s->accumulator >> s->accumulator_usage) & 0xFF);
+			*cursor = *cursor + 1;
 			// printf("E\t0x%02X\n", (uint8_t)((s->accumulator >> s->accumulator_usage) & 0xFF));
 		} while (s->accumulator_usage + total_bits > AKO_ELIAS_ACCUMULATOR_LEN);
 	}
@@ -98,83 +85,79 @@ int akoEliasEncodeStep(struct akoEliasStateE* s, uint16_t v)
 }
 
 
-size_t akoEliasEncodeEnd(struct akoEliasStateE* s, void* out_start)
+size_t akoEliasEncodeEnd(struct akoEliasState* s, uint8_t** cursor, const uint8_t* end, void* out_start)
 {
 	// Empty accumulator
 	while (s->accumulator_usage / 8 != 0)
 	{
-		if (s->out_cursor + 1 >= s->out_end)
+		if (*cursor + 1 >= end)
 			return 0;
 
 		s->accumulator_usage -= 8;
-		*s->out_cursor++ = (uint8_t)((s->accumulator >> s->accumulator_usage) & 0xFF);
+		**cursor = (uint8_t)((s->accumulator >> s->accumulator_usage) & 0xFF);
+		*cursor = *cursor + 1;
 		// printf("E\t0x%02X\n", (uint8_t)((s->accumulator >> s->accumulator_usage) & 0xFF));
 	}
 
 	if (s->accumulator_usage != 0)
 	{
-		if (s->out_cursor + 1 >= s->out_end)
+		if (*cursor + 1 >= end)
 			return 0;
 
-		*s->out_cursor++ = (uint8_t)((s->accumulator << (8 - s->accumulator_usage)) & 0xFF);
+		**cursor = (uint8_t)((s->accumulator << (8 - s->accumulator_usage)) & 0xFF);
+		*cursor = *cursor + 1;
 		// printf("E\t0x%02X\n", (uint8_t)((s->accumulator << (8 - s->accumulator_usage)) & 0xFF));
 	}
 
 	// Bye!
-	return (size_t)((uint8_t*)s->out_cursor - (uint8_t*)out_start);
+	return (size_t)(*cursor - (uint8_t*)out_start);
 }
 
 
-static inline int sLeadingZeros(uint64_t v)
-{
-	int len = 0;
-	for (; (v & (1L << 63)) == 0; v <<= 1)
-		len++;
-
-	return len;
-}
-
-int akoEliasDecodeStep(struct akoEliasStateD* s, uint16_t* v_out)
+uint16_t akoEliasDecodeStep(struct akoEliasState* s, const uint8_t** cursor, const uint8_t* end, int* out_bits)
 {
 	// Fill accumulator
-	if (s->accumulator_usage < (AKO_ELIAS_ACCUMULATOR_LEN - 32))
+	if (s->accumulator == 0 || s->accumulator_usage < (AKO_ELIAS_ACCUMULATOR_LEN - ELIAS_ACCUMULATOR_FILL_AT))
 	{
-		if (s->input_cursor + ((AKO_ELIAS_ACCUMULATOR_LEN - s->accumulator_usage) / 8) < s->input_end)
+		if (*cursor + ((AKO_ELIAS_ACCUMULATOR_LEN - s->accumulator_usage) / 8) < end)
 		{
 			do
 			{
 				s->accumulator_usage += 8;
-				s->accumulator |= (uint64_t)(*s->input_cursor++) << (AKO_ELIAS_ACCUMULATOR_LEN - s->accumulator_usage);
+				s->accumulator |= (uint64_t)(**cursor) << (AKO_ELIAS_ACCUMULATOR_LEN - s->accumulator_usage);
+				*cursor = *cursor + 1;
 			} while (s->accumulator_usage < (AKO_ELIAS_ACCUMULATOR_LEN - 8));
 		}
 		else
 		{
 			// We are near the input end, read with care
-			while (s->accumulator_usage < (AKO_ELIAS_ACCUMULATOR_LEN - 8) && s->input_cursor < s->input_end)
+			while (s->accumulator_usage < (AKO_ELIAS_ACCUMULATOR_LEN - 8) && *cursor < end)
 			{
 				s->accumulator_usage += 8;
-				s->accumulator |= (uint64_t)(*s->input_cursor++) << (AKO_ELIAS_ACCUMULATOR_LEN - s->accumulator_usage);
+				s->accumulator |= (uint64_t)(**cursor) << (AKO_ELIAS_ACCUMULATOR_LEN - s->accumulator_usage);
+				*cursor = *cursor + 1;
 			}
 		}
+
+		if (s->accumulator == 0)
+			return 0;
 	}
 
 	// Decode
-	if (s->accumulator == 0)
-		return 0;
-
-	const int unary_bits = sLeadingZeros(s->accumulator);
+	const int unary_bits = sLeadingZeros((uint32_t)(s->accumulator >> ELIAS_ACCUMULATOR_FILL_AT));
 	const int total_bits = unary_bits * 2 + 1;
 
 	if (total_bits > s->accumulator_usage)
 		return 0;
 
-	*v_out = (uint16_t)(s->accumulator >> (AKO_ELIAS_ACCUMULATOR_LEN - total_bits));
+	*out_bits = total_bits;
+	const uint16_t value = (uint16_t)(s->accumulator >> (AKO_ELIAS_ACCUMULATOR_LEN - total_bits));
 
 	s->accumulator <<= total_bits;
 	s->accumulator_usage -= total_bits;
 
 	// Bye!
-	return total_bits;
+	return value;
 }
 
 
@@ -196,70 +179,70 @@ static inline int16_t sZigZagDecode(uint16_t in)
 //
 
 
-static void sRawWriteValue(int16_t value, int16_t** out)
+static inline void sRawWriteValue(int16_t value, int16_t** cursor)
 {
-	**out = value;
-	*out = *out + 1;
+	**cursor = value;
+	*cursor = *cursor + 1;
 }
 
-static void sRawWriteMultipleValues(int16_t value, uint16_t rle_len, int16_t** out)
+static inline void sRawWriteMultipleValues(int16_t value, uint16_t rle_len, int16_t** cursor)
 {
 	for (uint16_t u = 0; u < rle_len; u++)
-	{
-		**out = value;
-		*out = *out + 1;
-	}
+		(*cursor)[u] = value;
+
+	*cursor = *cursor + rle_len;
 }
 
 
-static int sEncodeRle(struct akoEliasStateE* e, uint16_t consecutive_no)
+static inline int sEncodeRle(struct akoEliasState* elias, uint8_t** cursor, const uint8_t* end, uint16_t consecutive_no)
 {
-	return akoEliasEncodeStep(e, (uint16_t)(consecutive_no - RLE_TRIGGER_LEN + 1)); // +1 as elias can't encode zero
+	return akoEliasEncodeStep(elias, (uint16_t)(consecutive_no - RLE_TRIGGER_LEN + 1), // +1 as elias can't encode zero
+	                          cursor, end);
 }
 
-static int sDecodeRle(struct akoEliasStateD* d, uint16_t* out_rle)
+static inline int sDecodeRle(struct akoEliasState* elias, const uint8_t** cursor, const uint8_t* end, uint16_t* out)
 {
-	uint16_t rle = 0;
-	const int bits = akoEliasDecodeStep(d, &rle);
-	*out_rle = rle - 1; // -1 to compensate that elias can't encode zero
+	int bits = 0;
+	*out = akoEliasDecodeStep(elias, cursor, end, &bits) - 1; // -1 to compensate that elias can't encode zero
 
 	return bits;
 }
 
 
-static int sEncodeValue(struct akoEliasStateE* e, int16_t value)
+static inline int sEncodeValue(struct akoEliasState* elias, uint8_t** cursor, const uint8_t* end, int16_t value)
 {
-	const uint16_t v = sZigZagEncode(value) + 1;
-	return akoEliasEncodeStep(e, v);
+	return akoEliasEncodeStep(elias, sZigZagEncode(value) + 1, cursor, end);
 }
 
-static int sDecodeValue(struct akoEliasStateD* d, int16_t* out_value)
+static inline int sDecodeValue(struct akoEliasState* elias, const uint8_t** cursor, const uint8_t* end, int16_t* out)
 {
-	uint16_t v = 0;
-	const int bits = akoEliasDecodeStep(d, &v);
+	int bits = 0;
+	*out = sZigZagDecode((akoEliasDecodeStep(elias, cursor, end, &bits) - 1));
 
-	*out_value = sZigZagDecode((v - 1));
 	return bits;
 }
 
 
-size_t akoKagariEncode(const void* input, size_t input_size, void* output, size_t output_size)
+size_t akoKagariEncode(size_t input_size, size_t output_size, const void* input, void* output)
 {
-	struct akoEliasStateE e = akoEliasEncodeSet(output, output_size);
+	struct akoEliasState elias = {0};
 
 	const int16_t* input_end = (const int16_t*)((const uint8_t*)input + input_size);
 	const int16_t* in = (const int16_t*)input;
+
+	const uint8_t* out_end = (uint8_t*)output + output_size;
+	uint8_t* out = output;
 
 	uint16_t consecutive_no = 0;
 	int16_t previous_value = 0;
 
 	if (output_size == 0 || input_size == 0)
 		return 0;
-	if ((output_size % 2) != 0 || (input_size % 2) != 0)
+	if ((input_size % 2) != 0)
 		return 0;
 
 	// First value
-	if (sEncodeValue(&e, *in) == 0)
+	if (sEncodeValue(&elias, &out, out_end, *in) == 0)
 		return 0;
 
 	previous_value = *in;
@@ -274,12 +257,12 @@ size_t akoKagariEncode(const void* input, size_t input_size, void* output, size_
 
 			if (consecutive_no <= RLE_TRIGGER_LEN)
 			{
-				if (sEncodeValue(&e, *in) == 0)
+				if (sEncodeValue(&elias, &out, out_end, *in) == 0)
 					return 0;
 			}
 			else if (consecutive_no == AKO_ELIAS_MAX - 1) // Oh no, at this rate we are going to overflow!
 			{
-				if (sEncodeRle(&e, consecutive_no) == 0)
+				if (sEncodeRle(&elias, &out, out_end, consecutive_no) == 0)
 					return 0;
 
 				consecutive_no = 0;
@@ -289,11 +272,11 @@ size_t akoKagariEncode(const void* input, size_t input_size, void* output, size_
 		{
 			if (consecutive_no >= RLE_TRIGGER_LEN)
 			{
-				if (sEncodeRle(&e, consecutive_no) == 0)
+				if (sEncodeRle(&elias, &out, out_end, consecutive_no) == 0)
 					return 0;
 			}
 
-			if (sEncodeValue(&e, *in) == 0)
+			if (sEncodeValue(&elias, &out, out_end, *in) == 0)
 				return 0;
 
 			previous_value = *in;
@@ -304,21 +287,24 @@ size_t akoKagariEncode(const void* input, size_t input_size, void* output, size_
 	// Maybe the loop finished with a pending Rle length to emit
 	if (consecutive_no >= RLE_TRIGGER_LEN)
 	{
-		if (sEncodeRle(&e, consecutive_no) == 0)
+		if (sEncodeRle(&elias, &out, out_end, consecutive_no) == 0)
 			return 0;
 	}
 
 	// Bye!
-	return akoEliasEncodeEnd(&e, output);
+	return akoEliasEncodeEnd(&elias, &out, out_end, output);
 }
 
 
-size_t akoKagariDecode(size_t no, const void* input, size_t input_size, void* output, size_t output_size)
+size_t akoKagariDecode(size_t no, size_t input_size, size_t output_size, const void* input, void* output)
 {
-	struct akoEliasStateD d = akoEliasDecodeSet(input, input_size);
+	struct akoEliasState elias = {0};
 
 	const int16_t* out_end = (const int16_t*)((const uint8_t*)output + output_size);
 	int16_t* out = output;
+
+	const uint8_t* in_end = (const uint8_t*)input + input_size;
+	const uint8_t* in = input;
 
 	uint16_t consecutive_no = 0;
 	int16_t previous_value = 0;
@@ -326,11 +312,11 @@ size_t akoKagariDecode(size_t no, const void* input, size_t input_size, void* ou
 
 	if (output_size == 0 || input_size == 0 || no == 0)
 		return 0;
-	if ((output_size % 2) != 0 || (input_size % 2) != 0)
+	if ((output_size % 2) != 0)
 		return 0;
 
 	// First value
-	if (sDecodeValue(&d, &decoded_v) == 0)
+	if (sDecodeValue(&elias, &in, in_end, &decoded_v) == 0)
 		return 0;
 
 	sRawWriteValue(decoded_v, &out);
@@ -343,7 +329,7 @@ size_t akoKagariDecode(size_t no, const void* input, size_t input_size, void* ou
 		if (out == out_end)
 			return 0;
 
-		if (sDecodeValue(&d, &decoded_v) == 0)
+		if (sDecodeValue(&elias, &in, in_end, &decoded_v) == 0)
 			return 0;
 
 		if (decoded_v == previous_value)
@@ -353,7 +339,7 @@ size_t akoKagariDecode(size_t no, const void* input, size_t input_size, void* ou
 
 			if (consecutive_no == RLE_TRIGGER_LEN)
 			{
-				if (sDecodeRle(&d, &consecutive_no) == 0)
+				if (sDecodeRle(&elias, &in, in_end, &consecutive_no) == 0)
 					return 0;
 
 				const uint16_t rle_len = consecutive_no;
@@ -374,5 +360,5 @@ size_t akoKagariDecode(size_t no, const void* input, size_t input_size, void* ou
 	}
 
 	// Bye!
-	return (size_t)((uint8_t*)out - (uint8_t*)output);
+	return (size_t)(in - (const uint8_t*)input);
 }

@@ -25,9 +25,15 @@
 
 struct akoLiftHead
 {
-	uint16_t quantization;
+	int16_t quantization;
 };
 
+
+// compression.c:
+
+size_t akoCompress(enum akoCompression, size_t input_size, size_t output_size, void* input, void* output);
+size_t akoDecompress(enum akoCompression, size_t decompressed_size, size_t output_size, const void* input,
+                     void* output);
 
 // developer.c:
 
@@ -53,34 +59,19 @@ enum akoStatus akoHeadRead(const void* in, size_t* out_channels, size_t* out_ima
 #define AKO_ELIAS_MAX 65535
 #define AKO_ELIAS_MIN 1
 
-struct akoEliasStateE
+struct akoEliasState
 {
-	uint8_t* out_end;
-	uint8_t* out_cursor;
-
 	uint64_t accumulator;
 	int accumulator_usage;
 };
 
-struct akoEliasStateD
-{
-	const uint8_t* input_end;
-	const uint8_t* input_cursor;
+int akoEliasEncodeStep(struct akoEliasState* s, uint16_t v, uint8_t** cursor, const uint8_t* end);
+size_t akoEliasEncodeEnd(struct akoEliasState* s, uint8_t** cursor, const uint8_t* end, void* out_start);
 
-	uint64_t accumulator;
-	int accumulator_usage;
-};
+uint16_t akoEliasDecodeStep(struct akoEliasState* s, const uint8_t** cursor, const uint8_t* end, int* out_bits);
 
-struct akoEliasStateE akoEliasEncodeSet(void* buffer, size_t size);
-struct akoEliasStateD akoEliasDecodeSet(const void* buffer, size_t size);
-
-int akoEliasEncodeStep(struct akoEliasStateE* s, uint16_t v);
-size_t akoEliasEncodeEnd(struct akoEliasStateE* s, void* out_start);
-
-int akoEliasDecodeStep(struct akoEliasStateD* s, uint16_t* v_out);
-
-size_t akoKagariEncode(const void* input, size_t input_size, void* output, size_t output_size);
-size_t akoKagariDecode(size_t no, const void* input, size_t input_size, void* output, size_t output_size);
+size_t akoKagariEncode(size_t input_size, size_t output_size, const void* input, void* output);
+size_t akoKagariDecode(size_t no, size_t input_size, size_t output_size, const void* input, void* output);
 
 // lifting.c
 
