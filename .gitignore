@@ -1,7 +1,15 @@
 
+akodec
+akoenc
+cdf53-test
+elias-test
+
 /build/
 /build-debug/
 /build-release/
 
 /dev/
 /.vscode/
+
+.ninja_deps
+.ninja_log
