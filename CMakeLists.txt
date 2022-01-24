@@ -81,6 +81,10 @@ if (AKO_TESTS)
 	add_executable("elias-test" "./tests/elias-test.c")
 	target_link_libraries("elias-test" PRIVATE "ako-static")
 
+	add_executable("cdf53-test" "./tests/cdf53-test.c")
+	target_link_libraries("cdf53-test" PRIVATE "ako-static")
+
 	enable_testing()
 	add_test(NAME "elias-test" COMMAND "elias-test")
+	add_test(NAME "cdf53-test" COMMAND "cdf53-test")
 endif ()
