@@ -68,20 +68,20 @@ class AkoImage
 			auto file = make_unique<fstream>(filename, std::ios::binary | ios_base::in | std::ios::ate);
 
 			if (file->fail() == true)
-				throw Modern::Error("Error at opening file '" + filename + "'");
+				throw Shared::Error("Error at opening file '" + filename + "'");
 
 			blob->resize(file->tellg());
 			file->seekg(0, std::ios::beg);
 
 			file->read((char*)blob->data(), blob->size());
 			if (file->fail() == true)
-				throw Modern::Error("Error at reading file '" + filename + "'");
+				throw Shared::Error("Error at reading file '" + filename + "'");
 		}
 
 		// Decode
 		akoSettings settings;
 		{
-			Modern::Stopwatch total_benchmark;
+			Shared::Stopwatch total_benchmark;
 			akoCallbacks callbacks = akoDefaultCallbacks();
 			akoStatus status = AKO_ERROR;
 
@@ -89,8 +89,8 @@ class AkoImage
 			{
 				total_benchmark.start(true);
 
-				Modern::EventsData events_data;
-				callbacks.events = Modern::EventsCallback;
+				Shared::EventsData events_data;
+				callbacks.events = Shared::EventsCallback;
 				callbacks.events_data = &events_data;
 
 				cout << "Benchmark: " << endl;
@@ -103,7 +103,7 @@ class AkoImage
 				total_benchmark.pause_stop(true, " - Total: ");
 
 			if (data_ == NULL)
-				throw Modern::Error("Ako decode error: '" + string(akoStatusString(status)) + "'");
+				throw Shared::Error("Ako decode error: '" + string(akoStatusString(status)) + "'");
 		}
 
 		wrap_ = settings.wrap;
@@ -138,34 +138,34 @@ void AkoDec(const vector<string>& args)
 
 	for (auto it = begin(args) + 1, it_end = end(args); it != it_end; it++)
 	{
-		if (Modern::CheckArgumentSingle("-v", "--version", it) == 0)
+		if (Shared::CheckArgumentSingle("-v", "--version", it) == 0)
 		{
 			cout << version_string << endl;
 			return;
 		}
-		else if (Modern::CheckArgumentSingle("-h", "--help", it) == 0)
+		else if (Shared::CheckArgumentSingle("-h", "--help", it) == 0)
 		{
 			cout << help_string << endl;
 			return;
 		}
-		else if (Modern::CheckArgumentSingle("-verbose", "--verbose", it) == 0)
+		else if (Shared::CheckArgumentSingle("-verbose", "--verbose", it) == 0)
 			verbose = true;
-		else if (Modern::CheckArgumentSingle("-ch", "--checksum", it) == 0)
+		else if (Shared::CheckArgumentSingle("-ch", "--checksum", it) == 0)
 			checksum = true;
-		else if (Modern::CheckArgumentSingle("-b", "--benchmark", it) == 0)
+		else if (Shared::CheckArgumentSingle("-b", "--benchmark", it) == 0)
 			benchmark = true;
-		else if (Modern::CheckArgumentSingle("-f", "--fast", it) == 0)
+		else if (Shared::CheckArgumentSingle("-f", "--fast", it) == 0)
 			fast_png = true;
-		else if (Modern::CheckArgumentPair("-i", "--input", it, it_end) == 0)
+		else if (Shared::CheckArgumentPair("-i", "--input", it, it_end) == 0)
 			filename_input = *it;
-		else if (Modern::CheckArgumentPair("-o", "--output", it, it_end) == 0)
+		else if (Shared::CheckArgumentPair("-o", "--output", it, it_end) == 0)
 			filename_output = *it;
 		else
-			throw Modern::Error("Unknown argument '" + *it + "'");
+			throw Shared::Error("Unknown argument '" + *it + "'");
 	}
 
 	if (filename_input == "")
-		throw Modern::Error("No input filename specified");
+		throw Shared::Error("No input filename specified");
 
 	// Open input
 	if (verbose == true)
@@ -186,7 +186,7 @@ void AkoDec(const vector<string>& args)
 	// Checksum data
 	if (checksum == true)
 	{
-		auto value = Modern::Adler32((uint8_t*)ako->data(), ako->width() * ako->height() * ako->channels());
+		auto value = Shared::Adler32((uint8_t*)ako->data(), ako->width() * ako->height() * ako->channels());
 
 		if (verbose == true)
 			cout << "Input data checksum: " << std::hex << value << std::dec << std::endl;
@@ -224,7 +224,7 @@ void AkoDec(const vector<string>& args)
 		case 2: state.info_raw.colortype = LCT_GREY_ALPHA; break;
 		case 3: state.info_raw.colortype = LCT_RGB; break;
 		case 4: state.info_raw.colortype = LCT_RGBA; break;
-		default: throw Modern::Error("Unsupported channels number (" + to_string(ako->channels()) + ")");
+		default: throw Shared::Error("Unsupported channels number (" + to_string(ako->channels()) + ")");
 		}
 
 		if (fast_png != 0)
@@ -237,14 +237,14 @@ void AkoDec(const vector<string>& args)
 		                                (unsigned)ako->width(), (unsigned)ako->height(), &state);
 
 		if (error != 0)
-			throw Modern::Error("LodePng error: '" + string(lodepng_error_text(error)) + "'");
+			throw Shared::Error("LodePng error: '" + string(lodepng_error_text(error)) + "'");
 	}
 
 	// Write
 	if (verbose == true)
 		cout << "Writing output: '" << filename_output << "'..." << endl;
 
-	Modern::WriteBlob(filename_output, blob, blob_size);
+	Shared::WriteBlob(filename_output, blob, blob_size);
 
 	// Bye!
 	free(blob);
@@ -261,7 +261,7 @@ int main(int argc, const char* argv[])
 
 		AkoDec(*args);
 	}
-	catch (Modern::Error& e)
+	catch (Shared::Error& e)
 	{
 		cout << e.info << std::endl;
 		return 1;

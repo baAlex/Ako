@@ -112,23 +112,22 @@ inline size_t akoImageMaxPlanesSpacingSize(size_t image_w, size_t image_h, size_
 
 size_t akoTileDataSize(size_t tile_w, size_t tile_h)
 {
-	/*
-	    If 'tile_w' and 'tile_h' equals, are a power-of-two (2, 4, 8, 16, etc), and
-	    function 'log2' operates on integers whitout rounding errors; then:
 
-	    TileDataSize(d) = (d * d * W + log2(d / 2) * L + T)
+	// If 'tile_w' and 'tile_h' equals, are a power-of-two (2, 4, 8, 16, etc), and
+	// function 'log2' operates on integers whitout rounding errors; then:
 
-	    Where, d = Tile dimension (either 'tile_w' or 'tile_h')
-	           W = Size of wavelet coefficient
-	           L = Size of lift head
-	           T = Size of tile head
+	// TileDataSize(d) = (d * d * W + log2(d / 2) * L + T)
 
-	    If not, is a recursive function, where we add 1 to tile dimensions
-	    on lift steps that are not divisible by 2 (DividePlusOne rule). Lift
-	    steps with their respective head. And finally one tile head at the end.
+	// Where, d = Tile dimension (either 'tile_w' or 'tile_h')
+	//        W = Size of wavelet coefficient
+	//        L = Size of lift head
+	//        T = Size of tile head
 
-	    This later approach is used in below C code.
-	*/
+	// If not, is a recursive function, where we add 1 to tile dimensions
+	// on lift steps that are not divisible by 2 (DividePlusOne rule). Lift
+	// steps with their respective head. And finally one tile head at the end.
+
+	// This later approach is used in below C code.
 
 	size_t size = 0;
 

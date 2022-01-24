@@ -22,7 +22,7 @@ extern "C"
 #define TOOLS_VERSION_PATCH 0
 
 
-namespace Modern // Cpp newbie here! (a sarcastic one)
+namespace Shared // Cpp newbie here!
 {
 struct Error
 {
@@ -54,7 +54,7 @@ inline int CheckArgumentPair(const std::string arg1, const std::string arg2,
 		if ((++it) != it_end)
 			return 0;
 		else
-			throw Modern::Error("No value provided for '" + arg1 + "/" + arg2 + "'");
+			throw Shared::Error("No value provided for '" + arg1 + "/" + arg2 + "'");
 	}
 
 	return 1;
@@ -68,7 +68,7 @@ inline void WriteBlob(const std::string filename, const void* blob, size_t size)
 	fp->write((char*)blob, size);
 
 	if (fp->fail() == true)
-		throw Modern::Error("Write error");
+		throw Shared::Error("Write error");
 }
 
 
@@ -151,6 +151,6 @@ uint32_t Adler32(const uint8_t* data, size_t len)
 
 	return (s2 << 16u) | s1;
 }
-} // namespace Modern
+} // namespace Shared
 
 #endif
