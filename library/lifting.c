@@ -27,6 +27,67 @@ SOFTWARE.
 #include "ako-private.h"
 
 
+static void sLift2d(enum akoWavelet wavelet, enum akoWrap wrap, size_t in_stride, size_t current_w, size_t current_h,
+                    size_t target_w, size_t target_h, int16_t* lp, int16_t* aux)
+{
+	const size_t fake_last_col = (target_w * 2) - current_w;
+	const size_t fake_last_row = (target_h * 2) - current_h;
+
+	if (wavelet == AKO_WAVELET_HAAR)
+	{
+		akoHaarLiftH(current_h, target_w, fake_last_col, in_stride, lp, aux);
+		if (fake_last_row != 0)
+			akoHaarLiftH(1, target_w, fake_last_col, 0, lp + in_stride * (current_h - 1),
+			             aux + current_h * target_w * 2);
+
+		akoHaarLiftV(target_w * 2, target_h, aux, lp);
+	}
+	else // if (wavelet == AKO_WAVELET_CDF53)
+	{
+		akoCdf53LiftH(wrap, current_h, target_w, fake_last_col, in_stride, lp, aux);
+		if (fake_last_row != 0)
+			akoCdf53LiftH(wrap, 1, target_w, fake_last_col, 0, lp + in_stride * (current_h - 1),
+			              aux + current_h * target_w * 2);
+
+		akoCdf53LiftV(wrap, target_w * 2, target_h, aux, lp);
+	}
+}
+
+
+static void sUnlift2d(enum akoWavelet wavelet, enum akoWrap wrap, size_t current_w, size_t current_h, size_t target_w,
+                      size_t target_h, int16_t* lp, int16_t* hps, int16_t* aux)
+{
+	const size_t ignore_last_col = (current_w * 2) - target_w;
+	const size_t ignore_last_row = (current_h * 2) - target_h;
+
+	int16_t* hp_c = hps + (current_w * current_h) * 0;
+	int16_t* hp_b = hps + (current_w * current_h) * 1;
+	int16_t* hp_d = hps + (current_w * current_h) * 2;
+
+	if (wavelet == AKO_WAVELET_HAAR)
+	{
+		akoHaarInPlaceishUnliftV(current_w, current_h, lp, hp_c, aux, hp_c);
+		akoHaarInPlaceishUnliftV(current_w, current_h - ignore_last_row, hp_b, hp_d, hp_b, hp_d);
+
+		akoHaarUnliftH(current_w, current_h, target_w * 2, ignore_last_col, aux, hp_b, lp + 0);
+		akoHaarUnliftH(current_w, current_h - ignore_last_row, target_w * 2, ignore_last_col, hp_c, hp_d,
+		               lp + target_w);
+	}
+	else // if (wavelet == AKO_WAVELET_CDF53)
+	{
+		akoCdf53InPlaceishUnliftV(wrap, current_w, current_h, lp, hp_c, aux, hp_c);
+		akoCdf53InPlaceishUnliftV(wrap, current_w, current_h - ignore_last_row, hp_b, hp_d, hp_b, hp_d);
+
+		akoCdf53UnliftH(wrap, current_w, current_h, target_w * 2, ignore_last_col, aux, hp_b, lp + 0);
+		akoCdf53UnliftH(wrap, current_w, current_h - ignore_last_row, target_w * 2, ignore_last_col, hp_c, hp_d,
+		                lp + target_w);
+	}
+}
+
+
+//
+
+
 static inline void s2dMemcpy(size_t w, size_t h, size_t in_stride, const int16_t* in, int16_t* out)
 {
 	for (size_t r = 0; r < h; r++)
@@ -92,7 +153,7 @@ void akoLift(size_t tile_no, const struct akoSettings* s, size_t channels, size_
 				// lp + ((current_w + 1) * (current_h + 1)) * 2; // Cache friendly, but always
 				//                                                  accounts for an extra col/row
 
-				akoHaarLift(s->wrap, current_w * 2, current_w, current_h, target_w, target_h, lp, aux);
+				sLift2d(s->wavelet, s->wrap, current_w * 2, current_w, current_h, target_w, target_h, lp, aux);
 
 				// END OF PLACE OF INTEREST
 			}
@@ -101,7 +162,7 @@ void akoLift(size_t tile_no, const struct akoSettings* s, size_t channels, size_
 				int16_t* aux = output; // First lift is to big to allow us to use the
 				                       // same workarea as auxiliary memory. Luckily
 				                       // since is the first one, 'output' is empty
-				akoHaarLift(s->wrap, current_w * 1, current_w, current_h, target_w, target_h, lp, aux);
+				sLift2d(s->wavelet, s->wrap, current_w * 1, current_w, current_h, target_w, target_h, lp, aux);
 			}
 
 			// 2. Write coefficients
@@ -237,7 +298,7 @@ void akoUnlift(size_t tile_no, const struct akoSettings* s, size_t channels, siz
 			int16_t* lp = out + (tile_w * tile_h + planes_space) * ch;
 			int16_t* hps = (int16_t*)in;
 
-			akoHaarUnlift(s->wrap, current_w, current_h, target_w, target_h, lp, hps, input);
+			sUnlift2d(s->wavelet, s->wrap, current_w, current_h, target_w, target_h, lp, hps, input);
 
 			in += (current_w * current_h) * sizeof(int16_t) * 3; // ... And three highpasses
 		}
