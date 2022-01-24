@@ -6,8 +6,8 @@ project("Ako" C CXX)
 # option(AKO_EXPORT_SYMBOLS "Export symbols" ON)
 option(AKO_SHARED "Build shared library"   ON)
 option(AKO_STATIC "Build static library"   ON)
-option(AKO_ENC "Build encoding tool"       ON)
 option(AKO_DEC "Build decoding tool"       ON)
+option(AKO_ENC "Build encoding tool"       ON)
 option(AKO_TESTS "Build tests"             ON)
 
 
@@ -62,17 +62,17 @@ if (AKO_STATIC)
 endif ()
 
 
-if (AKO_ENC)
-	add_executable("akoenc" "./tools/akoenc.cpp")
-	target_link_libraries("akoenc" PRIVATE "ako-static")
-	target_link_libraries("akoenc" PRIVATE "lodepng-static")
-endif ()
-
-
 if (AKO_DEC)
 	add_executable("akodec" "./tools/akodec.cpp")
 	target_link_libraries("akodec" PRIVATE "ako-static")
 	target_link_libraries("akodec" PRIVATE "lodepng-static")
+endif ()
+
+
+if (AKO_ENC)
+	add_executable("akoenc" "./tools/akoenc.cpp")
+	target_link_libraries("akoenc" PRIVATE "ako-static")
+	target_link_libraries("akoenc" PRIVATE "lodepng-static")
 endif ()
 
 

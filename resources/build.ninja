@@ -40,28 +40,12 @@ build ./build/library/wavelet-cdf53.o: CompileC ./library/wavelet-cdf53.c
 build ./build/library/wavelet-haar.o:  CompileC ./library/wavelet-haar.c
 
 build ./build/tools/thirdparty/lodepng.o: CompileCpp ./tools/thirdparty/lodepng.cpp
-build ./build/tools/akoenc.o:             CompileCpp ./tools/akoenc.cpp
 build ./build/tools/akodec.o:             CompileCpp ./tools/akodec.cpp
+build ./build/tools/akoenc.o:             CompileCpp ./tools/akoenc.cpp
 
 build ./build/tests/cdf53-test.o: CompileC ./tests/cdf53-test.c
 build ./build/tests/elias-test.o: CompileC ./tests/elias-test.c
 
-
-build ./akoenc: Link $
- ./build/library/compression.o      $
- ./build/library/decode.o           $
- ./build/library/developer.o        $
- ./build/library/encode.o           $
- ./build/library/format.o           $
- ./build/library/head.o             $
- ./build/library/kagari.o           $
- ./build/library/lifting.o          $
- ./build/library/misc.o             $
- ./build/library/version.o          $
- ./build/library/wavelet-cdf53.o    $
- ./build/library/wavelet-haar.o     $
- ./build/tools/thirdparty/lodepng.o $
- ./build/tools/akoenc.o
 
 build ./akodec: Link $
  ./build/library/compression.o      $
@@ -78,6 +62,22 @@ build ./akodec: Link $
  ./build/library/wavelet-haar.o     $
  ./build/tools/thirdparty/lodepng.o $
  ./build/tools/akodec.o
+
+build ./akoenc: Link $
+ ./build/library/compression.o      $
+ ./build/library/decode.o           $
+ ./build/library/developer.o        $
+ ./build/library/encode.o           $
+ ./build/library/format.o           $
+ ./build/library/head.o             $
+ ./build/library/kagari.o           $
+ ./build/library/lifting.o          $
+ ./build/library/misc.o             $
+ ./build/library/version.o          $
+ ./build/library/wavelet-cdf53.o    $
+ ./build/library/wavelet-haar.o     $
+ ./build/tools/thirdparty/lodepng.o $
+ ./build/tools/akoenc.o
 
 build ./cdf53-test: Link $
  ./build/library/wavelet-cdf53.o $

@@ -70,10 +70,10 @@ class PngImage
 
 		// Load/decode
 		if ((error = lodepng_load_file(&blob, &blob_size, filename.c_str())) != 0)
-			throw Modern::Error("LodePng error: '" + string(lodepng_error_text(error)) + "'");
+			throw Shared::Error("LodePng error: '" + string(lodepng_error_text(error)) + "'");
 
 		if ((error = lodepng_decode(&data, &width, &height, &state, blob, blob_size)) != 0)
-			throw Modern::Error("LodePng error: '" + string(lodepng_error_text(error)) + "'");
+			throw Shared::Error("LodePng error: '" + string(lodepng_error_text(error)) + "'");
 
 		// Validate
 		switch (state.info_png.color.colortype)
@@ -82,11 +82,11 @@ class PngImage
 		case LCT_GREY_ALPHA: channels_ = 2; break;
 		case LCT_RGB: channels_ = 3; break;
 		case LCT_RGBA: channels_ = 4; break;
-		default: throw Modern::Error("Unsupported channels number (" + to_string(state.info_png.color.colortype) + ")");
+		default: throw Shared::Error("Unsupported channels number (" + to_string(state.info_png.color.colortype) + ")");
 		}
 
 		if (state.info_png.color.bitdepth != 8)
-			throw Modern::Error("Unsupported bits per pixel-component (" + to_string(state.info_png.color.bitdepth) +
+			throw Shared::Error("Unsupported bits per pixel-component (" + to_string(state.info_png.color.bitdepth) +
 			                    ")");
 
 		data_ = (void*)data;
@@ -124,29 +124,29 @@ void AkoEnc(const vector<string>& args)
 
 	for (auto it = begin(args) + 1, it_end = end(args); it != it_end; it++)
 	{
-		if (Modern::CheckArgumentSingle("-v", "--version", it) == 0)
+		if (Shared::CheckArgumentSingle("-v", "--version", it) == 0)
 		{
 			cout << version_string << endl;
 			return;
 		}
-		else if (Modern::CheckArgumentSingle("-h", "--help", it) == 0)
+		else if (Shared::CheckArgumentSingle("-h", "--help", it) == 0)
 		{
 			cout << help_string << endl;
 			return;
 		}
-		else if (Modern::CheckArgumentSingle("-verbose", "--verbose", it) == 0)
+		else if (Shared::CheckArgumentSingle("-verbose", "--verbose", it) == 0)
 			verbose = true;
-		else if (Modern::CheckArgumentSingle("-ch", "--checksum", it) == 0)
+		else if (Shared::CheckArgumentSingle("-ch", "--checksum", it) == 0)
 			checksum = true;
-		else if (Modern::CheckArgumentSingle("-b", "--benchmark", it) == 0)
+		else if (Shared::CheckArgumentSingle("-b", "--benchmark", it) == 0)
 			benchmark = true;
-		else if (Modern::CheckArgumentPair("-i", "--input", it, it_end) == 0)
+		else if (Shared::CheckArgumentPair("-i", "--input", it, it_end) == 0)
 			filename_input = *it;
-		else if (Modern::CheckArgumentPair("-o", "--output", it, it_end) == 0)
+		else if (Shared::CheckArgumentPair("-o", "--output", it, it_end) == 0)
 			filename_output = *it;
-		else if (Modern::CheckArgumentSingle("-n", "--no-compression", it) == 0)
+		else if (Shared::CheckArgumentSingle("-n", "--no-compression", it) == 0)
 			settings.compression = AKO_COMPRESSION_NONE;
-		else if (Modern::CheckArgumentPair("-wr", "--wrap", it, it_end) == 0)
+		else if (Shared::CheckArgumentPair("-wr", "--wrap", it, it_end) == 0)
 		{
 			if (*it == "clamp" || *it == "0")
 				settings.wrap = AKO_WRAP_CLAMP;
@@ -155,9 +155,9 @@ void AkoEnc(const vector<string>& args)
 			else if (*it == "zero" || *it == "2")
 				settings.wrap = AKO_WRAP_ZERO;
 			else
-				throw Modern::Error("Unknown wrap mode '" + *it + "'");
+				throw Shared::Error("Unknown wrap mode '" + *it + "'");
 		}
-		else if (Modern::CheckArgumentPair("-w", "--wavelet", it, it_end) == 0)
+		else if (Shared::CheckArgumentPair("-w", "--wavelet", it, it_end) == 0)
 		{
 			if (*it == "dd137" || *it == "0")
 				settings.wavelet = AKO_WAVELET_DD137;
@@ -168,9 +168,9 @@ void AkoEnc(const vector<string>& args)
 			else if (*it == "none" || *it == "3")
 				settings.wavelet = AKO_WAVELET_NONE;
 			else
-				throw Modern::Error("Unknown wavelet transformation '" + *it + "'");
+				throw Shared::Error("Unknown wavelet transformation '" + *it + "'");
 		}
-		else if (Modern::CheckArgumentPair("-c", "--color", it, it_end) == 0)
+		else if (Shared::CheckArgumentPair("-c", "--color", it, it_end) == 0)
 		{
 			if (*it == "ycocg" || *it == "0")
 				settings.color = AKO_COLOR_YCOCG;
@@ -181,25 +181,25 @@ void AkoEnc(const vector<string>& args)
 			else if (*it == "rgb" || *it == "3")
 				settings.color = AKO_COLOR_RGB;
 			else
-				throw Modern::Error("Unknown color transformation'" + *it + "'");
+				throw Shared::Error("Unknown color transformation'" + *it + "'");
 		}
-		else if (Modern::CheckArgumentPair("-t", "--tiles", it, it_end) == 0)
+		else if (Shared::CheckArgumentPair("-t", "--tiles", it, it_end) == 0)
 			settings.tiles_dimension = stol(*it);
-		else if (Modern::CheckArgumentPair("-d", "--discard-transparent-pixels", it, it_end) == 0) // :)
+		else if (Shared::CheckArgumentPair("-d", "--discard-transparent-pixels", it, it_end) == 0) // :)
 		{
 			if (*it == "1" || *it == "true" || *it == "yes" || *it == "yup" || *it == "si")
 				settings.discard_transparent_pixels = 1;
 			else if (*it == "0" || *it == "false" || *it == "no" || *it == "nop")
 				settings.discard_transparent_pixels = 0;
 			else
-				throw Modern::Error("Unknown boolean value '" + *it + "' for discard-transparent-pixels argument");
+				throw Shared::Error("Unknown boolean value '" + *it + "' for discard-transparent-pixels argument");
 		}
 		else
-			throw Modern::Error("Unknown argument '" + *it + "'");
+			throw Shared::Error("Unknown argument '" + *it + "'");
 	}
 
 	if (filename_input == "")
-		throw Modern::Error("No input filename specified");
+		throw Shared::Error("No input filename specified");
 
 	// Open input
 	if (verbose == true)
@@ -220,7 +220,7 @@ void AkoEnc(const vector<string>& args)
 	// Checksum data
 	if (checksum == true)
 	{
-		auto value = Modern::Adler32((uint8_t*)png->data(), png->width() * png->height() * png->channels());
+		auto value = Shared::Adler32((uint8_t*)png->data(), png->width() * png->height() * png->channels());
 
 		if (verbose == true)
 			cout << "Input data checksum: " << std::hex << value << std::dec << std::endl;
@@ -245,7 +245,7 @@ void AkoEnc(const vector<string>& args)
 		if (verbose == true)
 			cout << "Encoding output: '" << filename_output << "'..." << endl;
 
-		Modern::Stopwatch total_benchmark;
+		Shared::Stopwatch total_benchmark;
 		akoCallbacks callbacks = akoDefaultCallbacks();
 		akoStatus status = AKO_ERROR;
 
@@ -253,8 +253,8 @@ void AkoEnc(const vector<string>& args)
 		{
 			total_benchmark.start(true);
 
-			Modern::EventsData events_data;
-			callbacks.events = Modern::EventsCallback;
+			Shared::EventsData events_data;
+			callbacks.events = Shared::EventsCallback;
 			callbacks.events_data = &events_data;
 
 			cout << "Benchmark: " << endl;
@@ -267,7 +267,7 @@ void AkoEnc(const vector<string>& args)
 			total_benchmark.pause_stop(true, " - Total: ");
 
 		if (blob_size == 0)
-			throw Modern::Error("Ako encode error: '" + string(akoStatusString(status)) + "'");
+			throw Shared::Error("Ako encode error: '" + string(akoStatusString(status)) + "'");
 	}
 
 	// Write
@@ -276,7 +276,7 @@ void AkoEnc(const vector<string>& args)
 		if (verbose == true)
 			cout << "Writing output: '" << filename_output << "'..." << endl;
 
-		Modern::WriteBlob(filename_output, blob, blob_size);
+		Shared::WriteBlob(filename_output, blob, blob_size);
 	}
 
 	// Bye!
@@ -294,7 +294,7 @@ int main(int argc, const char* argv[])
 
 		AkoEnc(*args);
 	}
-	catch (Modern::Error& e)
+	catch (Shared::Error& e)
 	{
 		cout << e.info << std::endl;
 		return 1;
