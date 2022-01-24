@@ -7,8 +7,8 @@
 #include <stdio.h>
 
 
-void sTest(size_t len, size_t buffer_size, uint16_t callback_data,
-           uint16_t (*data_callback)(size_t, uint16_t, uint16_t))
+static void sTest(size_t len, size_t buffer_size, uint16_t callback_data,
+                  uint16_t (*callback)(size_t, uint16_t, uint16_t))
 {
 	uint8_t* buffer = malloc(buffer_size);
 	assert(buffer != NULL);
@@ -24,7 +24,7 @@ void sTest(size_t len, size_t buffer_size, uint16_t callback_data,
 
 		for (size_t i = 0; i < len; i++)
 		{
-			value = data_callback(i, value, callback_data);
+			value = callback(i, value, callback_data);
 			const int bits = akoEliasEncodeStep(&e, value, &out, buffer + buffer_size);
 			total_bits += (size_t)bits;
 
@@ -55,7 +55,7 @@ void sTest(size_t len, size_t buffer_size, uint16_t callback_data,
 
 			// Check
 			printf("D%zu %u <- %i bits\t(%.2f total bytes)\n", i, value, bits, (float)total_bits / 8.0F);
-			assert(value == data_callback(i, prev_value, callback_data));
+			assert(value == callback(i, prev_value, callback_data));
 			prev_value = value;
 		}
 
@@ -66,17 +66,17 @@ void sTest(size_t len, size_t buffer_size, uint16_t callback_data,
 }
 
 
-uint16_t sCallbackLinear(size_t i, uint16_t prev, uint16_t callback_data)
+static uint16_t sCallbackLinear(size_t i, uint16_t prev, uint16_t callback_data)
 {
 	return (uint16_t)(i + (size_t)callback_data);
 }
 
-uint16_t sCallbackConstant(size_t i, uint16_t prev, uint16_t callback_data)
+static uint16_t sCallbackConstant(size_t i, uint16_t prev, uint16_t callback_data)
 {
 	return callback_data;
 }
 
-uint16_t sCallbackRandom(size_t i, uint16_t prev, uint16_t callback_data)
+static uint16_t sCallbackRandom(size_t i, uint16_t prev, uint16_t callback_data)
 {
 	uint16_t x = prev + callback_data + (uint16_t)i;
 	x ^= (uint16_t)(x << 7);

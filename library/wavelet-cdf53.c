@@ -27,29 +27,81 @@ SOFTWARE.
 #include "ako-private.h"
 
 
-void akoCdf53LiftH(enum akoWrap wrap, size_t current_h, size_t target_w, size_t fake_last, size_t in_stride,
+// Cdf53, Cohen–Daubechies–Feauveau 5/3:
+//   > 5/3: { d[n] = d0[n] - floor((1 / 2) * (s0[n] + s0[n + 1])) }
+//   > 5/3: { s[n] = s0[n] + floor((1 / 4) * (d[n - 1] + d[n]) + 0.5) }
+//   ADAMS, Michael David (2002). Table 5.2. Page 105.
+
+// In other words:
+
+// Forward transform / Lift:
+//   hp[n] = odd[n] - (even[n] + even[n + 1]) / 2
+//   lp[n] = even[n] + (hp[n - 1] + hp[n]) / 4
+
+// Inverse transform / Unlift:
+//   even[n] = lp[n] - (hp[n - 1] + hp[n]) / 4
+//   odd[n] = hp[n] + (even[n] + even[n + 1]) / 2
+
+
+#define HP(odd, even, evenp1) (odd - (even + evenp1) / 2)
+#define LP(even, hpl1, hp) (even + (hpl1 + hp) / 4)
+
+#define EVEN(lp, hpl1, hp) (lp - (hpl1 + hp) / 4)
+#define ODD(hp, even, evenp1) (hp + (even + evenp1) / 2)
+
+
+void akoCdf53LiftH(enum akoWrap wrap, int16_t q, size_t current_h, size_t target_w, size_t fake_last, size_t in_stride,
                    const int16_t* in, int16_t* out)
 {
+	int16_t hp_prev = 0;
+	if (q <= 0)
+		q = 1;
+
 	for (size_t r = 0; r < current_h; r++)
 	{
-		for (size_t c = 0; c < (target_w - fake_last); c++)
+		// First values
+		{
+			const size_t c = 0;
+			const int16_t even = in[(r * in_stride) + (c * 2 + 0)];
+			const int16_t odd = in[(r * in_stride) + (c * 2 + 1)];
+			const int16_t even_p1 = in[(r * in_stride) + (c * 2 + 2)];
+
+			const int16_t hp = HP(odd, even, even_p1) / q;
+			const int16_t lp = LP(even, hp, hp); // Clamp
+
+			out[(r * target_w * 2) + c + 0] = lp;
+			out[(r * target_w * 2) + c + target_w] = hp;
+			hp_prev = hp;
+		}
+
+		// Middle values
+		for (size_t c = 1; c < (target_w - 1); c++)
 		{
 			const int16_t even = in[(r * in_stride) + (c * 2 + 0)];
 			const int16_t odd = in[(r * in_stride) + (c * 2 + 1)];
+			const int16_t even_p1 = in[(r * in_stride) + (c * 2 + 2)];
 
-			out[(r * target_w * 2) + c + 0] = even;                         // LP
-			out[(r * target_w * 2) + c + target_w] = (int16_t)(odd - even); // HP
+			const int16_t hp = HP(odd, even, even_p1) / q;
+			const int16_t lp = LP(even, hp_prev, hp);
+
+			out[(r * target_w * 2) + c + 0] = lp;
+			out[(r * target_w * 2) + c + target_w] = hp;
+			hp_prev = hp;
 		}
 
-		if (fake_last != 0)
+		// Last values
 		{
 			const size_t c = (target_w - 1);
-
 			const int16_t even = in[(r * in_stride) + (c * 2 + 0)];
-			const int16_t odd = in[(r * in_stride) + (c * 2 + 0)];
 
-			out[(r * target_w * 2) + c + 0] = even;                         // LP
-			out[(r * target_w * 2) + c + target_w] = (int16_t)(odd - even); // HP
+			const int16_t odd =
+			    (fake_last == 0) ? in[(r * in_stride) + (c * 2 + 1)] : in[(r * in_stride) + (c * 2 + 0)];
+
+			const int16_t hp = HP(odd, even, even) / q; // Clamp
+			const int16_t lp = LP(even, hp_prev, hp);
+
+			out[(r * target_w * 2) + c + 0] = lp;
+			out[(r * target_w * 2) + c + target_w] = hp;
 		}
 	}
 }
@@ -71,26 +123,51 @@ void akoCdf53LiftV(enum akoWrap wrap, size_t target_w, size_t current_h, const i
 }
 
 
-void akoCdf53UnliftH(enum akoWrap wrap, size_t current_w, size_t current_h, size_t out_stride, size_t ignore_last,
-                     const int16_t* in_lp, const int16_t* in_hp, int16_t* out)
+void akoCdf53UnliftH(enum akoWrap wrap, int16_t q, size_t current_w, size_t current_h, size_t out_stride,
+                     size_t ignore_last, const int16_t* in_lp, const int16_t* in_hp, int16_t* out)
 {
+	int16_t even_prev = 0;
+	if (q <= 0)
+		q = 1;
+
 	for (size_t r = 0; r < current_h; r++)
 	{
-		for (size_t c = 0; c < (current_w - ignore_last); c++)
+		// First values
 		{
+			const size_t c = 0;
+			const int16_t hp = in_hp[(r * current_w) + c] * q;
 			const int16_t lp = in_lp[(r * current_w) + c];
-			const int16_t hp = in_hp[(r * current_w) + c];
 
-			out[(r * out_stride) + (c * 2 + 0)] = lp;                 // Even
-			out[(r * out_stride) + (c * 2 + 1)] = (int16_t)(lp + hp); // Odd
+			const int16_t even = EVEN(lp, hp, hp); // Clamp
+
+			out[(r * out_stride) + (c * 2 + 0)] = even;
+			even_prev = even;
 		}
 
-		if (ignore_last != 0)
+		// Middle values
+		for (size_t c = 1; c < current_w; c++)
 		{
-			const size_t c = (current_w - 1);
+			const int16_t hpl1 = in_hp[(r * current_w) + c - 1] * q;
+			const int16_t hp = in_hp[(r * current_w) + c] * q;
 			const int16_t lp = in_lp[(r * current_w) + c];
 
-			out[(r * out_stride) + (c * 2 + 0)] = lp; // Just even
+			const int16_t even = EVEN(lp, hpl1, hp);
+			const int16_t odd = ODD(hpl1, even_prev, even);
+
+			out[(r * out_stride) + (c * 2 - 1)] = odd;
+			out[(r * out_stride) + (c * 2 + 0)] = even;
+			even_prev = even;
+		}
+
+		// Last values
+		if (ignore_last == 0) // Just even (omit next odd)
+		{
+			const size_t c = current_w;
+			const int16_t hpl1 = in_hp[(r * current_w) + c - 1] * q;
+
+			const int16_t odd = ODD(hpl1, even_prev, even_prev); // Clamp
+
+			out[(r * out_stride) + (c * 2 - 1)] = odd;
 		}
 	}
 }
