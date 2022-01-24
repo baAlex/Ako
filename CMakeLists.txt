@@ -29,6 +29,7 @@ set(AKO_SOURCES
 	"./library/lifting.c"
 	"./library/misc.c"
 	"./library/version.c"
+	"./library/wavelet-cdf53.c"
 	"./library/wavelet-haar.c")
 
 

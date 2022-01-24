@@ -27,8 +27,8 @@ SOFTWARE.
 #include "ako-private.h"
 
 
-void akoHaarLiftH(size_t current_h, size_t target_w, size_t fake_last, size_t in_stride, const int16_t* in,
-                  int16_t* out)
+void akoCdf53LiftH(enum akoWrap wrap, size_t current_h, size_t target_w, size_t fake_last, size_t in_stride,
+                   const int16_t* in, int16_t* out)
 {
 	for (size_t r = 0; r < current_h; r++)
 	{
@@ -55,7 +55,7 @@ void akoHaarLiftH(size_t current_h, size_t target_w, size_t fake_last, size_t in
 }
 
 
-void akoHaarLiftV(size_t target_w, size_t current_h, const int16_t* in, int16_t* out)
+void akoCdf53LiftV(enum akoWrap wrap, size_t target_w, size_t current_h, const int16_t* in, int16_t* out)
 {
 	for (size_t r = 0; r < current_h; r++)
 	{
@@ -71,8 +71,8 @@ void akoHaarLiftV(size_t target_w, size_t current_h, const int16_t* in, int16_t*
 }
 
 
-void akoHaarUnliftH(size_t current_w, size_t current_h, size_t out_stride, size_t ignore_last, const int16_t* in_lp,
-                    const int16_t* in_hp, int16_t* out)
+void akoCdf53UnliftH(enum akoWrap wrap, size_t current_w, size_t current_h, size_t out_stride, size_t ignore_last,
+                     const int16_t* in_lp, const int16_t* in_hp, int16_t* out)
 {
 	for (size_t r = 0; r < current_h; r++)
 	{
@@ -96,8 +96,8 @@ void akoHaarUnliftH(size_t current_w, size_t current_h, size_t out_stride, size_
 }
 
 
-void akoHaarInPlaceishUnliftV(size_t current_w, size_t current_h, const int16_t* in_lp, const int16_t* in_hp,
-                              int16_t* out_lp, int16_t* out_hp)
+void akoCdf53InPlaceishUnliftV(enum akoWrap wrap, size_t current_w, size_t current_h, const int16_t* in_lp,
+                               const int16_t* in_hp, int16_t* out_lp, int16_t* out_hp)
 {
 	for (size_t r = 0; r < current_h; r++)
 	{
