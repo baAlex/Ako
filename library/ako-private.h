@@ -96,21 +96,21 @@ size_t akoImageMaxPlanesSpacingSize(size_t image_w, size_t image_h, size_t tiles
 
 void akoCdf53LiftH(enum akoWrap, int16_t q, size_t current_h, size_t target_w, size_t fake_last, size_t in_stride,
                    const int16_t* in, int16_t* out);
-void akoCdf53LiftV(enum akoWrap, size_t target_w, size_t current_h, const int16_t* in, int16_t* out);
+void akoCdf53LiftV(enum akoWrap, int16_t q, size_t target_w, size_t target_h, const int16_t* in, int16_t* out);
 
 void akoCdf53UnliftH(enum akoWrap, int16_t q, size_t current_w, size_t current_h, size_t out_stride, size_t ignore_last,
                      const int16_t* in_lp, const int16_t* in_hp, int16_t* out);
-void akoCdf53InPlaceishUnliftV(enum akoWrap, size_t current_w, size_t current_h, const int16_t* in_lp,
+void akoCdf53InPlaceishUnliftV(enum akoWrap, int16_t q, size_t current_w, size_t current_h, const int16_t* in_lp,
                                const int16_t* in_hp, int16_t* out_lp, int16_t* out_hp);
 
 // wavelet-haar.c:
 
 void akoHaarLiftH(size_t current_h, size_t target_w, size_t fake_last, size_t in_stride, const int16_t* in,
                   int16_t* out);
-void akoHaarLiftV(size_t target_w, size_t current_h, const int16_t* in, int16_t* out);
+void akoHaarLiftV(size_t target_w, size_t target_h, const int16_t* in, int16_t* out);
 
 void akoHaarUnliftH(size_t current_w, size_t current_h, size_t out_stride, size_t ignore_last, const int16_t* in_lp,
                     const int16_t* in_hp, int16_t* out);
 void akoHaarInPlaceishUnliftV(size_t current_w, size_t current_h, const int16_t* in_lp, const int16_t* in_hp,
-                              int16_t* out_lp, int16_t* out_hp);
+                              int16_t* out_even, int16_t* out_odd);
 #endif

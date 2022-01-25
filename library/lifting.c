@@ -36,6 +36,10 @@ static void sLift2d(enum akoWavelet wavelet, enum akoWrap wrap, size_t in_stride
 	const size_t fake_last_col = (target_w * 2) - current_w;
 	const size_t fake_last_row = (target_h * 2) - current_h;
 
+	int16_t q = 0;
+	if (target_w > 256)
+		q = Q;
+
 	if (wavelet == AKO_WAVELET_HAAR)
 	{
 		akoHaarLiftH(current_h, target_w, fake_last_col, in_stride, lp, aux);
@@ -47,12 +51,12 @@ static void sLift2d(enum akoWavelet wavelet, enum akoWrap wrap, size_t in_stride
 	}
 	else // if (wavelet == AKO_WAVELET_CDF53)
 	{
-		akoCdf53LiftH(wrap, Q, current_h, target_w, fake_last_col, in_stride, lp, aux);
+		akoCdf53LiftH(wrap, q, current_h, target_w, fake_last_col, in_stride, lp, aux);
 		if (fake_last_row != 0)
-			akoCdf53LiftH(wrap, Q, 1, target_w, fake_last_col, 0, lp + in_stride * (current_h - 1),
+			akoCdf53LiftH(wrap, q, 1, target_w, fake_last_col, 0, lp + in_stride * (current_h - 1),
 			              aux + current_h * target_w * 2);
 
-		akoCdf53LiftV(wrap, target_w * 2, target_h, aux, lp);
+		akoCdf53LiftV(wrap, q, target_w * 2, target_h, aux, lp);
 	}
 }
 
@@ -67,10 +71,14 @@ static void sUnlift2d(enum akoWavelet wavelet, enum akoWrap wrap, size_t current
 	int16_t* hp_b = hps + (current_w * current_h) * 1;
 	int16_t* hp_d = hps + (current_w * current_h) * 2;
 
+	int16_t q = 0;
+	if (current_w > 256)
+		q = Q;
+
 	if (wavelet == AKO_WAVELET_HAAR)
 	{
 		akoHaarInPlaceishUnliftV(current_w, current_h, lp, hp_c, aux, hp_c);
-		akoHaarInPlaceishUnliftV(current_w, current_h - ignore_last_row, hp_b, hp_d, hp_b, hp_d);
+		akoHaarInPlaceishUnliftV(current_w, current_h, hp_b, hp_d, hp_b, hp_d);
 
 		akoHaarUnliftH(current_w, current_h, target_w * 2, ignore_last_col, aux, hp_b, lp + 0);
 		akoHaarUnliftH(current_w, current_h - ignore_last_row, target_w * 2, ignore_last_col, hp_c, hp_d,
@@ -78,11 +86,11 @@ static void sUnlift2d(enum akoWavelet wavelet, enum akoWrap wrap, size_t current
 	}
 	else // if (wavelet == AKO_WAVELET_CDF53)
 	{
-		akoCdf53InPlaceishUnliftV(wrap, current_w, current_h, lp, hp_c, aux, hp_c);
-		akoCdf53InPlaceishUnliftV(wrap, current_w, current_h - ignore_last_row, hp_b, hp_d, hp_b, hp_d);
+		akoCdf53InPlaceishUnliftV(wrap, q, current_w, current_h, lp, hp_c, aux, hp_c);
+		akoCdf53InPlaceishUnliftV(wrap, q, current_w, current_h, hp_b, hp_d, hp_b, hp_d);
 
-		akoCdf53UnliftH(wrap, Q, current_w, current_h, target_w * 2, ignore_last_col, aux, hp_b, lp + 0);
-		akoCdf53UnliftH(wrap, Q, current_w, current_h - ignore_last_row, target_w * 2, ignore_last_col, hp_c, hp_d,
+		akoCdf53UnliftH(wrap, q, current_w, current_h, target_w * 2, ignore_last_col, aux, hp_b, lp + 0);
+		akoCdf53UnliftH(wrap, q, current_w, current_h - ignore_last_row, target_w * 2, ignore_last_col, hp_c, hp_d,
 		                lp + target_w);
 	}
 }
