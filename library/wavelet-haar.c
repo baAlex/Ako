@@ -55,17 +55,17 @@ void akoHaarLiftH(size_t current_h, size_t target_w, size_t fake_last, size_t in
 }
 
 
-void akoHaarLiftV(size_t target_w, size_t current_h, const int16_t* in, int16_t* out)
+void akoHaarLiftV(size_t target_w, size_t target_h, const int16_t* in, int16_t* out)
 {
-	for (size_t r = 0; r < current_h; r++)
+	for (size_t r = 0; r < target_h; r++)
 	{
 		for (size_t c = 0; c < target_w; c++)
 		{
 			const int16_t even = in[(r * 2 + 0) * target_w + c];
 			const int16_t odd = in[(r * 2 + 1) * target_w + c];
 
-			out[(target_w * r) + c] = even;                                // LP
-			out[(target_w * (current_h + r)) + c] = (int16_t)(odd - even); // HP
+			out[(target_w * r) + c] = even;                               // LP
+			out[(target_w * (target_h + r)) + c] = (int16_t)(odd - even); // HP
 		}
 	}
 }
