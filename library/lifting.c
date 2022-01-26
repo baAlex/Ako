@@ -27,42 +27,35 @@ SOFTWARE.
 #include "ako-private.h"
 
 
-#define Q 1
-
-
-static void sLift2d(enum akoWavelet wavelet, enum akoWrap wrap, size_t in_stride, size_t current_w, size_t current_h,
-                    size_t target_w, size_t target_h, int16_t* lp, int16_t* aux)
+static void sLift2d(int16_t q, int16_t g, enum akoWavelet wavelet, enum akoWrap wrap, size_t in_stride,
+                    size_t current_w, size_t current_h, size_t target_w, size_t target_h, int16_t* lp, int16_t* aux)
 {
 	const size_t fake_last_col = (target_w * 2) - current_w;
 	const size_t fake_last_row = (target_h * 2) - current_h;
 
-	int16_t q = 0;
-	if (target_w > 256)
-		q = Q;
-
 	if (wavelet == AKO_WAVELET_HAAR)
 	{
-		akoHaarLiftH(current_h, target_w, fake_last_col, in_stride, lp, aux);
+		akoHaarLiftH(q, g, current_h, target_w, fake_last_col, in_stride, lp, aux);
 		if (fake_last_row != 0)
-			akoHaarLiftH(1, target_w, fake_last_col, 0, lp + in_stride * (current_h - 1),
+			akoHaarLiftH(q, g, 1, target_w, fake_last_col, 0, lp + in_stride * (current_h - 1),
 			             aux + current_h * target_w * 2);
 
-		akoHaarLiftV(target_w * 2, target_h, aux, lp);
+		akoHaarLiftV(q, g, target_w * 2, target_h, aux, lp);
 	}
 	else // if (wavelet == AKO_WAVELET_CDF53)
 	{
-		akoCdf53LiftH(wrap, q, current_h, target_w, fake_last_col, in_stride, lp, aux);
+		akoCdf53LiftH(wrap, q, g, current_h, target_w, fake_last_col, in_stride, lp, aux);
 		if (fake_last_row != 0)
-			akoCdf53LiftH(wrap, q, 1, target_w, fake_last_col, 0, lp + in_stride * (current_h - 1),
+			akoCdf53LiftH(wrap, q, g, 1, target_w, fake_last_col, 0, lp + in_stride * (current_h - 1),
 			              aux + current_h * target_w * 2);
 
-		akoCdf53LiftV(wrap, q, target_w * 2, target_h, aux, lp);
+		akoCdf53LiftV(wrap, q, g, target_w * 2, target_h, aux, lp);
 	}
 }
 
 
-static void sUnlift2d(enum akoWavelet wavelet, enum akoWrap wrap, size_t current_w, size_t current_h, size_t target_w,
-                      size_t target_h, int16_t* lp, int16_t* hps, int16_t* aux)
+static void sUnlift2d(int16_t q, enum akoWavelet wavelet, enum akoWrap wrap, size_t current_w, size_t current_h,
+                      size_t target_w, size_t target_h, int16_t* lp, int16_t* hps, int16_t* aux)
 {
 	const size_t ignore_last_col = (current_w * 2) - target_w;
 	const size_t ignore_last_row = (current_h * 2) - target_h;
@@ -71,17 +64,13 @@ static void sUnlift2d(enum akoWavelet wavelet, enum akoWrap wrap, size_t current
 	int16_t* hp_b = hps + (current_w * current_h) * 1;
 	int16_t* hp_d = hps + (current_w * current_h) * 2;
 
-	int16_t q = 0;
-	if (current_w > 256)
-		q = Q;
-
 	if (wavelet == AKO_WAVELET_HAAR)
 	{
-		akoHaarInPlaceishUnliftV(current_w, current_h, lp, hp_c, aux, hp_c);
-		akoHaarInPlaceishUnliftV(current_w, current_h, hp_b, hp_d, hp_b, hp_d);
+		akoHaarInPlaceishUnliftV(q, current_w, current_h, lp, hp_c, aux, hp_c);
+		akoHaarInPlaceishUnliftV(q, current_w, current_h, hp_b, hp_d, hp_b, hp_d);
 
-		akoHaarUnliftH(current_w, current_h, target_w * 2, ignore_last_col, aux, hp_b, lp + 0);
-		akoHaarUnliftH(current_w, current_h - ignore_last_row, target_w * 2, ignore_last_col, hp_c, hp_d,
+		akoHaarUnliftH(q, current_w, current_h, target_w * 2, ignore_last_col, aux, hp_b, lp + 0);
+		akoHaarUnliftH(q, current_w, current_h - ignore_last_row, target_w * 2, ignore_last_col, hp_c, hp_d,
 		               lp + target_w);
 	}
 	else // if (wavelet == AKO_WAVELET_CDF53)
@@ -111,6 +100,26 @@ static inline void s2dMemcpy(size_t w, size_t h, size_t in_stride, const int16_t
 	}
 }
 
+static inline int16_t sQuantization(float factor, size_t tile_w, size_t tile_h, size_t current_w, size_t current_h)
+{
+	float q0 = __builtin_sqrtf((float)tile_w * (float)tile_h);
+	float q = (__builtin_sqrtf((float)current_w * (float)current_h) / q0) * (factor / 2.0F);
+	q = __builtin_powf(q, 0.5F); // Magic number
+
+	// printf("Q: %.2f\n", q);
+	return q;
+}
+
+static inline int16_t sGate(float factor, size_t tile_w, size_t tile_h, size_t current_w, size_t current_h)
+{
+	float g0 = __builtin_sqrtf((float)tile_w * (float)tile_h);
+	float g = (__builtin_sqrtf((float)current_w * (float)current_h) / g0) * (factor * 4.0F);
+	g = __builtin_powf(g, 0.5F); // Magic number
+
+	// printf("G:         %.2f\n", g);
+	return g;
+}
+
 void akoLift(size_t tile_no, const struct akoSettings* s, size_t channels, size_t tile_w, size_t tile_h,
              size_t planes_space, int16_t* in, int16_t* output)
 {
@@ -128,6 +137,9 @@ void akoLift(size_t tile_no, const struct akoSettings* s, size_t channels, size_
 		const size_t current_h = target_h;
 		target_w = akoDividePlusOneRule(target_w);
 		target_h = akoDividePlusOneRule(target_h);
+
+		const int16_t q = sQuantization(s->quantization_step, tile_w, tile_h, current_w, current_h);
+		const int16_t g = sGate(s->noise_gate, tile_w, tile_h, current_w, current_h);
 
 		// Developers, developers, developers
 		if (tile_no == 0)
@@ -164,7 +176,7 @@ void akoLift(size_t tile_no, const struct akoSettings* s, size_t channels, size_
 				// lp + ((current_w + 1) * (current_h + 1)) * 2; // Cache friendly, but always
 				//                                                  accounts for an extra col/row
 
-				sLift2d(s->wavelet, s->wrap, current_w * 2, current_w, current_h, target_w, target_h, lp, aux);
+				sLift2d(q, g, s->wavelet, s->wrap, current_w * 2, current_w, current_h, target_w, target_h, lp, aux);
 
 				// END OF PLACE OF INTEREST
 			}
@@ -173,7 +185,7 @@ void akoLift(size_t tile_no, const struct akoSettings* s, size_t channels, size_
 				int16_t* aux = output; // First lift is to big to allow us to use the
 				                       // same workarea as auxiliary memory. Luckily
 				                       // since is the first one, 'output' is empty
-				sLift2d(s->wavelet, s->wrap, current_w * 1, current_w, current_h, target_w, target_h, lp, aux);
+				sLift2d(q, g, s->wavelet, s->wrap, current_w * 1, current_w, current_h, target_w, target_h, lp, aux);
 			}
 
 			// 2. Write coefficients
@@ -193,7 +205,7 @@ void akoLift(size_t tile_no, const struct akoSettings* s, size_t channels, size_
 
 			// 3. Write lift head
 			out -= sizeof(struct akoLiftHead); // One lift head...
-			((struct akoLiftHead*)out)->quantization = 1;
+			((struct akoLiftHead*)out)->quantization = q;
 
 			// Developers, developers, developers
 			if (tile_no == 0)
@@ -309,7 +321,7 @@ void akoUnlift(size_t tile_no, const struct akoSettings* s, size_t channels, siz
 			int16_t* lp = out + (tile_w * tile_h + planes_space) * ch;
 			int16_t* hps = (int16_t*)in;
 
-			sUnlift2d(s->wavelet, s->wrap, current_w, current_h, target_w, target_h, lp, hps, input);
+			sUnlift2d(q, s->wavelet, s->wrap, current_w, current_h, target_w, target_h, lp, hps, input);
 
 			in += (current_w * current_h) * sizeof(int16_t) * 3; // ... And three highpasses
 		}

@@ -68,7 +68,7 @@ static void sHorizontalTest(size_t len, int16_t q, int16_t callback_data, int16_
 
 	// DWT
 	{
-		akoCdf53LiftH(AKO_WRAP_CLAMP, q, 1, (len + plus_one_rule) / 2, plus_one_rule, 0, buffer_a, buffer_b);
+		akoCdf53LiftH(AKO_WRAP_CLAMP, q, 0, 1, (len + plus_one_rule) / 2, plus_one_rule, 0, buffer_a, buffer_b);
 
 		sHorizontalPrint(sMin((len + plus_one_rule) / 2, 8), 1, "Lp:\t", "\t\t", buffer_b);
 		sHorizontalPrint(sMin((len + plus_one_rule) / 2, 8), 1, "Hp:\t", "\t\t", buffer_b + (len + plus_one_rule) / 2);
@@ -133,7 +133,7 @@ static void sVerticalTest(size_t height, int16_t q, int16_t callback_data,
 
 	// DWT
 	{
-		akoCdf53LiftV(AKO_WRAP_CLAMP, q, width, height / 2, buffer_a, buffer_b);
+		akoCdf53LiftV(AKO_WRAP_CLAMP, q, 0, width, height / 2, buffer_a, buffer_b);
 
 		sVerticalPrint(sMin(height / 2, 8), width, 1, "Lp:\t", "\t\t", buffer_b);
 		sVerticalPrint(sMin(height / 2, 8), width, 1, "Hp:\t", "\t\t", buffer_b + (width * (height / 2)));

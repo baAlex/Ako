@@ -50,8 +50,8 @@ SOFTWARE.
 #define ODD(hp, even, even_p1) (hp + (even + even_p1) / 2)
 
 
-void akoCdf53LiftH(enum akoWrap wrap, int16_t q, size_t current_h, size_t target_w, size_t fake_last, size_t in_stride,
-                   const int16_t* in, int16_t* out)
+void akoCdf53LiftH(enum akoWrap wrap, int16_t q, int16_t g, size_t current_h, size_t target_w, size_t fake_last,
+                   size_t in_stride, const int16_t* in, int16_t* out)
 {
 	int16_t hp_l1 = 0;
 	if (q <= 0)
@@ -66,7 +66,7 @@ void akoCdf53LiftH(enum akoWrap wrap, int16_t q, size_t current_h, size_t target
 			const int16_t odd = in[(r * in_stride) + (c * 2 + 1)];
 			const int16_t even_p1 = in[(r * in_stride) + (c * 2 + 2)];
 
-			const int16_t hp = HP(odd, even, even_p1) / q;
+			const int16_t hp = HP(odd, even, even_p1);
 			const int16_t lp = LP(even, hp, hp); // Clamp
 
 			out[(r * target_w * 2) + c + 0] = lp;
@@ -81,7 +81,7 @@ void akoCdf53LiftH(enum akoWrap wrap, int16_t q, size_t current_h, size_t target
 			const int16_t odd = in[(r * in_stride) + (c * 2 + 1)];
 			const int16_t even_p1 = in[(r * in_stride) + (c * 2 + 2)];
 
-			const int16_t hp = HP(odd, even, even_p1) / q;
+			const int16_t hp = HP(odd, even, even_p1);
 			const int16_t lp = LP(even, hp_l1, hp);
 
 			out[(r * target_w * 2) + c + 0] = lp;
@@ -97,17 +97,29 @@ void akoCdf53LiftH(enum akoWrap wrap, int16_t q, size_t current_h, size_t target
 			const int16_t odd =
 			    (fake_last == 0) ? in[(r * in_stride) + (c * 2 + 1)] : in[(r * in_stride) + (c * 2 + 0)];
 
-			const int16_t hp = HP(odd, even, even) / q; // Clamp
+			const int16_t hp = HP(odd, even, even); // Clamp
 			const int16_t lp = LP(even, hp_l1, hp);
 
 			out[(r * target_w * 2) + c + 0] = lp;
 			out[(r * target_w * 2) + c + target_w] = hp;
 		}
+
+		// Gate
+		for (size_t c = 0; c < target_w; c++)
+		{
+			const int16_t hp = out[(r * target_w * 2) + c + target_w];
+
+			if (hp > -g && hp < g)
+				out[(r * target_w * 2) + c + target_w] = 0;
+			else
+				out[(r * target_w * 2) + c + target_w] = hp / q;
+		}
 	}
 }
 
 
-void akoCdf53LiftV(enum akoWrap wrap, int16_t q, size_t target_w, size_t target_h, const int16_t* in, int16_t* out)
+void akoCdf53LiftV(enum akoWrap wrap, int16_t q, int16_t g, size_t target_w, size_t target_h, const int16_t* in,
+                   int16_t* out)
 {
 	if (q <= 0)
 		q = 1;
@@ -165,6 +177,16 @@ void akoCdf53LiftV(enum akoWrap wrap, int16_t q, size_t target_w, size_t target_
 			out[(target_w * (target_h + r)) + c] = hp;
 		}
 	}
+
+	// Gate
+	for (size_t r = 0; r < target_h; r++)
+		for (size_t c = 0; c < target_w; c++)
+		{
+			const int16_t hp = out[(target_w * (target_h + r)) + c];
+
+			if (hp > -g && hp < g)
+				out[(target_w * (target_h + r)) + c] = 0;
+		}
 }
 
 
