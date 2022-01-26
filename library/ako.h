@@ -89,6 +89,9 @@ struct akoSettings
 	size_t tiles_dimension;
 
 	int discard_transparent_pixels;
+
+	float quantization_step;
+	float noise_gate;
 };
 
 struct akoCallbacks

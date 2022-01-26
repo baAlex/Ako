@@ -144,7 +144,7 @@ void AkoEnc(const vector<string>& args)
 			filename_input = *it;
 		else if (Shared::CheckArgumentPair("-o", "--output", it, it_end) == 0)
 			filename_output = *it;
-		else if (Shared::CheckArgumentSingle("-n", "--no-compression", it) == 0)
+		else if (Shared::CheckArgumentSingle("-dev-n", "--dev-no-compression", it) == 0)
 			settings.compression = AKO_COMPRESSION_NONE;
 		else if (Shared::CheckArgumentPair("-wr", "--wrap", it, it_end) == 0)
 		{
@@ -183,8 +183,12 @@ void AkoEnc(const vector<string>& args)
 			else
 				throw Shared::Error("Unknown color transformation'" + *it + "'");
 		}
-		else if (Shared::CheckArgumentPair("-t", "--tiles", it, it_end) == 0)
+		else if (Shared::CheckArgumentPair("-dev-t", "--dev-tiles", it, it_end) == 0)
 			settings.tiles_dimension = stol(*it);
+		else if (Shared::CheckArgumentPair("-q", "--quantization", it, it_end) == 0)
+			settings.quantization_step = stof(*it);
+		else if (Shared::CheckArgumentPair("-g", "--gate", it, it_end) == 0)
+			settings.noise_gate = stof(*it);
 		else if (Shared::CheckArgumentPair("-d", "--discard-transparent-pixels", it, it_end) == 0) // :)
 		{
 			if (*it == "1" || *it == "true" || *it == "yes" || *it == "yup" || *it == "si")
@@ -280,6 +284,14 @@ void AkoEnc(const vector<string>& args)
 	}
 
 	// Bye!
+	const auto uncompressed_size = (double)(png->width() * png->height() * png->channels());
+	const auto compressed_size = (double)blob_size;
+	const auto bpp =
+	    (compressed_size / (double)(png->width() * png->height() * png->channels())) * 8.0F * png->channels();
+
+	printf("%.2f kB -> %.2f kB, ratio: %.2f:1, %.4f bpp\n", uncompressed_size / 1000.0F, compressed_size / 1000.0F,
+	       uncompressed_size / compressed_size, bpp);
+
 	akoDefaultFree(blob);
 }
 
