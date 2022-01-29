@@ -94,6 +94,8 @@ void akoHaarLiftV(int16_t q, int16_t g, size_t target_w, size_t target_h, const 
 
 			if (hp > -g && hp < g)
 				out[(target_w * (target_h + r)) + c] = 0;
+			else
+				out[(target_w * (target_h + r)) + c] = hp / q;
 		}
 }
 
