@@ -8,10 +8,23 @@
 #include <string.h>
 
 
+#define PRINT_MAX 16
+
+
 // It's dangerous to go alone! Take this:
 // def hp(odd, even, evenp1) return odd - (even + evenp1) / 2 end
 // def lp(even, hpl1, hp) return even + (hpl1 + hp) / 4 end
 
+
+static void sEvenOddPrint(size_t len, const char* head, const char* separator)
+{
+	printf("%s", head);
+
+	for (size_t i = 0; i < len; i++)
+		printf("%s%s", (i & 1) ? "o" : "e", separator);
+
+	printf("\n");
+}
 
 static void sHorizontalPrint(size_t len, size_t step, const char* head, const char* separator, const int16_t* in)
 {
@@ -52,7 +65,7 @@ static void sHorizontalTest(size_t len, int16_t q, int16_t callback_data, int16_
 	assert(buffer_b != NULL);
 	assert(buffer_c != NULL);
 
-	printf("\nCdf53 Horizontal (len: %zu):\n", len);
+	printf("\n# Cdf53 Horizontal (len: %zu):\n", len);
 
 	// Generate data
 	{
@@ -63,36 +76,45 @@ static void sHorizontalTest(size_t len, int16_t q, int16_t callback_data, int16_
 			buffer_a[i] = value;
 		}
 
-		sHorizontalPrint(sMin(len, 16), 1, "   \t", "\t", buffer_a);
+		sEvenOddPrint(sMin(len, PRINT_MAX), "   \t", "\t");
+		sHorizontalPrint(sMin(len, PRINT_MAX), 1, "   \t", "\t", buffer_a);
 	}
 
-	// DWT
+	for (int i = 0; i < 3; i++)
 	{
-		akoCdf53LiftH(AKO_WRAP_CLAMP, q, 0, 1, (len + plus_one_rule) / 2, plus_one_rule, 0, buffer_a, buffer_b);
-
-		sHorizontalPrint(sMin((len + plus_one_rule) / 2, 8), 1, "Lp:\t", "\t\t", buffer_b);
-		sHorizontalPrint(sMin((len + plus_one_rule) / 2, 8), 1, "Hp:\t", "\t\t", buffer_b + (len + plus_one_rule) / 2);
-	}
-
-#if 1
-	// Inverse DWT
-	{
-		akoCdf53UnliftH(AKO_WRAP_CLAMP, q, (len + plus_one_rule) / 2, 1, 0, plus_one_rule, buffer_b,
-		                buffer_b + (len + plus_one_rule) / 2, buffer_c);
-		sHorizontalPrint(sMin(len, 16), 1, "   \t", "\t", buffer_c);
-	}
-
-	// Check data (if coefficients were not quantized)
-	if (q <= 1)
-	{
-		int16_t value = 0;
-		for (size_t i = 0; i < len; i++)
+		// clang-format off
+		enum akoWrap w;
+		switch (i)
 		{
-			value = callback(i, value, callback_data);
-			assert(buffer_a[i] == value);
+		case 0: w = AKO_WRAP_CLAMP;  printf("[clamp]\n"); break;
+		case 1: w = AKO_WRAP_REPEAT; printf("[repeat]\n"); break;
+		case 2: w = AKO_WRAP_ZERO;   printf("[zero]\n"); break;
+		}
+		// clang-format on
+
+		// DWT (buffer a to b)
+		akoCdf53LiftH(w, q, 0, 1, (len + plus_one_rule) / 2, plus_one_rule, 0, buffer_a, buffer_b);
+
+		sHorizontalPrint(sMin((len + plus_one_rule) / 2, PRINT_MAX / 2), 1, "Lp:\t", "\t\t", buffer_b);
+		sHorizontalPrint(sMin((len + plus_one_rule) / 2, PRINT_MAX / 2), 1, "Hp:\t", "\t\t",
+		                 buffer_b + (len + plus_one_rule) / 2);
+
+		// Inverse DWT (buffer b to c)
+		akoCdf53UnliftH(w, q, (len + plus_one_rule) / 2, 1, 0, plus_one_rule, buffer_b,
+		                buffer_b + (len + plus_one_rule) / 2, buffer_c);
+		sHorizontalPrint(sMin(len, PRINT_MAX), 1, "   \t", "\t", buffer_c);
+
+		// Check data
+		if (q <= 1) // If coefficients were not quantized
+		{
+			int16_t value = 0;
+			for (size_t i = 0; i < len; i++)
+			{
+				value = callback(i, value, callback_data);
+				assert(buffer_c[i] == value);
+			}
 		}
 	}
-#endif
 
 	free(buffer_a);
 	free(buffer_b);
@@ -103,6 +125,8 @@ static void sHorizontalTest(size_t len, int16_t q, int16_t callback_data, int16_
 static void sVerticalTest(size_t height, int16_t q, int16_t callback_data,
                           int16_t (*callback)(size_t, int16_t, int16_t))
 {
+	assert((height % 2) == 0); // Vertical functions doesn't follow the plus one rule
+
 	const size_t width = 3;
 	int16_t* buffer_a = malloc(height * width * sizeof(int16_t));
 	int16_t* buffer_b = malloc(height * width * sizeof(int16_t));
@@ -128,44 +152,54 @@ static void sVerticalTest(size_t height, int16_t q, int16_t callback_data,
 					buffer_a[width * r + c] = 99;
 			}
 
-		sVerticalPrint(sMin(height, 16), width, 1, "   \t", "\t", buffer_a);
+		sEvenOddPrint(sMin(height, PRINT_MAX), "   \t", "\t");
+		sVerticalPrint(sMin(height, PRINT_MAX), width, 1, "   \t", "\t", buffer_a);
 	}
 
-	// DWT
+	for (int i = 0; i < 3; i++)
 	{
+		// clang-format off
+		enum akoWrap w;
+		switch (i)
+		{
+		case 0: w = AKO_WRAP_CLAMP;  printf("[clamp]\n"); break;
+		case 1: w = AKO_WRAP_REPEAT; printf("[repeat]\n"); break;
+		case 2: w = AKO_WRAP_ZERO;   printf("[zero]\n"); break;
+		}
+		// clang-format on
+
+		// DWT (buffer a to b)
 		akoCdf53LiftV(AKO_WRAP_CLAMP, q, 0, width, height / 2, buffer_a, buffer_b);
 
-		sVerticalPrint(sMin(height / 2, 8), width, 1, "Lp:\t", "\t\t", buffer_b);
-		sVerticalPrint(sMin(height / 2, 8), width, 1, "Hp:\t", "\t\t", buffer_b + (width * (height / 2)));
-	}
+		sVerticalPrint(sMin(height / 2, PRINT_MAX / 2), width, 1, "Lp:\t", "\t\t", buffer_b);
+		sVerticalPrint(sMin(height / 2, PRINT_MAX / 2), width, 1, "Hp:\t", "\t\t", buffer_b + (width * (height / 2)));
 
-#if 1
-	// Inverse DWT
-	{
-		akoCdf53InPlaceishUnliftV(AKO_WRAP_CLAMP, q, width, height / 2, buffer_b, buffer_b + (width * (height / 2)),
-		                          buffer_b, buffer_b + (width * (height / 2)));
-
-		size_t i = 0;
-		for (size_t r = 0; r < (height / 2); r++)
+		// Inverse DWT (in place in buffer b, then copied to c)
 		{
-			buffer_c[i++] = buffer_b[width * r];
-			buffer_c[i++] = buffer_b[width * (r + height / 2)];
+			akoCdf53InPlaceishUnliftV(AKO_WRAP_CLAMP, q, width, height / 2, buffer_b, buffer_b + (width * (height / 2)),
+			                          buffer_b, buffer_b + (width * (height / 2)));
+
+			size_t i = 0;
+			for (size_t r = 0; r < (height / 2); r++)
+			{
+				buffer_c[i++] = buffer_b[width * r];
+				buffer_c[i++] = buffer_b[width * (r + height / 2)];
+			}
+
+			sHorizontalPrint(sMin(height, PRINT_MAX), 1, "   \t", "\t", buffer_c);
 		}
 
-		sHorizontalPrint(sMin(height, 16), 1, "   \t", "\t", buffer_c);
-	}
-
-	// Check data (if coefficients were not quantized)
-	if (q <= 1)
-	{
-		int16_t value = 0;
-		for (size_t i = 0; i < height; i++)
+		// Check data
+		if (q <= 1) // If coefficients were not quantized
 		{
-			value = callback(i, value, callback_data);
-			assert(buffer_c[i] == value);
+			int16_t value = 0;
+			for (size_t i = 0; i < height; i++)
+			{
+				value = callback(i, value, callback_data);
+				assert(buffer_c[i] == value);
+			}
 		}
 	}
-#endif
 
 	free(buffer_a);
 	free(buffer_b);
@@ -193,20 +227,14 @@ int main()
 	sHorizontalTest(16, 1, 1, sCallbackLinear);
 	sVerticalTest(16, 1, 1, sCallbackLinear);
 
-	sHorizontalTest(16, 1, 1, sCallbackRandom);
-	sVerticalTest(16, 1, 1, sCallbackRandom);
+	sHorizontalTest(16, 1, 2, sCallbackRandom);
+	sVerticalTest(16, 1, 2, sCallbackRandom);
 
-	sHorizontalTest(8, 1, 4, sCallbackRandom);
-	sVerticalTest(8, 1, 4, sCallbackRandom);
+	sHorizontalTest(13, 1, 2, sCallbackRandom);
+	sHorizontalTest(13, 1, 1, sCallbackLinear);
 
-	sHorizontalTest(128, 1, 4, sCallbackRandom);
-	sVerticalTest(128, 1, 4, sCallbackRandom);
+	sHorizontalTest(512, 1, 4, sCallbackRandom);
+	sVerticalTest(512, 1, 4, sCallbackRandom);
 
-	// sHorizontalTest(14, 1, 1, sCallbackLinear);
-	// sHorizontalTest(13, 1, 1, sCallbackLinear);
-
-	// sHorizontalTest(16, 1, 1, sCallbackRandom);
-	// sHorizontalTest(16, 2, 1, sCallbackRandom);
-	// sHorizontalTest(512, 1, 5, sCallbackRandom);
 	return 0;
 }
