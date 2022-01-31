@@ -28,6 +28,7 @@ set(AKO_SOURCES
 	"./library/kagari.c"
 	"./library/lifting.c"
 	"./library/misc.c"
+	"./library/quantization.c"
 	"./library/version.c"
 	"./library/wavelet-cdf53.c"
 	"./library/wavelet-haar.c")

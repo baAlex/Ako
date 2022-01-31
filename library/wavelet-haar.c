@@ -27,12 +27,9 @@ SOFTWARE.
 #include "ako-private.h"
 
 
-void akoHaarLiftH(int16_t q, int16_t g, size_t current_h, size_t target_w, size_t fake_last, size_t in_stride,
-                  const int16_t* in, int16_t* out)
+void akoHaarLiftH(int16_t q, size_t current_h, size_t target_w, size_t fake_last, size_t in_stride, const int16_t* in,
+                  int16_t* out)
 {
-	if (q <= 0)
-		q = 1;
-
 	for (size_t r = 0; r < current_h; r++)
 	{
 		for (size_t c = 0; c < (target_w - fake_last); c++)
@@ -55,25 +52,18 @@ void akoHaarLiftH(int16_t q, int16_t g, size_t current_h, size_t target_w, size_
 			out[(r * target_w * 2) + c + target_w] = (int16_t)(odd - even); // HP
 		}
 
-		// Gate
+		// Quantize
 		for (size_t c = 0; c < target_w; c++)
 		{
 			const int16_t hp = out[(r * target_w * 2) + c + target_w];
-
-			if (hp > -g && hp < g)
-				out[(r * target_w * 2) + c + target_w] = 0;
-			else
-				out[(r * target_w * 2) + c + target_w] = hp / q;
+			out[(r * target_w * 2) + c + target_w] = hp / q;
 		}
 	}
 }
 
 
-void akoHaarLiftV(int16_t q, int16_t g, size_t target_w, size_t target_h, const int16_t* in, int16_t* out)
+void akoHaarLiftV(int16_t q, size_t target_w, size_t target_h, const int16_t* in, int16_t* out)
 {
-	if (q <= 0)
-		q = 1;
-
 	for (size_t r = 0; r < target_h; r++)
 	{
 		for (size_t c = 0; c < target_w; c++)
@@ -86,16 +76,12 @@ void akoHaarLiftV(int16_t q, int16_t g, size_t target_w, size_t target_h, const 
 		}
 	}
 
-	// Gate
+	// Quantize
 	for (size_t r = 0; r < target_h; r++)
 		for (size_t c = 0; c < target_w; c++)
 		{
 			const int16_t hp = out[(target_w * (target_h + r)) + c];
-
-			if (hp > -g && hp < g)
-				out[(target_w * (target_h + r)) + c] = 0;
-			else
-				out[(target_w * (target_h + r)) + c] = hp / q;
+			out[(target_w * (target_h + r)) + c] = hp / q;
 		}
 }
 
@@ -103,9 +89,6 @@ void akoHaarLiftV(int16_t q, int16_t g, size_t target_w, size_t target_h, const 
 void akoHaarUnliftH(int16_t q, size_t current_w, size_t current_h, size_t out_stride, size_t ignore_last,
                     const int16_t* in_lp, const int16_t* in_hp, int16_t* out)
 {
-	if (q <= 0)
-		q = 1;
-
 	for (size_t r = 0; r < current_h; r++)
 	{
 		for (size_t c = 0; c < (current_w - ignore_last); c++)
@@ -131,9 +114,6 @@ void akoHaarUnliftH(int16_t q, size_t current_w, size_t current_h, size_t out_st
 void akoHaarInPlaceishUnliftV(int16_t q, size_t current_w, size_t current_h, const int16_t* in_lp, const int16_t* in_hp,
                               int16_t* out_lp, int16_t* out_hp)
 {
-	if (q <= 0)
-		q = 1;
-
 	for (size_t r = 0; r < current_h; r++)
 	{
 		for (size_t c = 0; c < current_w; c++)

@@ -186,9 +186,9 @@ void AkoEnc(const vector<string>& args)
 		else if (Shared::CheckArgumentPair("-dev-t", "--dev-tiles", it, it_end) == 0)
 			settings.tiles_dimension = stol(*it);
 		else if (Shared::CheckArgumentPair("-q", "--quantization", it, it_end) == 0)
-			settings.quantization_step = stof(*it);
+			settings.quantization = stoi(*it);
 		else if (Shared::CheckArgumentPair("-g", "--gate", it, it_end) == 0)
-			settings.noise_gate = stof(*it);
+			settings.gate = stoi(*it);
 		else if (Shared::CheckArgumentPair("-d", "--discard-transparent-pixels", it, it_end) == 0) // :)
 		{
 			if (*it == "1" || *it == "true" || *it == "yes" || *it == "yup" || *it == "si")

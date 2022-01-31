@@ -93,14 +93,14 @@ static void sHorizontalTest(size_t len, int16_t q, int16_t callback_data, int16_
 		// clang-format on
 
 		// DWT (buffer a to b)
-		akoCdf53LiftH(w, q, 0, 1, (len + plus_one_rule) / 2, plus_one_rule, 0, buffer_a, buffer_b);
+		akoCdf53LiftH(w, 1, 1, (len + plus_one_rule) / 2, plus_one_rule, 0, buffer_a, buffer_b);
 
 		sHorizontalPrint(sMin((len + plus_one_rule) / 2, PRINT_MAX / 2), 1, "Lp:\t", "\t\t", buffer_b);
 		sHorizontalPrint(sMin((len + plus_one_rule) / 2, PRINT_MAX / 2), 1, "Hp:\t", "\t\t",
 		                 buffer_b + (len + plus_one_rule) / 2);
 
 		// Inverse DWT (buffer b to c)
-		akoCdf53UnliftH(w, q, (len + plus_one_rule) / 2, 1, 0, plus_one_rule, buffer_b,
+		akoCdf53UnliftH(w, 1, (len + plus_one_rule) / 2, 1, 0, plus_one_rule, buffer_b,
 		                buffer_b + (len + plus_one_rule) / 2, buffer_c);
 		sHorizontalPrint(sMin(len, PRINT_MAX), 1, "   \t", "\t", buffer_c);
 
@@ -169,15 +169,15 @@ static void sVerticalTest(size_t height, int16_t q, int16_t callback_data,
 		// clang-format on
 
 		// DWT (buffer a to b)
-		akoCdf53LiftV(AKO_WRAP_CLAMP, q, 0, width, height / 2, buffer_a, buffer_b);
+		akoCdf53LiftV(w, 1, width, height / 2, buffer_a, buffer_b);
 
 		sVerticalPrint(sMin(height / 2, PRINT_MAX / 2), width, 1, "Lp:\t", "\t\t", buffer_b);
 		sVerticalPrint(sMin(height / 2, PRINT_MAX / 2), width, 1, "Hp:\t", "\t\t", buffer_b + (width * (height / 2)));
 
 		// Inverse DWT (in place in buffer b, then copied to c)
 		{
-			akoCdf53InPlaceishUnliftV(AKO_WRAP_CLAMP, q, width, height / 2, buffer_b, buffer_b + (width * (height / 2)),
-			                          buffer_b, buffer_b + (width * (height / 2)));
+			akoCdf53InPlaceishUnliftV(w, 1, width, height / 2, buffer_b, buffer_b + (width * (height / 2)), buffer_b,
+			                          buffer_b + (width * (height / 2)));
 
 			size_t i = 0;
 			for (size_t r = 0; r < (height / 2); r++)

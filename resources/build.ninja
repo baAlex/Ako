@@ -35,6 +35,7 @@ build ./build/library/head.o:          CompileC ./library/head.c
 build ./build/library/kagari.o:        CompileC ./library/kagari.c
 build ./build/library/lifting.o:       CompileC ./library/lifting.c
 build ./build/library/misc.o:          CompileC ./library/misc.c
+build ./build/library/quantization.o:  CompileC ./library/quantization.c
 build ./build/library/version.o:       CompileC ./library/version.c
 build ./build/library/wavelet-cdf53.o: CompileC ./library/wavelet-cdf53.c
 build ./build/library/wavelet-haar.o:  CompileC ./library/wavelet-haar.c
@@ -57,6 +58,7 @@ build ./akodec: Link $
  ./build/library/kagari.o           $
  ./build/library/lifting.o          $
  ./build/library/misc.o             $
+ ./build/library/quantization.o     $
  ./build/library/version.o          $
  ./build/library/wavelet-cdf53.o    $
  ./build/library/wavelet-haar.o     $
@@ -73,6 +75,7 @@ build ./akoenc: Link $
  ./build/library/kagari.o           $
  ./build/library/lifting.o          $
  ./build/library/misc.o             $
+ ./build/library/quantization.o     $
  ./build/library/version.o          $
  ./build/library/wavelet-cdf53.o    $
  ./build/library/wavelet-haar.o     $
