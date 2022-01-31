@@ -35,6 +35,7 @@ struct akoBlockHead
 
 size_t akoCompress(enum akoCompression method, size_t input_size, size_t output_size, void* input, void* output)
 {
+	(void)method;
 	struct akoBlockHead* h = output;
 
 	const size_t compressed_size = akoKagariEncode(input_size, output_size - sizeof(struct akoBlockHead), input,
@@ -53,6 +54,7 @@ size_t akoCompress(enum akoCompression method, size_t input_size, size_t output_
 size_t akoDecompress(enum akoCompression method, size_t decompressed_size, size_t output_size, const void* input,
                      void* output)
 {
+	(void)method;
 	const struct akoBlockHead* h = input;
 
 	const size_t compressed_size = akoKagariDecode(decompressed_size / sizeof(int16_t), (size_t)h->block_size,

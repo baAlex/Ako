@@ -27,29 +27,29 @@ SOFTWARE.
 #include "ako-private.h"
 
 
-static void sLift2d(int16_t q, int16_t g, enum akoWavelet wavelet, enum akoWrap wrap, size_t in_stride,
-                    size_t current_w, size_t current_h, size_t target_w, size_t target_h, int16_t* lp, int16_t* aux)
+static void sLift2d(int16_t q, enum akoWavelet wavelet, enum akoWrap wrap, size_t in_stride, size_t current_w,
+                    size_t current_h, size_t target_w, size_t target_h, int16_t* lp, int16_t* aux)
 {
 	const size_t fake_last_col = (target_w * 2) - current_w;
 	const size_t fake_last_row = (target_h * 2) - current_h;
 
 	if (wavelet == AKO_WAVELET_HAAR)
 	{
-		akoHaarLiftH(q, g, current_h, target_w, fake_last_col, in_stride, lp, aux);
+		akoHaarLiftH(q, current_h, target_w, fake_last_col, in_stride, lp, aux);
 		if (fake_last_row != 0)
-			akoHaarLiftH(q, g, 1, target_w, fake_last_col, 0, lp + in_stride * (current_h - 1),
+			akoHaarLiftH(q, 1, target_w, fake_last_col, 0, lp + in_stride * (current_h - 1),
 			             aux + current_h * target_w * 2);
 
-		akoHaarLiftV(q, g, target_w * 2, target_h, aux, lp);
+		akoHaarLiftV(q, target_w * 2, target_h, aux, lp);
 	}
 	else // if (wavelet == AKO_WAVELET_CDF53)
 	{
-		akoCdf53LiftH(wrap, q, g, current_h, target_w, fake_last_col, in_stride, lp, aux);
+		akoCdf53LiftH(wrap, q, current_h, target_w, fake_last_col, in_stride, lp, aux);
 		if (fake_last_row != 0)
-			akoCdf53LiftH(wrap, q, g, 1, target_w, fake_last_col, 0, lp + in_stride * (current_h - 1),
+			akoCdf53LiftH(wrap, q, 1, target_w, fake_last_col, 0, lp + in_stride * (current_h - 1),
 			              aux + current_h * target_w * 2);
 
-		akoCdf53LiftV(wrap, q, g, target_w * 2, target_h, aux, lp);
+		akoCdf53LiftV(wrap, q, target_w * 2, target_h, aux, lp);
 	}
 }
 
@@ -63,6 +63,9 @@ static void sUnlift2d(int16_t q, enum akoWavelet wavelet, enum akoWrap wrap, siz
 	int16_t* hp_c = hps + (current_w * current_h) * 0;
 	int16_t* hp_b = hps + (current_w * current_h) * 1;
 	int16_t* hp_d = hps + (current_w * current_h) * 2;
+
+	if (q <= 0)
+		q = 1;
 
 	if (wavelet == AKO_WAVELET_HAAR)
 	{
@@ -88,37 +91,18 @@ static void sUnlift2d(int16_t q, enum akoWavelet wavelet, enum akoWrap wrap, siz
 //
 
 
-static inline void s2dMemcpy(size_t w, size_t h, size_t in_stride, const int16_t* in, int16_t* out)
+static inline void s2dMemcpy(int16_t g, size_t w, size_t h, size_t in_stride, const int16_t* in, int16_t* out)
 {
 	for (size_t r = 0; r < h; r++)
 	{
 		for (size_t c = 0; c < w; c++)
-			out[c] = in[c];
+			out[c] = (in[c] < -g || in[c] > +g) ? in[c] : 0;
 
 		in += in_stride;
 		out += w;
 	}
 }
 
-static inline int16_t sQuantization(float factor, size_t tile_w, size_t tile_h, size_t current_w, size_t current_h)
-{
-	float q0 = __builtin_sqrtf((float)tile_w * (float)tile_h);
-	float q = (__builtin_sqrtf((float)current_w * (float)current_h) / q0) * (factor / 2.0F);
-	q = __builtin_powf(q, 0.5F); // Magic number
-
-	// printf("Q: %.2f\n", q);
-	return q;
-}
-
-static inline int16_t sGate(float factor, size_t tile_w, size_t tile_h, size_t current_w, size_t current_h)
-{
-	float g0 = __builtin_sqrtf((float)tile_w * (float)tile_h);
-	float g = (__builtin_sqrtf((float)current_w * (float)current_h) / g0) * (factor * 4.0F);
-	g = __builtin_powf(g, 0.5F); // Magic number
-
-	// printf("G:         %.2f\n", g);
-	return g;
-}
 
 void akoLift(size_t tile_no, const struct akoSettings* s, size_t channels, size_t tile_w, size_t tile_h,
              size_t planes_space, int16_t* in, int16_t* output)
@@ -138,8 +122,8 @@ void akoLift(size_t tile_no, const struct akoSettings* s, size_t channels, size_
 		target_w = akoDividePlusOneRule(target_w);
 		target_h = akoDividePlusOneRule(target_h);
 
-		const int16_t q = sQuantization(s->quantization_step, tile_w, tile_h, current_w, current_h);
-		const int16_t g = sGate(s->noise_gate, tile_w, tile_h, current_w, current_h);
+		const int16_t q = akoQuantization(s->quantization, tile_w, tile_h, current_w, current_h);
+		const int16_t g = akoGate(s->gate, tile_w, tile_h, current_w, current_h);
 
 		// Developers, developers, developers
 		if (tile_no == 0)
@@ -176,7 +160,7 @@ void akoLift(size_t tile_no, const struct akoSettings* s, size_t channels, size_
 				// lp + ((current_w + 1) * (current_h + 1)) * 2; // Cache friendly, but always
 				//                                                  accounts for an extra col/row
 
-				sLift2d(q, g, s->wavelet, s->wrap, current_w * 2, current_w, current_h, target_w, target_h, lp, aux);
+				sLift2d(q, s->wavelet, s->wrap, current_w * 2, current_w, current_h, target_w, target_h, lp, aux);
 
 				// END OF PLACE OF INTEREST
 			}
@@ -185,21 +169,21 @@ void akoLift(size_t tile_no, const struct akoSettings* s, size_t channels, size_
 				int16_t* aux = output; // First lift is to big to allow us to use the
 				                       // same workarea as auxiliary memory. Luckily
 				                       // since is the first one, 'output' is empty
-				sLift2d(q, g, s->wavelet, s->wrap, current_w * 1, current_w, current_h, target_w, target_h, lp, aux);
+				sLift2d(q, s->wavelet, s->wrap, current_w * 1, current_w, current_h, target_w, target_h, lp, aux);
 			}
 
 			// 2. Write coefficients
 			out -= (target_w * target_h) * sizeof(int16_t) * 3; // Three highpasses...
 
-			s2dMemcpy(target_w, target_h, (target_w * 2),
+			s2dMemcpy(g, target_w, target_h, (target_w * 2),
 			          lp + target_w * target_h * 2,               //
 			          (int16_t*)out + (target_w * target_h) * 0); // C
 
-			s2dMemcpy(target_w, target_h, (target_w * 2),
+			s2dMemcpy(g, target_w, target_h, (target_w * 2),
 			          lp + target_w,                              //
 			          (int16_t*)out + (target_w * target_h) * 1); // B
 
-			s2dMemcpy(target_w, target_h, (target_w * 2),
+			s2dMemcpy(g, target_w, target_h, (target_w * 2),
 			          lp + target_w + target_h * (target_w * 2),  //
 			          (int16_t*)out + (target_w * target_h) * 2); // D
 
@@ -229,7 +213,7 @@ void akoLift(size_t tile_no, const struct akoSettings* s, size_t channels, size_
 		out -= (target_w * target_h) * sizeof(int16_t); // ... And one lowpass
 
 		int16_t* lp = in + (tile_w * tile_h + planes_space) * ch;
-		s2dMemcpy(target_w, target_h, (target_w * 2), lp, (int16_t*)out); // LP
+		s2dMemcpy(0, target_w, target_h, (target_w * 2), lp, (int16_t*)out); // LP
 
 		// Developers, developers, developers
 		if (tile_no == 0 && ch == 0)

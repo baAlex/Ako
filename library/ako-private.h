@@ -92,12 +92,16 @@ size_t akoImageTilesNo(size_t image_w, size_t image_h, size_t tiles_dimension);
 size_t akoImageMaxTileDataSize(size_t image_w, size_t image_h, size_t tiles_dimension);
 size_t akoImageMaxPlanesSpacingSize(size_t image_w, size_t image_h, size_t tiles_dimension);
 
+// quantization.c:
+
+int16_t akoGate(int factor, size_t tile_w, size_t tile_h, size_t current_w, size_t current_h);
+int16_t akoQuantization(int factor, size_t tile_w, size_t tile_h, size_t current_w, size_t current_h);
+
 // wavelet-cdf53.c:
 
-void akoCdf53LiftH(enum akoWrap, int16_t q, int16_t g, size_t current_h, size_t target_w, size_t fake_last,
-                   size_t in_stride, const int16_t* in, int16_t* out);
-void akoCdf53LiftV(enum akoWrap, int16_t q, int16_t g, size_t target_w, size_t target_h, const int16_t* in,
-                   int16_t* out);
+void akoCdf53LiftH(enum akoWrap, int16_t q, size_t current_h, size_t target_w, size_t fake_last, size_t in_stride,
+                   const int16_t* in, int16_t* out);
+void akoCdf53LiftV(enum akoWrap, int16_t q, size_t target_w, size_t target_h, const int16_t* in, int16_t* out);
 
 void akoCdf53UnliftH(enum akoWrap, int16_t q, size_t current_w, size_t current_h, size_t out_stride, size_t ignore_last,
                      const int16_t* in_lp, const int16_t* in_hp, int16_t* out);
@@ -106,9 +110,9 @@ void akoCdf53InPlaceishUnliftV(enum akoWrap, int16_t q, size_t current_w, size_t
 
 // wavelet-haar.c:
 
-void akoHaarLiftH(int16_t q, int16_t g, size_t current_h, size_t target_w, size_t fake_last, size_t in_stride,
-                  const int16_t* in, int16_t* out);
-void akoHaarLiftV(int16_t q, int16_t g, size_t target_w, size_t target_h, const int16_t* in, int16_t* out);
+void akoHaarLiftH(int16_t q, size_t current_h, size_t target_w, size_t fake_last, size_t in_stride, const int16_t* in,
+                  int16_t* out);
+void akoHaarLiftV(int16_t q, size_t target_w, size_t target_h, const int16_t* in, int16_t* out);
 
 void akoHaarUnliftH(int16_t q, size_t current_w, size_t current_h, size_t out_stride, size_t ignore_last,
                     const int16_t* in_lp, const int16_t* in_hp, int16_t* out);

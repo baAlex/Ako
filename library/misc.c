@@ -39,6 +39,9 @@ AKO_EXPORT struct akoSettings akoDefaultSettings()
 
 	s.discard_transparent_pixels = 0;
 
+	s.quantization = 16;
+	s.gate = 0;
+
 	return s;
 }
 
