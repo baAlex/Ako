@@ -12,8 +12,8 @@ link = clang++-12 -fuse-ld=lld
 cflags = -c -flto -O3 -I./library -Werror -Wall -Wextra -pedantic -Wno-unused-function -Wno-unused-parameter -Wno-unused-variable
 lflags = -flto
 
-#cflags = -c -g -O0 -I./library -Werror -Wall -Wextra -pedantic -Wno-unused-function -Wno-unused-parameter -Wno-unused-variable
-#lflags =
+# cflags = -c -g -O0 -I./library -Werror -Wall -Wextra -pedantic -Wno-unused-function -Wno-unused-parameter -Wno-unused-variable
+# lflags =
 
 
 rule CompileC
@@ -38,6 +38,7 @@ build ./build/library/misc.o:          CompileC ./library/misc.c
 build ./build/library/quantization.o:  CompileC ./library/quantization.c
 build ./build/library/version.o:       CompileC ./library/version.c
 build ./build/library/wavelet-cdf53.o: CompileC ./library/wavelet-cdf53.c
+build ./build/library/wavelet-dd137.o: CompileC ./library/wavelet-dd137.c
 build ./build/library/wavelet-haar.o:  CompileC ./library/wavelet-haar.c
 
 build ./build/tools/thirdparty/lodepng.o: CompileCpp ./tools/thirdparty/lodepng.cpp
@@ -45,6 +46,7 @@ build ./build/tools/akodec.o:             CompileCpp ./tools/akodec.cpp
 build ./build/tools/akoenc.o:             CompileCpp ./tools/akoenc.cpp
 
 build ./build/tests/cdf53-test.o: CompileC ./tests/cdf53-test.c
+build ./build/tests/dd137-test.o: CompileC ./tests/dd137-test.c
 build ./build/tests/elias-test.o: CompileC ./tests/elias-test.c
 
 
@@ -61,6 +63,7 @@ build ./akodec: Link $
  ./build/library/quantization.o     $
  ./build/library/version.o          $
  ./build/library/wavelet-cdf53.o    $
+ ./build/library/wavelet-dd137.o    $
  ./build/library/wavelet-haar.o     $
  ./build/tools/thirdparty/lodepng.o $
  ./build/tools/akodec.o
@@ -78,9 +81,14 @@ build ./akoenc: Link $
  ./build/library/quantization.o     $
  ./build/library/version.o          $
  ./build/library/wavelet-cdf53.o    $
+ ./build/library/wavelet-dd137.o    $
  ./build/library/wavelet-haar.o     $
  ./build/tools/thirdparty/lodepng.o $
  ./build/tools/akoenc.o
+
+build ./dd137-test: Link $
+ ./build/library/wavelet-dd137.o $
+ ./build/tests/dd137-test.o
 
 build ./cdf53-test: Link $
  ./build/library/wavelet-cdf53.o $
