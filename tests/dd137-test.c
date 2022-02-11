@@ -113,7 +113,10 @@ static void sHorizontalTest(size_t len, int16_t q, int16_t callback_data, int16_
 				value = callback(i, value, callback_data);
 
 				if (buffer_c[i] != value)
+				{
 					sHorizontalPrint(sMin(len, PRINT_MAX), 1, "   \t", "\t", buffer_c);
+					printf("Error at offset %zu\n", i);
+				}
 
 				assert(buffer_c[i] == value);
 			}
@@ -204,7 +207,10 @@ static void sVerticalTest(size_t height, int16_t q, int16_t callback_data,
 				value = callback(i, value, callback_data);
 
 				if (buffer_c[i] != value)
+				{
 					sHorizontalPrint(sMin(height, PRINT_MAX), 1, "   \t", "\t", buffer_c);
+					printf("Error at offset %zu\n", i);
+				}
 
 				assert(buffer_c[i] == value);
 			}
@@ -245,7 +251,12 @@ int main()
 	sHorizontalTest(17, 1, 4, sCallbackRandom);
 
 	sHorizontalTest(512, 1, 5, sCallbackRandom);
+	sHorizontalTest(150, 1, 5, sCallbackRandom);
+	sHorizontalTest(300, 1, 5, sCallbackRandom);
+
 	sVerticalTest(512, 1, 5, sCallbackRandom);
+	sVerticalTest(150, 1, 5, sCallbackRandom);
+	sVerticalTest(300, 1, 5, sCallbackRandom);
 
 	return 0;
 }

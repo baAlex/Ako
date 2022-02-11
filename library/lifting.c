@@ -42,7 +42,7 @@ static void sLift2d(int16_t q, enum akoWavelet wavelet, enum akoWrap wrap, size_
 
 		akoHaarLiftV(q, target_w * 2, target_h, aux, lp);
 	}
-	else if (wavelet == AKO_WAVELET_CDF53 || target_w < 4 || target_h < 4)
+	else if (wavelet == AKO_WAVELET_CDF53 || target_w < 8 || target_h < 8)
 	{
 		akoCdf53LiftH(wrap, q, current_h, target_w, fake_last_col, in_stride, lp, aux);
 		if (fake_last_row != 0)
@@ -85,7 +85,7 @@ static void sUnlift2d(int16_t q, enum akoWavelet wavelet, enum akoWrap wrap, siz
 		akoHaarUnliftH(q, current_w, current_h - ignore_last_row, target_w * 2, ignore_last_col, hp_c, hp_d,
 		               lp + target_w);
 	}
-	else if (wavelet == AKO_WAVELET_CDF53 || current_w < 4 || current_h < 4)
+	else if (wavelet == AKO_WAVELET_CDF53 || current_w < 8 || current_h < 8)
 	{
 		akoCdf53InPlaceishUnliftV(wrap, q, current_w, current_h, lp, hp_c, aux, hp_c);
 		akoCdf53InPlaceishUnliftV(wrap, q, current_w, current_h, hp_b, hp_d, hp_b, hp_d);
