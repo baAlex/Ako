@@ -12,8 +12,10 @@ cfiles="./library/compression.c
         ./library/lifting.c
         ./library/misc.c
         ./library/quantization.c
-        ./library/version.c
-        ./library/wavelet-cdf53.c
-        ./library/wavelet-haar.c"
+        ./library/version.c"
 
 clang-tidy-12 $cfiles -- $cflags
+
+clang-tidy-12 -checks=-bugprone-narrowing-conversions "./library/wavelet-dd137.c" -- $cflags
+clang-tidy-12 -checks=-bugprone-narrowing-conversions "./library/wavelet-cdf53.c" -- $cflags
+clang-tidy-12 -checks=-bugprone-narrowing-conversions "./library/wavelet-haar.c" -- $cflags
