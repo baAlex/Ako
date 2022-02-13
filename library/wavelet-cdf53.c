@@ -222,8 +222,8 @@ void akoCdf53LiftV(enum akoWrap wrap, int16_t q, size_t target_w, size_t target_
 }
 
 
-void akoCdf53UnliftH(enum akoWrap wrap, int16_t q, size_t current_w, size_t current_h, size_t out_stride,
-                     size_t ignore_last, const int16_t* in_lp, const int16_t* in_hp, int16_t* out)
+void akoCdf53UnliftH(enum akoWrap wrap, size_t current_w, size_t current_h, size_t out_stride, size_t ignore_last,
+                     const int16_t* in_lp, const int16_t* in_hp, int16_t* out)
 {
 	int16_t even_l1 = 0;
 
@@ -232,7 +232,7 @@ void akoCdf53UnliftH(enum akoWrap wrap, int16_t q, size_t current_w, size_t curr
 		// First values
 		{
 			const size_t c = 0;
-			const int16_t hp = in_hp[(r * current_w) + c] * q;
+			const int16_t hp = in_hp[(r * current_w) + c];
 			const int16_t lp = in_lp[(r * current_w) + c];
 
 			int16_t even;
@@ -240,7 +240,7 @@ void akoCdf53UnliftH(enum akoWrap wrap, int16_t q, size_t current_w, size_t curr
 				even = EVEN(lp, hp, hp);
 			else if (wrap == AKO_WRAP_REPEAT)
 			{
-				const int16_t last_hp = in_hp[(r * current_w) + (current_w - 1)] * q;
+				const int16_t last_hp = in_hp[(r * current_w) + (current_w - 1)];
 				even = EVEN(lp, last_hp, hp);
 			}
 			else
@@ -253,8 +253,8 @@ void akoCdf53UnliftH(enum akoWrap wrap, int16_t q, size_t current_w, size_t curr
 		// Middle values
 		for (size_t c = 1; c < current_w; c++)
 		{
-			const int16_t hp_l1 = in_hp[(r * current_w) + c - 1] * q;
-			const int16_t hp = in_hp[(r * current_w) + c] * q;
+			const int16_t hp_l1 = in_hp[(r * current_w) + c - 1];
+			const int16_t hp = in_hp[(r * current_w) + c];
 			const int16_t lp = in_lp[(r * current_w) + c];
 
 			const int16_t even = EVEN(lp, hp_l1, hp);
@@ -269,7 +269,7 @@ void akoCdf53UnliftH(enum akoWrap wrap, int16_t q, size_t current_w, size_t curr
 		if (ignore_last == 0) // Just even (omit next odd)
 		{
 			const size_t c = current_w;
-			const int16_t hp_l1 = in_hp[(r * current_w) + c - 1] * q;
+			const int16_t hp_l1 = in_hp[(r * current_w) + c - 1];
 
 			int16_t odd;
 			if (wrap == AKO_WRAP_CLAMP)
@@ -288,14 +288,14 @@ void akoCdf53UnliftH(enum akoWrap wrap, int16_t q, size_t current_w, size_t curr
 }
 
 
-void akoCdf53InPlaceishUnliftV(enum akoWrap wrap, int16_t q, size_t current_w, size_t current_h, const int16_t* in_lp,
+void akoCdf53InPlaceishUnliftV(enum akoWrap wrap, size_t current_w, size_t current_h, const int16_t* in_lp,
                                const int16_t* in_hp, int16_t* out_lp, int16_t* out_hp)
 {
 	// First values
 	for (size_t c = 0; c < current_w; c++)
 	{
 		const size_t r = 0;
-		const int16_t hp = in_hp[(current_w * r) + c] * q;
+		const int16_t hp = in_hp[(current_w * r) + c];
 		const int16_t lp = in_lp[(current_w * r) + c];
 
 		int16_t even;
@@ -303,7 +303,7 @@ void akoCdf53InPlaceishUnliftV(enum akoWrap wrap, int16_t q, size_t current_w, s
 			even = EVEN(lp, hp, hp);
 		else if (wrap == AKO_WRAP_REPEAT)
 		{
-			const int16_t last_hp = in_hp[(current_w * (current_h - 1)) + c] * q;
+			const int16_t last_hp = in_hp[(current_w * (current_h - 1)) + c];
 			even = EVEN(lp, last_hp, hp);
 		}
 		else
@@ -319,8 +319,8 @@ void akoCdf53InPlaceishUnliftV(enum akoWrap wrap, int16_t q, size_t current_w, s
 		{
 			const int16_t even_l1 = out_lp[(current_w * (r - 1)) + c];
 
-			const int16_t hp_l1 = in_hp[(current_w * (r - 1)) + c] * q;
-			const int16_t hp = in_hp[(current_w * r) + c] * q;
+			const int16_t hp_l1 = in_hp[(current_w * (r - 1)) + c];
+			const int16_t hp = in_hp[(current_w * r) + c];
 			const int16_t lp = in_lp[(current_w * r) + c];
 
 			const int16_t even = EVEN(lp, hp_l1, hp);
@@ -336,7 +336,7 @@ void akoCdf53InPlaceishUnliftV(enum akoWrap wrap, int16_t q, size_t current_w, s
 	{
 		const size_t r = current_h;
 		const int16_t even_l1 = out_lp[(current_w * (r - 1)) + c];
-		const int16_t hp_l1 = in_hp[(current_w * (r - 1)) + c] * q;
+		const int16_t hp_l1 = in_hp[(current_w * (r - 1)) + c];
 
 		int16_t odd;
 		if (wrap == AKO_WRAP_CLAMP)

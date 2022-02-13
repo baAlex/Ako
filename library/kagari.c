@@ -46,11 +46,13 @@ static inline int sBitsLen(uint16_t v)
 
 static inline int sLeadingZeros(uint32_t v)
 {
-	int len = 0;
-	for (; (v & (1 << 31)) == 0; v <<= 1)
-		len++;
+	return __builtin_clz(v);
 
-	return len;
+	//	int len = 0;
+	//	for (; (v & (1 << 31)) == 0; v <<= 1)
+	//		len++;
+
+	//	return len;
 }
 
 
