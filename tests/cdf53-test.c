@@ -100,7 +100,7 @@ static void sHorizontalTest(size_t len, int16_t q, int16_t callback_data, int16_
 		                 buffer_b + (len + plus_one_rule) / 2);
 
 		// Inverse DWT (buffer b to c)
-		akoCdf53UnliftH(w, 1, (len + plus_one_rule) / 2, 1, 0, plus_one_rule, buffer_b,
+		akoCdf53UnliftH(w, (len + plus_one_rule) / 2, 1, 0, plus_one_rule, buffer_b,
 		                buffer_b + (len + plus_one_rule) / 2, buffer_c);
 		sHorizontalPrint(sMin(len, PRINT_MAX), 1, "   \t", "\t", buffer_c);
 
@@ -176,7 +176,7 @@ static void sVerticalTest(size_t height, int16_t q, int16_t callback_data,
 
 		// Inverse DWT (in place in buffer b, then copied to c)
 		{
-			akoCdf53InPlaceishUnliftV(w, 1, width, height / 2, buffer_b, buffer_b + (width * (height / 2)), buffer_b,
+			akoCdf53InPlaceishUnliftV(w, width, height / 2, buffer_b, buffer_b + (width * (height / 2)), buffer_b,
 			                          buffer_b + (width * (height / 2)));
 
 			size_t i = 0;

@@ -27,6 +27,19 @@ SOFTWARE.
 #include "ako-private.h"
 
 
+static void sInverseQuantization(int16_t q, size_t w, size_t h, int16_t* inout)
+{
+	if (q <= 1)
+		return;
+
+	for (size_t r = 0; r < h; r++)
+	{
+		for (size_t c = 0; c < w; c++)
+			inout[(r * w) + c] = inout[(r * w) + c] * q;
+	}
+}
+
+
 static void sLift2d(int16_t q, enum akoWavelet wavelet, enum akoWrap wrap, size_t in_stride, size_t current_w,
                     size_t current_h, size_t target_w, size_t target_h, int16_t* lp, int16_t* aux)
 {
@@ -73,34 +86,43 @@ static void sUnlift2d(int16_t q, enum akoWavelet wavelet, enum akoWrap wrap, siz
 	int16_t* hp_b = hps + (current_w * current_h) * 1;
 	int16_t* hp_d = hps + (current_w * current_h) * 2;
 
-	if (q <= 0)
-		q = 1;
+	sInverseQuantization(q, current_w, current_h, hp_c);
+	sInverseQuantization(q, current_w, current_h, hp_d);
 
 	if (wavelet == AKO_WAVELET_HAAR)
 	{
-		akoHaarInPlaceishUnliftV(q, current_w, current_h, lp, hp_c, aux, hp_c);
-		akoHaarInPlaceishUnliftV(q, current_w, current_h, hp_b, hp_d, hp_b, hp_d);
+		akoHaarInPlaceishUnliftV(current_w, current_h, lp, hp_c, aux, hp_c);
+		akoHaarInPlaceishUnliftV(current_w, current_h, hp_b, hp_d, hp_b, hp_d);
 
-		akoHaarUnliftH(q, current_w, current_h, target_w * 2, ignore_last_col, aux, hp_b, lp + 0);
-		akoHaarUnliftH(q, current_w, current_h - ignore_last_row, target_w * 2, ignore_last_col, hp_c, hp_d,
+		sInverseQuantization(q, current_w, current_h, hp_b);
+		sInverseQuantization(q, current_w, current_h, hp_d);
+
+		akoHaarUnliftH(current_w, current_h, target_w * 2, ignore_last_col, aux, hp_b, lp + 0);
+		akoHaarUnliftH(current_w, current_h - ignore_last_row, target_w * 2, ignore_last_col, hp_c, hp_d,
 		               lp + target_w);
 	}
 	else if (wavelet == AKO_WAVELET_CDF53 || current_w < 8 || current_h < 8)
 	{
-		akoCdf53InPlaceishUnliftV(wrap, q, current_w, current_h, lp, hp_c, aux, hp_c);
-		akoCdf53InPlaceishUnliftV(wrap, q, current_w, current_h, hp_b, hp_d, hp_b, hp_d);
+		akoCdf53InPlaceishUnliftV(wrap, current_w, current_h, lp, hp_c, aux, hp_c);
+		akoCdf53InPlaceishUnliftV(wrap, current_w, current_h, hp_b, hp_d, hp_b, hp_d);
 
-		akoCdf53UnliftH(wrap, q, current_w, current_h, target_w * 2, ignore_last_col, aux, hp_b, lp + 0);
-		akoCdf53UnliftH(wrap, q, current_w, current_h - ignore_last_row, target_w * 2, ignore_last_col, hp_c, hp_d,
+		sInverseQuantization(q, current_w, current_h, hp_b);
+		sInverseQuantization(q, current_w, current_h, hp_d);
+
+		akoCdf53UnliftH(wrap, current_w, current_h, target_w * 2, ignore_last_col, aux, hp_b, lp + 0);
+		akoCdf53UnliftH(wrap, current_w, current_h - ignore_last_row, target_w * 2, ignore_last_col, hp_c, hp_d,
 		                lp + target_w);
 	}
 	else
 	{
-		akoDd137InPlaceishUnliftV(wrap, q, current_w, current_h, lp, hp_c, aux, hp_c);
-		akoDd137InPlaceishUnliftV(wrap, q, current_w, current_h, hp_b, hp_d, hp_b, hp_d);
+		akoDd137InPlaceishUnliftV(wrap, current_w, current_h, lp, hp_c, aux, hp_c);
+		akoDd137InPlaceishUnliftV(wrap, current_w, current_h, hp_b, hp_d, hp_b, hp_d);
 
-		akoDd137UnliftH(wrap, q, current_w, current_h, target_w * 2, ignore_last_col, aux, hp_b, lp + 0);
-		akoDd137UnliftH(wrap, q, current_w, current_h - ignore_last_row, target_w * 2, ignore_last_col, hp_c, hp_d,
+		sInverseQuantization(q, current_w, current_h, hp_b);
+		sInverseQuantization(q, current_w, current_h, hp_d);
+
+		akoDd137UnliftH(wrap, current_w, current_h, target_w * 2, ignore_last_col, aux, hp_b, lp + 0);
+		akoDd137UnliftH(wrap, current_w, current_h - ignore_last_row, target_w * 2, ignore_last_col, hp_c, hp_d,
 		                lp + target_w);
 	}
 }

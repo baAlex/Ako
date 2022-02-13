@@ -86,15 +86,15 @@ void akoHaarLiftV(int16_t q, size_t target_w, size_t target_h, const int16_t* in
 }
 
 
-void akoHaarUnliftH(int16_t q, size_t current_w, size_t current_h, size_t out_stride, size_t ignore_last,
-                    const int16_t* in_lp, const int16_t* in_hp, int16_t* out)
+void akoHaarUnliftH(size_t current_w, size_t current_h, size_t out_stride, size_t ignore_last, const int16_t* in_lp,
+                    const int16_t* in_hp, int16_t* out)
 {
 	for (size_t r = 0; r < current_h; r++)
 	{
 		for (size_t c = 0; c < (current_w - ignore_last); c++)
 		{
 			const int16_t lp = in_lp[(r * current_w) + c];
-			const int16_t hp = in_hp[(r * current_w) + c] * q;
+			const int16_t hp = in_hp[(r * current_w) + c];
 
 			out[(r * out_stride) + (c * 2 + 0)] = lp;                 // Even
 			out[(r * out_stride) + (c * 2 + 1)] = (int16_t)(lp + hp); // Odd
@@ -111,7 +111,7 @@ void akoHaarUnliftH(int16_t q, size_t current_w, size_t current_h, size_t out_st
 }
 
 
-void akoHaarInPlaceishUnliftV(int16_t q, size_t current_w, size_t current_h, const int16_t* in_lp, const int16_t* in_hp,
+void akoHaarInPlaceishUnliftV(size_t current_w, size_t current_h, const int16_t* in_lp, const int16_t* in_hp,
                               int16_t* out_lp, int16_t* out_hp)
 {
 	for (size_t r = 0; r < current_h; r++)
@@ -119,7 +119,7 @@ void akoHaarInPlaceishUnliftV(int16_t q, size_t current_w, size_t current_h, con
 		for (size_t c = 0; c < current_w; c++)
 		{
 			const int16_t lp = in_lp[(current_w * r) + c];
-			const int16_t hp = in_hp[(current_w * r) + c] * q;
+			const int16_t hp = in_hp[(current_w * r) + c];
 
 			out_lp[(current_w * r) + c] = lp;                 // Even
 			out_hp[(current_w * r) + c] = (int16_t)(lp + hp); // Odd

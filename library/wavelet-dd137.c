@@ -283,8 +283,8 @@ void akoDd137LiftV(enum akoWrap wrap, int16_t q, size_t target_w, size_t target_
 }
 
 
-void akoDd137UnliftH(enum akoWrap wrap, int16_t q, size_t current_w, size_t current_h, size_t out_stride,
-                     size_t ignore_last, const int16_t* in_lp, const int16_t* in_hp, int16_t* out)
+void akoDd137UnliftH(enum akoWrap wrap, size_t current_w, size_t current_h, size_t out_stride, size_t ignore_last,
+                     const int16_t* in_lp, const int16_t* in_hp, int16_t* out)
 {
 	const size_t odd_delay = 2;
 
@@ -294,14 +294,14 @@ void akoDd137UnliftH(enum akoWrap wrap, int16_t q, size_t current_w, size_t curr
 		for (size_t c = 0; c < (odd_delay + 1); c++)
 		{
 			const int16_t lp = in_lp[(r * current_w) + (c)];
-			const int16_t hp = in_hp[(r * current_w) + (c + 0)] * q;
-			const int16_t hp_p1 = in_hp[(r * current_w) + (c + 1)] * q;
+			const int16_t hp = in_hp[(r * current_w) + (c + 0)];
+			const int16_t hp_p1 = in_hp[(r * current_w) + (c + 1)];
 
 			int16_t hp_l1;
-			hp_l1 = (c > 0) ? in_hp[(r * current_w) + (c - 1)] * q : hp; // Clamp
+			hp_l1 = (c > 0) ? in_hp[(r * current_w) + (c - 1)] : hp; // Clamp
 
 			int16_t hp_l2;
-			hp_l2 = (c > 1) ? in_hp[(r * current_w) + (c - 2)] * q : hp_l1; // Clamp
+			hp_l2 = (c > 1) ? in_hp[(r * current_w) + (c - 2)] : hp_l1; // Clamp
 
 			const int16_t even = sEven(lp, hp_l2, hp_l1, hp, hp_p1);
 			out[(r * out_stride) + (c * 2 + 0)] = even;
@@ -309,7 +309,7 @@ void akoDd137UnliftH(enum akoWrap wrap, int16_t q, size_t current_w, size_t curr
 
 		for (size_t c = 0; c < 1; c++)
 		{
-			const int16_t hp = in_hp[(r * current_w) + (c + 0)] * q;
+			const int16_t hp = in_hp[(r * current_w) + (c + 0)];
 			const int16_t even = out[(r * out_stride) + (c * 2 + 0)];
 			const int16_t even_p1 = out[(r * out_stride) + (c * 2 + 2)];
 			const int16_t even_p2 = out[(r * out_stride) + (c * 2 + 4)];
@@ -325,10 +325,10 @@ void akoDd137UnliftH(enum akoWrap wrap, int16_t q, size_t current_w, size_t curr
 		for (size_t c = (odd_delay + 1); c < (current_w - 2); c++)
 		{
 			const int16_t lp = in_lp[(r * current_w) + (c)];
-			const int16_t hp_l2 = in_hp[(r * current_w) + (c - 2)] * q;
-			const int16_t hp_l1 = in_hp[(r * current_w) + (c - 1)] * q;
-			const int16_t hp = in_hp[(r * current_w) + (c + 0)] * q;
-			const int16_t hp_p1 = in_hp[(r * current_w) + (c + 1)] * q;
+			const int16_t hp_l2 = in_hp[(r * current_w) + (c - 2)];
+			const int16_t hp_l1 = in_hp[(r * current_w) + (c - 1)];
+			const int16_t hp = in_hp[(r * current_w) + (c + 0)];
+			const int16_t hp_p1 = in_hp[(r * current_w) + (c + 1)];
 
 			const int16_t even = sEven(lp, hp_l2, hp_l1, hp, hp_p1);
 			out[(r * out_stride) + (c * 2 + 0)] = even;
@@ -337,7 +337,7 @@ void akoDd137UnliftH(enum akoWrap wrap, int16_t q, size_t current_w, size_t curr
 #pragma unroll 16
 		for (size_t c = (odd_delay + 1); c < (current_w - 2); c++)
 		{
-			const int16_t hp = in_hp[(r * current_w) + (c + 0) - odd_delay] * q;
+			const int16_t hp = in_hp[(r * current_w) + (c + 0) - odd_delay];
 			const int16_t even_l1 = out[(r * out_stride) + (c * 2 - 2) - odd_delay * 2];
 			const int16_t even = out[(r * out_stride) + (c * 2 + 0) - odd_delay * 2];
 			const int16_t even_p1 = out[(r * out_stride) + (c * 2 + 2) - odd_delay * 2];
@@ -351,12 +351,12 @@ void akoDd137UnliftH(enum akoWrap wrap, int16_t q, size_t current_w, size_t curr
 		for (size_t c = (current_w - 2); c < current_w; c++)
 		{
 			const int16_t lp = in_lp[(r * current_w) + (c)];
-			const int16_t hp_l2 = in_hp[(r * current_w) + (c - 2)] * q;
-			const int16_t hp_l1 = in_hp[(r * current_w) + (c - 1)] * q;
-			const int16_t hp = in_hp[(r * current_w) + (c + 0)] * q;
+			const int16_t hp_l2 = in_hp[(r * current_w) + (c - 2)];
+			const int16_t hp_l1 = in_hp[(r * current_w) + (c - 1)];
+			const int16_t hp = in_hp[(r * current_w) + (c + 0)];
 
 			int16_t hp_p1;
-			hp_p1 = (c < (current_w - 1)) ? in_hp[(r * current_w) + (c + 1)] * q : hp; // Clamp
+			hp_p1 = (c < (current_w - 1)) ? in_hp[(r * current_w) + (c + 1)] : hp; // Clamp
 
 			const int16_t even = sEven(lp, hp_l2, hp_l1, hp, hp_p1);
 			out[(r * out_stride) + (c * 2 + 0)] = even;
@@ -367,7 +367,7 @@ void akoDd137UnliftH(enum akoWrap wrap, int16_t q, size_t current_w, size_t curr
 			if (c == (current_w - 1) && ignore_last == 1)
 				break;
 
-			const int16_t hp = in_hp[(r * current_w) + (c + 0)] * q;
+			const int16_t hp = in_hp[(r * current_w) + (c + 0)];
 			const int16_t even_l1 = out[(r * out_stride) + (c * 2 - 2)];
 			const int16_t even = out[(r * out_stride) + (c * 2 + 0)];
 
@@ -384,7 +384,7 @@ void akoDd137UnliftH(enum akoWrap wrap, int16_t q, size_t current_w, size_t curr
 }
 
 
-void akoDd137InPlaceishUnliftV(enum akoWrap wrap, int16_t q, size_t current_w, size_t current_h, const int16_t* in_lp,
+void akoDd137InPlaceishUnliftV(enum akoWrap wrap, size_t current_w, size_t current_h, const int16_t* in_lp,
                                const int16_t* in_hp, int16_t* out_lp, int16_t* out_hp)
 {
 	const size_t odd_delay = 2;
@@ -395,14 +395,14 @@ void akoDd137InPlaceishUnliftV(enum akoWrap wrap, int16_t q, size_t current_w, s
 		for (size_t c = 0; c < current_w; c++)
 		{
 			const int16_t lp = in_lp[(r + 0) * current_w + c];
-			const int16_t hp = in_hp[(r + 0) * current_w + c] * q;
-			const int16_t hp_p1 = in_hp[(r + 1) * current_w + c] * q;
+			const int16_t hp = in_hp[(r + 0) * current_w + c];
+			const int16_t hp_p1 = in_hp[(r + 1) * current_w + c];
 
 			int16_t hp_l1;
-			hp_l1 = (r > 0) ? in_hp[(r - 1) * current_w + c] * q : hp; // Clamp
+			hp_l1 = (r > 0) ? in_hp[(r - 1) * current_w + c] : hp; // Clamp
 
 			int16_t hp_l2;
-			hp_l2 = (r > 1) ? in_hp[(r - 2) * current_w + c] * q : hp_l1; // Clamp
+			hp_l2 = (r > 1) ? in_hp[(r - 2) * current_w + c] : hp_l1; // Clamp
 
 			const int16_t even = sEven(lp, hp_l2, hp_l1, hp, hp_p1);
 			out_lp[(r * current_w) + c] = even;
@@ -413,7 +413,7 @@ void akoDd137InPlaceishUnliftV(enum akoWrap wrap, int16_t q, size_t current_w, s
 	{
 		for (size_t c = 0; c < current_w; c++)
 		{
-			const int16_t hp = in_hp[(r + 0) * current_w + c] * q;
+			const int16_t hp = in_hp[(r + 0) * current_w + c];
 			const int16_t even = out_lp[((r + 0) * current_w) + c];
 			const int16_t even_p1 = out_lp[((r + 1) * current_w) + c];
 			const int16_t even_p2 = out_lp[((r + 2) * current_w) + c];
@@ -432,10 +432,10 @@ void akoDd137InPlaceishUnliftV(enum akoWrap wrap, int16_t q, size_t current_w, s
 		for (size_t c = 0; c < current_w; c++)
 		{
 			const int16_t lp = in_lp[(r + 0) * current_w + c];
-			const int16_t hp_l2 = in_hp[(r - 2) * current_w + c] * q;
-			const int16_t hp_l1 = in_hp[(r - 1) * current_w + c] * q;
-			const int16_t hp = in_hp[(r + 0) * current_w + c] * q;
-			const int16_t hp_p1 = in_hp[(r + 1) * current_w + c] * q;
+			const int16_t hp_l2 = in_hp[(r - 2) * current_w + c];
+			const int16_t hp_l1 = in_hp[(r - 1) * current_w + c];
+			const int16_t hp = in_hp[(r + 0) * current_w + c];
+			const int16_t hp_p1 = in_hp[(r + 1) * current_w + c];
 
 			const int16_t even = sEven(lp, hp_l2, hp_l1, hp, hp_p1);
 			out_lp[(r * current_w) + c] = even;
@@ -444,7 +444,7 @@ void akoDd137InPlaceishUnliftV(enum akoWrap wrap, int16_t q, size_t current_w, s
 #pragma unroll 16
 		for (size_t c = 0; c < current_w; c++)
 		{
-			const int16_t hp = in_hp[(r + 0 - odd_delay) * current_w + c] * q;
+			const int16_t hp = in_hp[(r + 0 - odd_delay) * current_w + c];
 			const int16_t even_l1 = out_lp[(r - 1 - odd_delay) * current_w + c];
 			const int16_t even = out_lp[((r + 0 - odd_delay) * current_w) + c];
 			const int16_t even_p1 = out_lp[((r + 1 - odd_delay) * current_w) + c];
@@ -461,12 +461,12 @@ void akoDd137InPlaceishUnliftV(enum akoWrap wrap, int16_t q, size_t current_w, s
 		for (size_t c = 0; c < current_w; c++)
 		{
 			const int16_t lp = in_lp[(r + 0) * current_w + c];
-			const int16_t hp_l2 = in_hp[(r - 2) * current_w + c] * q;
-			const int16_t hp_l1 = in_hp[(r - 1) * current_w + c] * q;
-			const int16_t hp = in_hp[(r + 0) * current_w + c] * q;
+			const int16_t hp_l2 = in_hp[(r - 2) * current_w + c];
+			const int16_t hp_l1 = in_hp[(r - 1) * current_w + c];
+			const int16_t hp = in_hp[(r + 0) * current_w + c];
 
 			int16_t hp_p1;
-			hp_p1 = (r < (current_h - 1)) ? in_hp[(r + 1) * current_w + c] * q : hp; // Clamp
+			hp_p1 = (r < (current_h - 1)) ? in_hp[(r + 1) * current_w + c] : hp; // Clamp
 
 			const int16_t even = sEven(lp, hp_l2, hp_l1, hp, hp_p1);
 			out_lp[(r * current_w) + c] = even;
@@ -477,7 +477,7 @@ void akoDd137InPlaceishUnliftV(enum akoWrap wrap, int16_t q, size_t current_w, s
 	{
 		for (size_t c = 0; c < current_w; c++)
 		{
-			const int16_t hp = in_hp[(r + 0) * current_w + c] * q;
+			const int16_t hp = in_hp[(r + 0) * current_w + c];
 			const int16_t even_l1 = out_lp[(r - 1) * current_w + c];
 			const int16_t even = out_lp[((r + 0) * current_w) + c];
 
