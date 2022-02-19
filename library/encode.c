@@ -48,12 +48,19 @@ AKO_EXPORT size_t akoEncodeExt(const struct akoCallbacks* c, const struct akoSet
 
 	// Check callbacks, settings and input
 	const struct akoCallbacks checked_c = (c != NULL) ? *c : akoDefaultCallbacks();
-	const struct akoSettings checked_s = (s != NULL) ? *s : akoDefaultSettings();
+	struct akoSettings checked_s = (s != NULL) ? *s : akoDefaultSettings();
 
 	if (checked_c.malloc == NULL || checked_c.realloc == NULL || checked_c.free == NULL)
 	{
 		status = AKO_INVALID_CALLBACKS;
 		goto return_failure;
+	}
+
+	{
+		if (checked_s.color == AKO_COLOR_YCOCG && (checked_s.quantization > 0 || checked_s.gate > 0))
+			checked_s.color = AKO_COLOR_YCOCG_Q;
+		else if (checked_s.color == AKO_COLOR_YCOCG_Q && (checked_s.quantization <= 0 && checked_s.gate <= 0))
+			checked_s.color = AKO_COLOR_YCOCG;
 	}
 
 	if (in == NULL)

@@ -35,12 +35,12 @@ static inline void sDeinterleave(int discard_transparent_pixels, size_t channels
 		for (; in < in_end; in += in_stride, out += width)
 			for (size_t col = 0; col < width; col++)
 			{
-				out[out_plane * (channels - 1) + col] = (int16_t)(in[col * channels + (channels - 1)]);
+				out[out_plane * (channels - 1) + col] = in[col * channels + (channels - 1)];
 
 				if (in[col * channels + (channels - 1)] != 0)
 				{
 					for (size_t ch = 0; ch < (channels - 1); ch++)
-						out[out_plane * ch + col] = (int16_t)(in[col * channels + ch]);
+						out[out_plane * ch + col] = in[col * channels + ch];
 				}
 				else
 				{
@@ -55,7 +55,7 @@ static inline void sDeinterleave(int discard_transparent_pixels, size_t channels
 			for (size_t col = 0; col < width; col++)
 			{
 				for (size_t ch = 0; ch < channels; ch++)
-					out[out_plane * ch + col] = (int16_t)(in[col * channels + ch]);
+					out[out_plane * ch + col] = in[col * channels + ch];
 			}
 	}
 }
@@ -98,12 +98,13 @@ void akoFormatToPlanarI16Yuv(int discard_transparent_pixels, enum akoColor color
 				const int16_t g = out[out_plane * 1 + c];
 				const int16_t b = out[out_plane * 2 + c];
 
-				out[out_plane * 0 + c] = (int16_t)((r >> 2) + (g >> 1) + (b >> 2));
-				out[out_plane * 1 + c] = (int16_t)((r >> 1) - (b >> 1));
-				out[out_plane * 2 + c] = (int16_t)(-(r >> 2) + (g >> 1) - (b >> 2));
+				out[out_plane * 1 + c] = (int16_t)(r - b);
+				const int16_t temp = (int16_t)(b + ((r - b) / 2));
+				out[out_plane * 2 + c] = (int16_t)(g - temp);
+				out[out_plane * 0 + c] = (int16_t)(temp + ((g - temp) / 2));
 			}
 		}
-		else if (color == AKO_COLOR_YCOCG_R)
+		else if (color == AKO_COLOR_YCOCG_Q)
 		{
 			for (size_t c = 0; c < (width * height); c++)
 			{
@@ -111,10 +112,10 @@ void akoFormatToPlanarI16Yuv(int discard_transparent_pixels, enum akoColor color
 				const int16_t g = out[out_plane * 1 + c];
 				const int16_t b = out[out_plane * 2 + c];
 
-				out[out_plane * 1 + c] = (int16_t)(r - b);
-				const int16_t temp = (int16_t)(b + ((r - b) >> 1));
-				out[out_plane * 2 + c] = (int16_t)(g - temp);
-				out[out_plane * 0 + c] = (int16_t)(temp + ((g - temp) >> 1));
+				out[out_plane * 1 + c] = (int16_t)((r - b) / 2);
+				const int16_t temp = (int16_t)(b + ((r - b) / 2));
+				out[out_plane * 2 + c] = (int16_t)((g - temp) / 2);
+				out[out_plane * 0 + c] = (int16_t)((temp + ((g - temp) / 2)) * 2);
 			}
 		}
 		else if (color == AKO_COLOR_SUBTRACT_G)
@@ -143,9 +144,10 @@ static inline void sYCoCgToRgb(size_t channels, size_t width, size_t height, siz
 		const int16_t u = in[in_plane * 1 + c];
 		const int16_t v = in[in_plane * 2 + c];
 
-		const int16_t r = (int16_t)(y + u - v);
-		const int16_t g = (int16_t)(y + v);
-		const int16_t b = (int16_t)(y - u - v);
+		const int16_t temp = (int16_t)(y - (v / 2));
+		const int16_t g = (int16_t)(v + temp);
+		const int16_t b = (int16_t)(temp - (u / 2));
+		const int16_t r = (int16_t)(b + u);
 
 		// Saturate
 		in[in_plane * 0 + c] = (int16_t)((r > 0) ? (r < 255) ? r : 255 : 0);
@@ -162,17 +164,17 @@ static inline void sYCoCgToRgb(size_t channels, size_t width, size_t height, siz
 }
 
 
-static inline void sYCoCgRToRgb(size_t channels, size_t width, size_t height, size_t in_plane, int16_t* in)
+static inline void sYCoCgQToRgb(size_t channels, size_t width, size_t height, size_t in_plane, int16_t* in)
 {
 	for (size_t c = 0; c < (width * height); c++)
 	{
-		const int16_t y = in[in_plane * 0 + c];
-		const int16_t u = in[in_plane * 1 + c];
-		const int16_t v = in[in_plane * 2 + c];
+		const int16_t y = (int16_t)(in[in_plane * 0 + c] / 2);
+		const int16_t u = (int16_t)(in[in_plane * 1 + c] * 2);
+		const int16_t v = (int16_t)(in[in_plane * 2 + c] * 2);
 
-		const int16_t temp = (int16_t)(y - (v >> 1));
+		const int16_t temp = (int16_t)(y - (v / 2));
 		const int16_t g = (int16_t)(v + temp);
-		const int16_t b = (int16_t)(temp - (u >> 1));
+		const int16_t b = (int16_t)(temp - (u / 2));
 		const int16_t r = (int16_t)(b + u);
 
 		// Saturate
@@ -256,14 +258,14 @@ void akoFormatToInterleavedU8Rgb(enum akoColor color, size_t channels, size_t wi
 			else
 				sYCoCgToRgb(channels, width, height, in_plane, in);
 		}
-		else if (color == AKO_COLOR_YCOCG_R && channels >= 3)
+		else if (color == AKO_COLOR_YCOCG_Q && channels >= 3)
 		{
 			if (channels == 3)
-				sYCoCgRToRgb(3, width, height, in_plane, in);
+				sYCoCgQToRgb(3, width, height, in_plane, in);
 			else if (channels == 4)
-				sYCoCgRToRgb(4, width, height, in_plane, in);
+				sYCoCgQToRgb(4, width, height, in_plane, in);
 			else
-				sYCoCgRToRgb(channels, width, height, in_plane, in);
+				sYCoCgQToRgb(channels, width, height, in_plane, in);
 		}
 		else if (color == AKO_COLOR_SUBTRACT_G && channels >= 3)
 		{

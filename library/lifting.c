@@ -131,13 +131,12 @@ static void sUnlift2d(int16_t q, enum akoWavelet wavelet, enum akoWrap wrap, siz
 //
 
 
-static inline void s2dMemcpy(int discard_chroma, int16_t g, size_t w, size_t h, size_t in_stride, const int16_t* in,
-                             int16_t* out)
+static inline void s2dMemcpy(int16_t g, size_t w, size_t h, size_t in_stride, const int16_t* in, int16_t* out)
 {
 	for (size_t r = 0; r < h; r++)
 	{
 		for (size_t c = 0; c < w; c++)
-			out[c] = (discard_chroma == 0 && (in[c] < -g || in[c] > +g)) ? in[c] : 0;
+			out[c] = (in[c] < -g || in[c] > +g) ? in[c] : 0;
 
 		in += in_stride;
 		out += w;
@@ -172,8 +171,6 @@ void akoLift(size_t tile_no, const struct akoSettings* s, size_t channels, size_
 			AKO_DEV_PRINTF("E\t%zux%zu -> %zux%zu (%li, %li)\n", current_w, current_h, target_w, target_h,
 			               (target_w * 2 - current_w), (target_h * 2 - current_h));
 		}
-
-		const int discard_chroma = /*((target_w * 2) >= tile_w) ? 1 :*/ 0;
 
 		// Iterate in Vuy order
 		for (size_t ch = (channels - 1); ch < channels; ch--) // Yes, underflows
@@ -218,15 +215,15 @@ void akoLift(size_t tile_no, const struct akoSettings* s, size_t channels, size_
 			// 2. Write coefficients
 			out -= (target_w * target_h) * sizeof(int16_t) * 3; // Three highpasses...
 
-			s2dMemcpy((ch != 0 && discard_chroma == 1), g, target_w, target_h, (target_w * 2),
+			s2dMemcpy(g, target_w, target_h, (target_w * 2),
 			          lp + target_w * target_h * 2,               //
 			          (int16_t*)out + (target_w * target_h) * 0); // C
 
-			s2dMemcpy((ch != 0 && discard_chroma == 1), g, target_w, target_h, (target_w * 2),
+			s2dMemcpy(g, target_w, target_h, (target_w * 2),
 			          lp + target_w,                              //
 			          (int16_t*)out + (target_w * target_h) * 1); // B
 
-			s2dMemcpy((ch != 0 && discard_chroma == 1), g, target_w, target_h, (target_w * 2),
+			s2dMemcpy(g, target_w, target_h, (target_w * 2),
 			          lp + target_w + target_h * (target_w * 2),  //
 			          (int16_t*)out + (target_w * target_h) * 2); // D
 
@@ -256,7 +253,7 @@ void akoLift(size_t tile_no, const struct akoSettings* s, size_t channels, size_
 		out -= (target_w * target_h) * sizeof(int16_t); // ... And one lowpass
 
 		int16_t* lp = in + (tile_w * tile_h + planes_space) * ch;
-		s2dMemcpy(0, 0, target_w, target_h, (target_w * 2), lp, (int16_t*)out); // LP
+		s2dMemcpy(0, target_w, target_h, (target_w * 2), lp, (int16_t*)out); // LP
 
 		// Developers, developers, developers
 		if (tile_no == 0 && ch == 0)
