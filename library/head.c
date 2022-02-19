@@ -52,8 +52,8 @@ static inline enum akoStatus sValidate(size_t channels, size_t width, size_t hei
 	    wavelet != AKO_WAVELET_NONE)
 		return AKO_INVALID_WAVELET_TRANSFORMATION;
 
-	if (color != AKO_COLOR_YCOCG && color != AKO_COLOR_YCOCG_R && color != AKO_COLOR_SUBTRACT_G &&
-	    color != AKO_COLOR_RGB)
+	if (color != AKO_COLOR_YCOCG && color != AKO_COLOR_YCOCG_Q && color != AKO_COLOR_SUBTRACT_G &&
+	    color != AKO_COLOR_NONE)
 		return AKO_INVALID_COLOR_TRANSFORMATION;
 
 	if (compression != AKO_COMPRESSION_ELIAS_RLE && compression != AKO_COMPRESSION_NONE)

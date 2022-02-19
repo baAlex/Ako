@@ -58,9 +58,10 @@ enum akoWavelet // Wavelet transformation
 enum akoColor // Color transformation
 {
 	AKO_COLOR_YCOCG = 0,
-	AKO_COLOR_YCOCG_R,
 	AKO_COLOR_SUBTRACT_G,
-	AKO_COLOR_RGB,
+	AKO_COLOR_NONE,
+
+	AKO_COLOR_YCOCG_Q, // Internal
 };
 
 enum akoCompression // Compression method

@@ -174,12 +174,10 @@ void AkoEnc(const vector<string>& args)
 		{
 			if (*it == "ycocg" || *it == "0")
 				settings.color = AKO_COLOR_YCOCG;
-			else if (*it == "ycocg-r" || *it == "1")
-				settings.color = AKO_COLOR_YCOCG_R;
-			else if (*it == "subtract-g" || *it == "2")
+			else if (*it == "subtract-g" || *it == "1")
 				settings.color = AKO_COLOR_SUBTRACT_G;
-			else if (*it == "rgb" || *it == "3")
-				settings.color = AKO_COLOR_RGB;
+			else if (*it == "none" || *it == "2")
+				settings.color = AKO_COLOR_NONE;
 			else
 				throw Shared::Error("Unknown color transformation'" + *it + "'");
 		}
