@@ -112,9 +112,9 @@ void akoFormatToPlanarI16Yuv(int discard_transparent_pixels, enum akoColor color
 				const int16_t g = out[out_plane * 1 + c];
 				const int16_t b = out[out_plane * 2 + c];
 
-				out[out_plane * 1 + c] = (int16_t)((r - b) / 2);
+				out[out_plane * 1 + c] = (int16_t)(r - b);
 				const int16_t temp = (int16_t)(b + ((r - b) / 2));
-				out[out_plane * 2 + c] = (int16_t)((g - temp) / 2);
+				out[out_plane * 2 + c] = (int16_t)(g - temp);
 				out[out_plane * 0 + c] = (int16_t)((temp + ((g - temp) / 2)) * 2);
 			}
 		}
@@ -169,8 +169,8 @@ static inline void sYCoCgQToRgb(size_t channels, size_t width, size_t height, si
 	for (size_t c = 0; c < (width * height); c++)
 	{
 		const int16_t y = (int16_t)(in[in_plane * 0 + c] / 2);
-		const int16_t u = (int16_t)(in[in_plane * 1 + c] * 2);
-		const int16_t v = (int16_t)(in[in_plane * 2 + c] * 2);
+		const int16_t u = in[in_plane * 1 + c];
+		const int16_t v = in[in_plane * 2 + c];
 
 		const int16_t temp = (int16_t)(y - (v / 2));
 		const int16_t g = (int16_t)(v + temp);

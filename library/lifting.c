@@ -162,9 +162,6 @@ void akoLift(size_t tile_no, const struct akoSettings* s, size_t channels, size_
 		target_w = akoDividePlusOneRule(target_w);
 		target_h = akoDividePlusOneRule(target_h);
 
-		const int16_t q = akoQuantization(s->quantization, tile_w, tile_h, current_w, current_h);
-		const int16_t g = akoGate(s->gate, tile_w, tile_h, current_w, current_h);
-
 		// Developers, developers, developers
 		if (tile_no == 0)
 		{
@@ -175,6 +172,11 @@ void akoLift(size_t tile_no, const struct akoSettings* s, size_t channels, size_
 		// Iterate in Vuy order
 		for (size_t ch = (channels - 1); ch < channels; ch--) // Yes, underflows
 		{
+			const int16_t q =
+			    akoQuantization(s->quantization * ((ch == 0) ? 1 : 2), tile_w, tile_h, current_w, current_h);
+
+			const int16_t g = akoGate(s->gate * ((ch == 0) ? 1 : 2), tile_w, tile_h, current_w, current_h);
+
 			// 1. Lift
 			int16_t* lp = in + (tile_w * tile_h + planes_space) * ch;
 
