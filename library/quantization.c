@@ -27,27 +27,39 @@ SOFTWARE.
 #include "ako-private.h"
 
 
-#define POWER 1.0F
-#define SCALE 256.0F
+#define HIGHS_FIRST
+
+
+#ifndef HIGHS_FIRST
+#define SCALE 512.0F
+#else
+#define SCALE (512.0F * 0.73F)
+#define HIGHS 6.0F
+//#define SCALE (512.0F * 0.62F)
+//#define HIGHS 8.0F
+#endif
 
 
 static float sExponential(float factor, float tile_w, float tile_h, float current_w, float current_h)
 {
-	(void)tile_w;
-	(void)tile_h;
-
-	// const float area0 = __builtin_sqrtf(tile_w * tile_h);
+	const float area0 = __builtin_sqrtf(tile_w * tile_h);
 	const float area = __builtin_sqrtf(current_w * current_h);
-
-	// const float total_lifts = __builtin_log2f(area0) - 1.0F;
+	const float total_lifts = __builtin_log2f(area0) - 1.0F;
 	const float current_lift = __builtin_log2f(area) - 1.0F;
 
-	const float exp = __builtin_powf(2.0F, (current_lift - 1.0F));
+#ifdef HIGHS_FIRST
+	const float linear = (current_lift / total_lifts);
+	const float degrade_highs = __builtin_powf(linear + 1.0F, HIGHS) / __builtin_powf(2.0F, HIGHS);
+	// const float degrade_highs_h = __builtin_powf(linear + 1.0F, HIGHS / 2.0F) / __builtin_powf(2.0F, HIGHS / 2.0F);
+	// AKO_DEV_PRINTF("%.2f, %.2f, %.2f\n", linear, degrade_highs_h, degrade_highs);
+#else
+	const float degrade_highs = 1.0F;
+#endif
 
-	const float final = exp * (factor / (__builtin_powf(2.0F, POWER) * SCALE));
-	// final = __builtin_roundf(__builtin_powf(final, POWER));
+	const float log = __builtin_powf(2.0F, (current_lift - 1.0F)) * degrade_highs;
+	const float final = __builtin_roundf(log * (factor / SCALE));
 
-	// AKO_DEV_PRINTF("\t%.2f / %.2f -> %.2f -> %.2f\n", current_lift, total_lifts, exp, final);
+	// AKO_DEV_PRINTF("\t%.2f / %.2f -> %.2f -> %.2f\n", current_lift, total_lifts, log, final);
 	return final;
 }
 
