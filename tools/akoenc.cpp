@@ -28,12 +28,55 @@ SOFTWARE.
 using namespace std;
 
 
-const char* version_string = "version_string"; // TODO: Add thanks to Lode Vandevenne (LodePng)
-const char* help_string = "help_string";
-
-#define TOOL_VERSION_MAJOR 0
-#define TOOL_VERSION_MINOR 2
-#define TOOL_VERSION_PATCH 0
+// clang-format off
+const char* help_string = ""
+"USAGE\n"
+"    akoenc [optional options] -i <input filename> -o <output filename>\n"
+"    akoenc [optional options] -i <input filename>\n"
+"\n    Only PNG files supported as input.\n"
+"\nINFORMATION OPTIONS\n"
+"-v --version\n    Print program version and license terms.\n"
+"\n-h, --help\n    Print this help.\n"
+"\n-verbose, --verbose\n    Print all available information while encoding.\n"
+"\nENCODING OPTIONS\n"
+"-q, --quantization\n"
+"    Controls loss in the final image and in turn, compression gains.\n"
+"    Achieves it by reducing accuracy of wavelet coefficients according\n"
+"    to the provided value. Default and recommended loss method. Set it \n"
+"    to zero for lossless compression.\n"
+"\n    Default value: 16\n"
+"\n-g, --noise-gate\n"
+"    Loss method similar to '--quantization', however it removes wavelet\n"
+"    coefficients. Provided value sets a threshold. Set it to zero for\n"
+"    lossless compression.\n"
+"\n    Default value: 0\n"
+"\n-w, --wavelet\n"
+"    Wavelet transformation to apply. Options are: DD137, CDF53, HAAR\n"
+"    and NONE. For lossy compression DD137 provides better results, for\n"
+"    lossless CDF53.\n"
+"\n    Default value: DD137\n"
+"\n-c, --color\n"
+"    Color transformation to apply. Options are: YCOCG, SUBTRACT-G and\n"
+"    NONE. All options serve both lossy and lossless compression.\n"
+"\n    Default value: YCOCG\n"
+"\n-wr, --wrap (incomplete feature)\n"
+"    Controls how loss wrap around image borders. Options are: CLAMP,\n"
+"    MIRROR, REPEAT and ZERO; all them analog to texture-wrapping\n"
+"    options in OpenGL. Two common choices are CLAMP that perform no\n"
+"    wrap, and REPEAT for images intended to serve as tiled textures.\n"
+"\n    Default value: CLAMP\n"
+"\n-d, --discard-transparent-pixels\n"
+"    Set pixels under transparent areas to zero. For lossless compression,\n"
+"    do not set this option.\n"
+"\n    Default value: not set\n"
+"\nEXTRA TOOLS\n"
+"-ch, --checksum\n"
+"-b, --benchmark\n"
+"\nEXPERIMENTAL\n"
+"-dev-n, --dev-no-compression\n"
+"-dev-t, --dev-tiles (expect crashes)"
+"";
+// clang-format on
 
 
 class PngImage
@@ -126,7 +169,13 @@ void AkoEnc(const vector<string>& args)
 	{
 		if (Shared::CheckArgumentSingle("-v", "--version", it) == 0)
 		{
-			cout << version_string << endl;
+			printf("Ako encoding tool v%i.%i.%i\n", TOOLS_VERSION_MAJOR, TOOLS_VERSION_MINOR, TOOLS_VERSION_PATCH);
+			printf(" - libako v%i.%i.%i, format %i\n", akoVersionMajor(), akoVersionMinor(), akoVersionPatch(),
+			       akoFormatVersion());
+			printf(" - lodepng %s\n", LODEPNG_VERSION_STRING);
+			printf("\n");
+			printf("Copyright (c) 2021-2022 Alexander Brandt. Under MIT License.\n");
+			printf("More information at 'https://github.com/baAlex/Ako'\n");
 			return;
 		}
 		else if (Shared::CheckArgumentSingle("-h", "--help", it) == 0)
@@ -148,37 +197,37 @@ void AkoEnc(const vector<string>& args)
 			settings.compression = AKO_COMPRESSION_NONE;
 		else if (Shared::CheckArgumentPair("-wr", "--wrap", it, it_end) == 0)
 		{
-			if (*it == "clamp" || *it == "0")
+			if (*it == "clamp" || *it == "CLAMP" || *it == "0")
 				settings.wrap = AKO_WRAP_CLAMP;
-			else if (*it == "mirror" || *it == "1")
+			else if (*it == "mirror" || *it == "MIRROR" || *it == "1")
 				settings.wrap = AKO_WRAP_MIRROR;
-			else if (*it == "repeat" || *it == "2")
+			else if (*it == "repeat" || *it == "REPEAT" || *it == "2")
 				settings.wrap = AKO_WRAP_REPEAT;
-			else if (*it == "zero" || *it == "3")
+			else if (*it == "zero" || *it == "ZERO" || *it == "3")
 				settings.wrap = AKO_WRAP_ZERO;
 			else
 				throw Shared::Error("Unknown wrap mode '" + *it + "'");
 		}
 		else if (Shared::CheckArgumentPair("-w", "--wavelet", it, it_end) == 0)
 		{
-			if (*it == "dd137" || *it == "0")
+			if (*it == "dd137" || *it == "DD137" || *it == "0")
 				settings.wavelet = AKO_WAVELET_DD137;
-			else if (*it == "cdf53" || *it == "1")
+			else if (*it == "cdf53" || *it == "CDF53" || *it == "1")
 				settings.wavelet = AKO_WAVELET_CDF53;
-			else if (*it == "haar" || *it == "2")
+			else if (*it == "haar" || *it == "HAAR" || *it == "2")
 				settings.wavelet = AKO_WAVELET_HAAR;
-			else if (*it == "none" || *it == "3")
+			else if (*it == "none" || *it == "NONE" || *it == "3")
 				settings.wavelet = AKO_WAVELET_NONE;
 			else
 				throw Shared::Error("Unknown wavelet transformation '" + *it + "'");
 		}
 		else if (Shared::CheckArgumentPair("-c", "--color", it, it_end) == 0)
 		{
-			if (*it == "ycocg" || *it == "0")
+			if (*it == "ycocg" || *it == "YCOCG" || *it == "0")
 				settings.color = AKO_COLOR_YCOCG;
-			else if (*it == "subtract-g" || *it == "1")
+			else if (*it == "subtract-g" || *it == "SUBTRACT-G" || *it == "1")
 				settings.color = AKO_COLOR_SUBTRACT_G;
-			else if (*it == "none" || *it == "2")
+			else if (*it == "none" || *it == "NONE" || *it == "2")
 				settings.color = AKO_COLOR_NONE;
 			else
 				throw Shared::Error("Unknown color transformation'" + *it + "'");
@@ -189,11 +238,11 @@ void AkoEnc(const vector<string>& args)
 			settings.quantization = stoi(*it);
 		else if (Shared::CheckArgumentPair("-g", "--gate", it, it_end) == 0)
 			settings.gate = stoi(*it);
-		else if (Shared::CheckArgumentPair("-d", "--discard-transparent-pixels", it, it_end) == 0) // :)
+		else if (Shared::CheckArgumentPair("-d", "--discard-transparent-pixels", it, it_end) == 0)
 		{
-			if (*it == "1" || *it == "true" || *it == "yes" || *it == "yup" || *it == "si")
+			if (*it == "1" || *it == "true" || *it == "yes")
 				settings.discard_transparent_pixels = 1;
-			else if (*it == "0" || *it == "false" || *it == "no" || *it == "nop")
+			else if (*it == "0" || *it == "false" || *it == "no")
 				settings.discard_transparent_pixels = 0;
 			else
 				throw Shared::Error("Unknown boolean value '" + *it + "' for discard-transparent-pixels argument");

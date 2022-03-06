@@ -7,8 +7,7 @@ Lossy image codec using discrete wavelet transform.
 It supports/implements:
 - Deslauriers-Dubuc 13/7 wavelet.
 - Configurable quality loss ([examples](#examples) below).
-- 8 bits per component.
-- Up to 16 channels.
+- 8 bits per component. 4 channels.
 - Reversible YCoCg color transformation.
 - Elias coding + Rle compression. Nonetheless the codec can handle ratios of 1:10 before artifacts became visible.
 - Good performance. There is care on cache and memory usage.
@@ -43,7 +42,7 @@ Two executables: `akoenc` and `akodec` will let you try the codec. Run them whit
 akoenc -q 16 -i "input.png" -o "out.ako"
 ```
 - Where `-q 16` is the quantization step that controls loss.
-- There is also a noise gate, with `-n 16`, it can be used as a denoiser to help with compression. It is possible to use both, or disable either one with a value of zero.
+- There is also a noise gate, with `-g 16`, it can be used as a denoiser to help with compression. It is possible to use both, or disable either one with a value of zero.
 
 
 Examples
@@ -58,6 +57,8 @@ Note how fine details are discarded while sharp lines and overall shapes remain 
 References
 ----------
 
+At the end of the day this is a toy-project, it's me having fun while learning how image codecs work. So, my thanks to following authors:
+
 - **ADAMS, Michael David (2002)**. Reversible Integer-to-integer Wavelet Transforms For Image Coding. University of British Columbia.
 - **ARNTZEN, Hans-Kristian (2014)**. Linelet, an Ultra-Low Complexity, Ultra-Low Latency Video Codec for Adaptation of HD-SDI to Ethernet. Norwegian University of Science and Technology Department of Electronics and Telecommunications.
 - **CHRISTOPOULOS, Charilaos, SKODRAS, Athanassios & EBRAHIMI, Touradj (2000)**. The JPEG2000 Still Image Coding System: An Overview. IEEE Transactions on Consumer Electronics, Vol. 46, No. 4, pp. 1103-1127.
@@ -66,7 +67,7 @@ References
 - **KIELY, A., KLIMESH, M. (2003)**. The ICER Progressive Wavelet Image Compressor. IPN Progress Report 42-155.
 - ? (2008 September 23). **Dirac Specification Version 2.2.3**.
 
-In the early days of the project, when terms like "lift" and "dyadic" were incredible obscure to me, hardware oriented papers gave me an invaluable help:
+And in the early days of the project, when terms like "lift" and "dyadic" were incredible obscure, hardware oriented papers gave me an invaluable help:
 
 - **AL-AZAWI, Saad, ABBAS, Yasir Amer & JIDIN, Razali. (2014)**. Low Complexity Multidimensional CDF 5/3 DWT Architecture. 9th International Symposium on Communication Systems, Networks & Digital Sign (CSNDSP).
 - **ANGELOPOULOU, Maria, CHEUNG, Peter, MASSELOS, Konstantinos & ANDREOPOULOS, Yiannis (2008)**. Implementation and Comparison of the 5/3 Lifting 2D Discrete Wavelet Transform Computation Schedules on FPGAs. Journal of VLSI Signal Processing. pp. 3-21.

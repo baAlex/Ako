@@ -1,7 +1,7 @@
 
 
-#ifndef MODERN_APP_CPP
-#define MODERN_APP_CPP
+#ifndef SHARED_HPP
+#define SHARED_HPP
 
 #include <chrono>
 #include <fstream>
