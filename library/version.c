@@ -1,4 +1,4 @@
-/*-----------------------------
+/*
 
 MIT License
 
@@ -21,35 +21,31 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
--------------------------------
-
- [version.c]
- - Alexander Brandt 2021
------------------------------*/
-
-#include "ako.h"
+*/
 
 
-int AkoVersionMajor()
+#include "ako-private.h"
+
+
+AKO_EXPORT int akoVersionMajor()
 {
-	return 0;
+	return AKO_VERSION_MAJOR;
 }
 
 
-int AkoVersionMinor()
+AKO_EXPORT int akoVersionMinor()
 {
-	return 1;
+	return AKO_VERSION_MINOR;
 }
 
 
-int AkoVersionPatch()
+AKO_EXPORT int akoVersionPatch()
 {
-	return 0;
+	return AKO_VERSION_PATCH;
 }
 
 
-const char* AkoVersionString()
+AKO_EXPORT int akoFormatVersion()
 {
-	return "LibAko v0.1.0";
+	return AKO_FORMAT_VERSION;
 }

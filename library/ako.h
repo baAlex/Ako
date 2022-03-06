@@ -1,90 +1,145 @@
-/*-----------------------------
-
- [ako.h]
- - Alexander Brandt 2021
------------------------------*/
 
 #ifndef AKO_H
 #define AKO_H
 
-#ifdef AKO_EXPORT_SYMBOLS
-#if defined(__clang__) || defined(__GNUC__)
-#define AKO_EXPORT __attribute__((visibility("default")))
-#elif defined(_MSC_VER)
-#define AKO_EXPORT __declspec(dllexport)
-#endif
-#else
-#define AKO_EXPORT // Whitespace
-#endif
-
 #include <stddef.h>
 #include <stdint.h>
 
+#define AKO_VERSION_MAJOR 0
+#define AKO_VERSION_MINOR 2
+#define AKO_VERSION_PATCH 0
 
-#define AKO_VER_MAJOR 0 // Library version
-#define AKO_VER_MINOR 1
-#define AKO_VER_PATCH 0
+#define AKO_FORMAT_VERSION 2
 
-#define AKO_FORMAT_VERSION 1 // Format version this library handles
+#define AKO_MAX_CHANNELS 16
+#define AKO_MAX_WIDTH 4294967295
+#define AKO_MAX_HEIGHT 4294967295
+#define AKO_MIN_TILES_DIMENSION 8
+#define AKO_MAX_TILES_DIMENSION 2147483648
 
 
-struct AkoSettings
+enum akoStatus
 {
-	float quantization[4];
-	float noise_gate[4];
+	AKO_OK = 0,
+	AKO_ERROR,
+
+	AKO_INVALID_CHANNELS_NO,
+	AKO_INVALID_DIMENSIONS,
+	AKO_INVALID_TILES_DIMENSIONS,
+	AKO_INVALID_WRAP_MODE,
+	AKO_INVALID_WAVELET_TRANSFORMATION,
+	AKO_INVALID_COLOR_TRANSFORMATION,
+	AKO_INVALID_COMPRESSION_METHOD,
+
+	AKO_INVALID_INPUT,
+	AKO_INVALID_CALLBACKS,
+	AKO_INVALID_MAGIC,
+	AKO_UNSUPPORTED_VERSION,
+	AKO_NO_ENOUGH_MEMORY,
+	AKO_INVALID_FLAGS,
+	AKO_BROKEN_INPUT,
+};
+
+enum akoWrap // Wrap mode
+{
+	AKO_WRAP_CLAMP = 0,
+	AKO_WRAP_MIRROR,
+	AKO_WRAP_REPEAT,
+	AKO_WRAP_ZERO,
+};
+
+enum akoWavelet // Wavelet transformation
+{
+	AKO_WAVELET_DD137 = 0,
+	AKO_WAVELET_CDF53,
+	AKO_WAVELET_HAAR,
+	AKO_WAVELET_NONE,
+};
+
+enum akoColor // Color transformation
+{
+	AKO_COLOR_YCOCG = 0,
+	AKO_COLOR_SUBTRACT_G,
+	AKO_COLOR_NONE,
+
+	AKO_COLOR_YCOCG_Q, // Internal
+};
+
+enum akoCompression // Compression method
+{
+	AKO_COMPRESSION_ELIAS_RLE = 0,
+	AKO_COMPRESSION_NONE,
+};
+
+enum akoEvent
+{
+	AKO_EVENT_NONE = 0,
+	AKO_EVENT_FORMAT_START,
+	AKO_EVENT_FORMAT_END,
+	AKO_EVENT_WAVELET_START,
+	AKO_EVENT_WAVELET_END,
+	AKO_EVENT_COMPRESSION_START,
+	AKO_EVENT_COMPRESSION_END,
+};
+
+struct akoSettings
+{
+	enum akoWrap wrap;
+	enum akoWavelet wavelet;
+	enum akoColor color;
+	enum akoCompression compression;
 	size_t tiles_dimension;
+
+	int discard_transparent_pixels;
+
+	int quantization;
+	int gate;
 };
 
-struct AkoHead
+struct akoCallbacks
 {
-	char magic[4];   // "AkoI"
-	uint8_t version; // AKO_FORMAT_VERSION
+	void* (*malloc)(size_t);
+	void* (*realloc)(void*, size_t);
+	void (*free)(void*);
 
-	uint8_t unused1;
-	uint8_t unused2;
+	void (*events)(size_t, size_t, enum akoEvent, void*);
+	void* events_data;
+};
 
-	uint8_t format;
-	uint32_t width;
-	uint32_t height;
+struct akoHead
+{
+	uint8_t magic[3]; // "Ako"
+	uint8_t version;  // 2 (AKO_FORMAT_VERSION)
+
+	uint32_t width;  // 0 = Invalid
+	uint32_t height; // Ditto
+
+	uint32_t flags;
+	// bits 0-3   : Channels,        0 = Gray, 1 = Gray + Alpha, 2 = RGB, 3 = RGBA, etc...
+	// bits 4-5   : Wrap,            0 = Clamp, 1 = Repeat, 2 = Set to zero
+	// bits 6-7   : Wavelet,         0 = DD137, 1 = CDF53, 2 = Haar, 3 = None
+	// bits 8-9   : Color,           0 = YCOCG, 1 = YCOCG-R, 2 = Subtract Green, 3 = RGB
+	// bits 10-11 : Compression,     0 = Elias Coding + Rle, 1 = No compression
+	// bits 12-16 : Tiles dimension, 0 = No tiles, 1 = 8x8, 2 = 16x16, 3 = 32x32, 4 = 64x64, etc...
+	// bits 17-32 : Unused bits (always zero)
 };
 
 
-AKO_EXPORT size_t AkoEncode(size_t width, size_t height, size_t channels, const struct AkoSettings*,
-                            const uint8_t* input, void** output);
-AKO_EXPORT uint8_t* AkoDecode(size_t input_size, const void* in, size_t* out_width, size_t* out_height,
-                              size_t* out_channels);
+size_t akoEncodeExt(const struct akoCallbacks*, const struct akoSettings*, size_t channels, size_t image_w,
+                    size_t image_h, const void* in, void** out, enum akoStatus* out_status);
+uint8_t* akoDecodeExt(const struct akoCallbacks*, size_t input_size, const void* in, struct akoSettings* out_s,
+                      size_t* out_channels, size_t* out_w, size_t* out_h, enum akoStatus* out_status);
 
-AKO_EXPORT int AkoVersionMajor();
-AKO_EXPORT int AkoVersionMinor();
-AKO_EXPORT int AkoVersionPatch();
-AKO_EXPORT const char* AkoVersionString();
+struct akoSettings akoDefaultSettings();
+struct akoCallbacks akoDefaultCallbacks();
+void akoDefaultFree(void*);
 
-//
+const char* akoStatusString(enum akoStatus);
 
-#define AKO_COMPRESSION 1 // 0 = None, 1 = Elias gamma coding
-#define AKO_COLORSPACE 1  // 0 = RGB, 1 = YCOCG, 2 = YCOCG-R (reversible)
-#define AKO_WAVELET 3     // 0 = None, 1 = Haar, 2 = CDF53, 3 = DD137
-#define AKO_WRAP_MODE 1   // 0 = Repeat, 1 = Clamp to edge
+int akoVersionMajor();
+int akoVersionMinor();
+int akoVersionPatch();
 
-// Haar: Haar wavelet
-// CDF53: Cohen–Daubechies–Feauveau 5/3
-// DD137: Deslauriers-Dubuc 13/7
-
-// Formulas:
-
-// Haar: hp[i] = odd[i] - (even[i] + odd[i]) / 2
-// Haar: lp[i] = (even[i] + odd[i]) / 2
-
-// CDF53: hp[i] = odd[i] - (even[i + 1] + even[i] + 2) >> 2
-// CDF53: lp[i] = even[i] + (hp[i] + hp[i - 1] + 1) >> 1
-
-// DD137: hp[i] = odd[i] + ((even[i + 2] + even[i - 1]) - 9 * (even[i + 1] + even[i]) + 8) >> 4
-// DD137: lp[i] = even[i] + ((-hp[i + 1] - hp[i - 2]) + 9 * (hp[i] + hp[i - 1]) + 16) >> 5
-
-//
-
-#define AKO_DEV_PRINTF_DEBUG 1
-#define AKO_DEV_TINY_BENCHMARK 1
-#define AKO_DEV_SAVE_IMAGES 0
+int akoFormatVersion();
 
 #endif

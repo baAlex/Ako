@@ -1,4 +1,4 @@
-/*-----------------------------
+/*
 
 MIT License
 
@@ -21,61 +21,142 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
--------------------------------
-
- [misc.c]
- - Alexander Brandt 2021
------------------------------*/
-
-#include "misc.h"
-#include "ako.h"
+*/
 
 
-inline size_t TilesNo(size_t image_w, size_t image_h, size_t tiles_dimension)
+#include "ako-private.h"
+
+
+AKO_EXPORT struct akoSettings akoDefaultSettings()
 {
-	size_t tiles_x = (image_w / tiles_dimension);
-	size_t tiles_y = (image_h / tiles_dimension);
-	tiles_x = (image_w % tiles_dimension != 0) ? (tiles_x + 1) : tiles_x;
-	tiles_y = (image_h % tiles_dimension != 0) ? (tiles_y + 1) : tiles_y;
+	struct akoSettings s = {0};
 
-	return (tiles_x * tiles_y);
+	s.wrap = AKO_WRAP_CLAMP;
+	s.wavelet = AKO_WAVELET_DD137;
+	s.color = AKO_COLOR_YCOCG;
+	s.compression = AKO_COMPRESSION_ELIAS_RLE;
+	s.tiles_dimension = 0;
+
+	s.discard_transparent_pixels = 0;
+
+	s.quantization = 16;
+	s.gate = 0;
+
+	return s;
 }
 
 
-size_t RoundSplit(size_t x)
+#if (AKO_FREESTANDING == 0)
+AKO_EXPORT struct akoCallbacks akoDefaultCallbacks()
 {
-	return (x % 2 == 0) ? (x / 2) : ((x + 1) / 2);
+	struct akoCallbacks c = {0};
+	c.malloc = malloc;
+	c.realloc = realloc;
+	c.free = free;
+
+	c.events = NULL;
+	c.events_data = NULL;
+
+	return c;
 }
 
-inline size_t TileTotalLifts(size_t tile_w, size_t tile_h)
+AKO_EXPORT void akoDefaultFree(void* ptr)
 {
-	size_t lift = 0;
+	free(ptr);
+}
+#endif
 
-	while (tile_w > 2 && tile_h > 2)
+
+AKO_EXPORT const char* akoStatusString(enum akoStatus status)
+{
+	switch (status)
 	{
-		tile_w = RoundSplit(tile_w);
-		tile_h = RoundSplit(tile_h);
-		lift = lift + 1;
+	case AKO_OK: return "Everything Ok!";
+	case AKO_ERROR: return "Something went wrong";
+	case AKO_INVALID_CHANNELS_NO: return "Invalid channels number";
+	case AKO_INVALID_DIMENSIONS: return "Invalid dimensions";
+	case AKO_INVALID_TILES_DIMENSIONS: return "Invalid tiles dimensions";
+	case AKO_INVALID_WRAP_MODE: return "Invalid wrap mode";
+	case AKO_INVALID_WAVELET_TRANSFORMATION: return "Invalid wavelet transformation";
+	case AKO_INVALID_COLOR_TRANSFORMATION: return "Invalid color transformation";
+	case AKO_INVALID_COMPRESSION_METHOD: return "Invalid compression method";
+	case AKO_INVALID_INPUT: return "Invalid input";
+	case AKO_INVALID_CALLBACKS: return "Invalid callbacks";
+	case AKO_INVALID_MAGIC: return "Invalid magic (not an Ako file)";
+	case AKO_UNSUPPORTED_VERSION: return "Unsupported version";
+	case AKO_NO_ENOUGH_MEMORY: return "No enough memory";
+	case AKO_INVALID_FLAGS: return "Invalid flags";
+	case AKO_BROKEN_INPUT: return "Broken input/premature end";
+	default: break;
 	}
 
-	return lift;
+	return "Unknown status code";
 }
 
 
-size_t TileTotalLength(size_t tile_w, size_t tile_h)
+inline size_t akoDividePlusOneRule(size_t v)
 {
-	size_t length = 0;
+	return (v % 2 == 0) ? (v / 2) : ((v + 1) / 2);
+}
+
+
+inline size_t akoPlanesSpacing(size_t tile_w, size_t tile_h)
+{
+	return tile_w * 2 + tile_h * 2;
+}
+
+
+inline size_t akoImageMaxPlanesSpacingSize(size_t image_w, size_t image_h, size_t tiles_dimension)
+{
+	return sizeof(int16_t) * akoPlanesSpacing(akoTileDimension(0, image_w, tiles_dimension),
+	                                          akoTileDimension(0, image_h, tiles_dimension));
+}
+
+
+size_t akoTileDataSize(size_t tile_w, size_t tile_h)
+{
+
+	// If 'tile_w' and 'tile_h' equals, are a power-of-two (2, 4, 8, 16, etc), and
+	// function 'log2' operates on integers whitout rounding errors; then:
+
+	// TileDataSize(d) = (d * d * W + log2(d / 2) * L + T)
+
+	// Where, d = Tile dimension (either 'tile_w' or 'tile_h')
+	//        W = Size of wavelet coefficient
+	//        L = Size of lift head
+	//        T = Size of tile head
+
+	// If not, is a recursive function, where we add 1 to tile dimensions
+	// on lift steps that are not divisible by 2 (DividePlusOne rule). Lift
+	// steps with their respective head. And finally one tile head at the end.
+
+	// This later approach is used in below C code.
+
+	size_t size = 0;
 
 	while (tile_w > 2 && tile_h > 2) // For each lift step...
 	{
-		tile_w = RoundSplit(tile_w);
-		tile_h = RoundSplit(tile_h);
-		length = length + (tile_w * tile_h) * 3; // Three highpasses...
-		length = length + 1;                     // One head...
+		tile_w = akoDividePlusOneRule(tile_w);
+		tile_h = akoDividePlusOneRule(tile_h);
+		size += (tile_w * tile_h) * sizeof(int16_t) * 3; // Three highpasses...
+		size += sizeof(struct akoLiftHead);              // One lift head...
 	}
 
-	return length + (tile_w * tile_h); // And one lowpass
+	size += (tile_w * tile_h) * sizeof(int16_t); // ... And one lowpass
+
+	return size;
+}
+
+
+size_t akoTileDimension(size_t tile_pos, size_t image_d, size_t tiles_dimension)
+{
+	if (tiles_dimension == 0)
+		return image_d;
+
+	if (tile_pos + tiles_dimension > image_d)
+		return (image_d % tiles_dimension);
+
+	return tiles_dimension;
 }
 
 
@@ -84,26 +165,38 @@ static inline size_t sMax(size_t a, size_t b)
 	return (a > b) ? a : b;
 }
 
-size_t WorkareaLength(size_t image_w, size_t image_h, size_t tiles_dimension)
+static inline size_t sMin(size_t a, size_t b)
 {
-	size_t tile_w = tiles_dimension;
-	size_t tile_h = tiles_dimension;
+	return (a < b) ? a : b;
+}
 
-	if (image_w < tiles_dimension)
-		tile_w = image_w;
-	if (image_h < tiles_dimension)
-		tile_h = image_h;
+size_t akoImageMaxTileDataSize(size_t image_w, size_t image_h, size_t tiles_dimension)
+{
+	if (tiles_dimension == 0 || (tiles_dimension >= image_w && tiles_dimension >= image_h))
+		return akoTileDataSize(image_w, image_h);
 
-	if (image_w == tile_w && image_h == tile_h)
-		return TileTotalLength(image_w, image_h);
+	if ((image_w % tiles_dimension) == 0 && (image_h % tiles_dimension) == 0)
+		return akoTileDataSize(tiles_dimension, tiles_dimension);
 
-	// Non square-power-of-two tiles add extra pixels to their sizes
-	// This in order of being able of divide by two on lift steps.
-	const size_t tiles_x = (image_w / tile_w);
-	const size_t tiles_y = (image_h / tile_h);
-	const size_t border_tile_w = (image_w - tile_w * tiles_x);
-	const size_t border_tile_h = (image_h - tile_h * tiles_y);
+	// Tiles of varying size on image borders
+	// (in this horrible way because TileDataSize() is recursive, and my brain hurts)
+	const size_t a = akoTileDataSize(tiles_dimension, tiles_dimension);
+	const size_t b = akoTileDataSize(sMin(tiles_dimension, (image_w % tiles_dimension)), tiles_dimension);
+	const size_t c = akoTileDataSize(tiles_dimension, sMin(tiles_dimension, (image_h % tiles_dimension)));
 
-	// Border tiles are the "Non square-power-of-two" ones
-	return sMax(TileTotalLength(tile_w, tile_h), TileTotalLength(border_tile_w, border_tile_h));
+	return sMax(sMax(a, b), c);
+}
+
+
+size_t akoImageTilesNo(size_t image_w, size_t image_h, size_t tiles_dimension)
+{
+	if (tiles_dimension == 0)
+		return 1;
+
+	size_t tiles_x = (image_w / tiles_dimension);
+	size_t tiles_y = (image_h / tiles_dimension);
+	tiles_x = (image_w % tiles_dimension != 0) ? (tiles_x + 1) : tiles_x;
+	tiles_y = (image_h % tiles_dimension != 0) ? (tiles_y + 1) : tiles_y;
+
+	return (tiles_x * tiles_y);
 }

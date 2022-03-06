@@ -1,4 +1,4 @@
-/*-----------------------------
+/*
 
 MIT License
 
@@ -21,152 +21,212 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
--------------------------------
-
- [encode.c]
- - Alexander Brandt 2021
------------------------------*/
-
-#include <assert.h>
-#include <string.h>
-
-#include "ako.h"
-
-#include "developer.h"
-#include "dwt.h"
-#include "entropy.h"
-#include "format.h"
-#include "frame.h"
-#include "misc.h"
+*/
 
 
-size_t AkoEncode(size_t image_w, size_t image_h, size_t channels, const struct AkoSettings* s, const uint8_t* in,
-                 void** out)
+#include "ako-private.h"
+
+
+static inline void sEvent(size_t tile_no, size_t total_tiles, enum akoEvent event, void* data,
+                          void (*callback)(size_t, size_t, enum akoEvent, void*))
 {
-	size_t tiles_dimension = (s->tiles_dimension == 0) ? 524288 : s->tiles_dimension;
+	if (callback != NULL)
+		callback(tile_no, total_tiles, event, data);
+}
 
-	size_t blob_size = sizeof(struct AkoHead);
-	void* blob = malloc(blob_size);
-	assert(blob != NULL);
 
-	const size_t tiles_no = TilesNo(image_w, image_h, tiles_dimension);
-	DevPrintf("###\t%zux%zu px , %zu channels, %zu px tiles, %zu tiles\n", image_w, image_h, channels,
-	          tiles_dimension, tiles_no);
+AKO_EXPORT size_t akoEncodeExt(const struct akoCallbacks* c, const struct akoSettings* s, size_t channels,
+                               size_t image_w, size_t image_h, const void* in, void** out, enum akoStatus* out_status)
+{
+	enum akoStatus status;
 
-	const size_t workarea_size = WorkareaLength(image_w, image_h, tiles_dimension) * channels * sizeof(int16_t);
-	DevPrintf("###\tWorkarea of %.2f kB\n", (float)workarea_size / 500.0f);
+	size_t blob_size = 0;
+	uint8_t* blob = NULL;
 
-	FrameWrite(image_w, image_h, channels, tiles_dimension, blob);
+	void* workarea_a = NULL;
+	void* workarea_b = NULL;
 
-	// Proccess tiles
-	struct Benchmark bench_color = DevBenchmarkCreate("Color transformation");
-	struct Benchmark bench_wavelet = DevBenchmarkCreate("Wavelet transformation");
-	struct Benchmark bench_compression = DevBenchmarkCreate("Compression");
-	struct Benchmark bench_total = DevBenchmarkCreate("Total");
-	DevBenchmarkStartResume(&bench_total);
+	// Check callbacks, settings and input
+	const struct akoCallbacks checked_c = (c != NULL) ? *c : akoDefaultCallbacks();
+	struct akoSettings checked_s = (s != NULL) ? *s : akoDefaultSettings();
+
+	if (checked_c.malloc == NULL || checked_c.realloc == NULL || checked_c.free == NULL)
 	{
-		void* aux_memory = malloc(sizeof(int16_t) * tiles_dimension * 4); // Four scanlines
-		assert(aux_memory != NULL);
+		status = AKO_INVALID_CALLBACKS;
+		goto return_failure;
+	}
 
-		int16_t* workarea_a = malloc(workarea_size);
-		int16_t* workarea_b = malloc(workarea_size);
-		assert(workarea_a != NULL);
-		assert(workarea_b != NULL);
+	{
+		if (checked_s.color == AKO_COLOR_YCOCG && (checked_s.quantization > 0 || checked_s.gate > 0))
+			checked_s.color = AKO_COLOR_YCOCG_Q;
+		else if (checked_s.color == AKO_COLOR_YCOCG_Q && (checked_s.quantization <= 0 && checked_s.gate <= 0))
+			checked_s.color = AKO_COLOR_YCOCG;
+	}
 
-		size_t col = 0;
-		size_t row = 0;
-		size_t tile_w = 0;
-		size_t tile_h = 0;
-		size_t tile_length = 0;
-		size_t planes_space = 0;
+	if (in == NULL)
+	{
+		status = AKO_INVALID_INPUT;
+		goto return_failure;
+	}
 
-		for (size_t i = 0; i < tiles_no; i++)
+	// Allocate blob
+	blob_size = sizeof(struct akoHead);
+
+	if ((blob = checked_c.malloc(blob_size)) == NULL)
+	{
+		status = AKO_NO_ENOUGH_MEMORY;
+		goto return_failure;
+	}
+
+	// Write head
+	if ((status = akoHeadWrite(channels, image_w, image_h, &checked_s, blob)) != AKO_OK)
+		goto return_failure;
+
+	// Allocate workareas
+	const size_t tiles_no = akoImageTilesNo(image_w, image_h, checked_s.tiles_dimension);
+	const size_t tile_total_size = (akoImageMaxTileDataSize(image_w, image_h, checked_s.tiles_dimension) +
+	                                akoImageMaxPlanesSpacingSize(image_w, image_h, checked_s.tiles_dimension)) *
+	                               channels;
+
+	workarea_a = checked_c.malloc(tile_total_size);
+	workarea_b = checked_c.malloc(tile_total_size);
+
+	if (workarea_a == NULL || workarea_b == NULL)
+	{
+		status = AKO_NO_ENOUGH_MEMORY;
+		goto return_failure;
+	}
+
+	AKO_DEV_PRINTF("\nE\tTiles no: %zu, Tile total size: %zu\n", tiles_no, tile_total_size);
+
+	// Iterate tiles
+	size_t tile_x = 0;
+	size_t tile_y = 0;
+
+	size_t tile_data_size; // Size of data needed to operate per tile.
+	                       // Both encoder/decoder calculate this value just by reading the
+	                       // global header at the beginning. Any incongruence is an error.
+
+	size_t planes_spacing; // Space in order to follow the akoDividePlusOneRule()
+	                       // or: "memory between planes to use when needed".
+	                       // Spacing only lives here, at runtime, is not contained in the file.
+	                       // Saves us from extra mallocs() and helps with cache locality.
+
+	for (size_t t = 0; t < tiles_no; t++)
+	{
+		const size_t tile_w = akoTileDimension(tile_x, image_w, checked_s.tiles_dimension);
+		const size_t tile_h = akoTileDimension(tile_y, image_h, checked_s.tiles_dimension);
+
+		if (checked_s.wavelet != AKO_WAVELET_NONE)
 		{
-			// Tile dimensions, border tiles not always are square
-			tile_w = tiles_dimension;
-			tile_h = tiles_dimension;
-
-			if ((col + tiles_dimension) > image_w)
-				tile_w = image_w - col;
-			if ((row + tiles_dimension) > image_h)
-				tile_h = image_h - row;
-
-			tile_length = TileTotalLength(tile_w, tile_h) * channels;
-
-			planes_space = 0; // Non divisible by two dimensions add an extra row and/or column
-			planes_space = (tile_w % 2 == 0) ? planes_space : (planes_space + tile_h);
-			planes_space = (tile_h % 2 == 0) ? planes_space : (planes_space + tile_w);
-
-			if (i < 10)
-				DevPrintf("###\t[Tile %zu, x: %zu, y: %zu, %zux%zu px, spacing: %zu]\n", i, col, row, tile_w, tile_h,
-				          planes_space);
-			else if (i == 10)
-				DevPrintf("###\t[Tile ...]\n");
-
-			// Proccess
-			DevBenchmarkStartResume(&bench_color);
-			{
-				FormatToPlanarI16YUV(tile_w, tile_h, channels, planes_space, image_w,
-				                     in + (image_w * row + col) * channels, workarea_a);
-			}
-			DevBenchmarkPause(&bench_color);
-
-			DevBenchmarkStartResume(&bench_wavelet);
-			{
-				DwtTransform(s, tile_w, tile_h, channels, planes_space, aux_memory, workarea_a, workarea_b);
-			}
-			DevBenchmarkPause(&bench_wavelet);
-
-			// Compress
-			DevBenchmarkStartResume(&bench_compression);
-			{
-				// Calculate size of compressed data
-#if (AKO_COMPRESSION == 1)
-				size_t compressed_size = EntropyCompress(tile_length, workarea_b, NULL);
-#else
-				size_t compressed_size = tile_length * sizeof(uint16_t);
-#endif
-
-				// Realloc blob
-				blob_size = blob_size + compressed_size + sizeof(uint32_t);
-				blob = realloc(blob, blob_size); // TODO, use a exponential-growth buffer thing
-				assert(blob != NULL);
-
-				// Compressed size at the first 4 bytes
-				assert(compressed_size <= UINT32_MAX);
-
-				uint32_t* temp = (uint32_t*)((uint8_t*)blob + (blob_size - compressed_size - sizeof(uint32_t)));
-				*temp = (uint32_t)compressed_size;
-
-				// Compressed data
-#if (AKO_COMPRESSION == 1)
-				EntropyCompress(tile_length, workarea_b, (uint8_t*)blob + (blob_size - compressed_size));
-#else
-				memcpy((uint8_t*)blob + (blob_size - compressed_size), workarea_b, compressed_size);
-#endif
-			}
-			DevBenchmarkPause(&bench_compression);
-
-			// Next tile
-			col = col + tile_w;
-			if (col >= image_w)
-			{
-				col = 0;
-				row = row + tile_h;
-			}
+			tile_data_size = akoTileDataSize(tile_w, tile_h) * channels;
+			planes_spacing = akoPlanesSpacing(tile_w, tile_h);
+		}
+		else
+		{
+			tile_data_size = (tile_w * tile_h * channels * sizeof(int16_t));
+			planes_spacing = 0; // No DWT, no spacing needed
 		}
 
-		free(aux_memory);
-		free(workarea_a);
-		free(workarea_b);
+		// 1. Format
+		sEvent(t, tiles_no, AKO_EVENT_FORMAT_START, checked_c.events_data, checked_c.events);
+		{
+			akoFormatToPlanarI16Yuv(checked_s.discard_transparent_pixels, checked_s.color, channels, tile_w, tile_h,
+			                        image_w, planes_spacing,
+			                        (const uint8_t*)in + ((image_w * tile_y) + tile_x) * channels, workarea_a);
+		}
+		sEvent(t, tiles_no, AKO_EVENT_FORMAT_END, checked_c.events_data, checked_c.events);
+
+		// 2. Wavelet transform
+		if (checked_s.wavelet != AKO_WAVELET_NONE)
+		{
+			sEvent(t, tiles_no, AKO_EVENT_WAVELET_START, checked_c.events_data, checked_c.events);
+			akoLift(t, &checked_s, channels, tile_w, tile_h, planes_spacing, workarea_a, workarea_b);
+			sEvent(t, tiles_no, AKO_EVENT_WAVELET_END, checked_c.events_data, checked_c.events);
+		}
+
+		// 3. Compress
+		sEvent(t, tiles_no, AKO_EVENT_COMPRESSION_START, checked_c.events_data, checked_c.events);
+		{
+			uint8_t* from = (checked_s.wavelet != AKO_WAVELET_NONE) ? ((uint8_t*)workarea_b) : ((uint8_t*)workarea_a);
+			size_t compressed_size = tile_data_size;
+
+			// Compress, or not
+			if (checked_s.compression != AKO_COMPRESSION_NONE)
+			{
+				uint8_t* to = (checked_s.wavelet != AKO_WAVELET_NONE) ? ((uint8_t*)workarea_a) : ((uint8_t*)workarea_b);
+
+				if ((compressed_size = akoCompress(checked_s.compression, tile_data_size,
+				                                   tile_data_size + planes_spacing, from, to)) == 0)
+				{
+					status = AKO_ERROR;
+					goto return_failure;
+				}
+
+				from = to;
+			}
+
+			// Make space
+			void* updated_blob = checked_c.realloc(blob, blob_size + compressed_size);
+			if (updated_blob == NULL)
+			{
+				status = AKO_NO_ENOUGH_MEMORY;
+				goto return_failure;
+			}
+
+			// Copy as is
+			blob = updated_blob;
+			for (size_t i = 0; i < compressed_size; i++)
+				blob[blob_size + i] = from[i];
+
+			blob_size += compressed_size; // Update blob
+		}
+		sEvent(t, tiles_no, AKO_EVENT_COMPRESSION_END, checked_c.events_data, checked_c.events);
+
+		// 4. Developers, developers, developers
+		if (t < AKO_DEV_NOISE)
+		{
+			AKO_DEV_PRINTF(
+			    "E\tTile %zu at %zu:%zu, %zux%zu px, planes spacing: %zu, size: %zu bytes, blob size: %zu bytes\n", t,
+			    tile_x, tile_y, tile_w, tile_h, planes_spacing, tile_data_size, blob_size);
+		}
+		else if (t == AKO_DEV_NOISE + 1)
+		{
+			AKO_DEV_PRINTF("E\t...\n");
+		}
+
+		// 5. Next tile
+		tile_x += checked_s.tiles_dimension;
+		if (tile_x >= image_w)
+		{
+			tile_x = 0;
+			tile_y += checked_s.tiles_dimension;
+		}
 	}
-	DevBenchmarkPrint(&bench_color);
-	DevBenchmarkPrint(&bench_wavelet);
-	DevBenchmarkPrint(&bench_compression);
-	DevBenchmarkPrint(&bench_total);
 
 	// Bye!
-	*out = blob;
+	checked_c.free(workarea_a);
+	checked_c.free(workarea_b);
+
+	if (out_status != NULL)
+		*out_status = AKO_OK;
+
+	if (out != NULL)
+		*out = blob;
+	else
+		checked_c.free(blob); // Discard encoded data
+
 	return blob_size;
+
+return_failure:
+	if (workarea_a != NULL)
+		checked_c.free(workarea_a);
+	if (workarea_b != NULL)
+		checked_c.free(workarea_b);
+	if (out_status != NULL)
+		*out_status = status;
+	if (blob != NULL)
+		checked_c.free(blob);
+
+	return 0;
 }
