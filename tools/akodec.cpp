@@ -28,8 +28,24 @@ SOFTWARE.
 using namespace std;
 
 
-const char* version_string = "version_string";
-const char* help_string = "help_string";
+// clang-format off
+const char* help_string = ""
+"USAGE\n"
+"    akodec [optional options] -i <input filename> -o <output filename>\n"
+"    akodec [optional options] -i <input filename>\n"
+"\n    Only PNG files supported as output.\n"
+"\nINFORMATION OPTIONS\n"
+"-v --version\n    Print program version and license terms.\n"
+"\n-h, --help\n    Print this help.\n"
+"\n-verbose, --verbose\n    Print all available information while encoding.\n"
+"\nDECODING OPTIONS\n"
+"-f, --fast\n"
+"    Uncompressed PNG files.\n"
+"\nEXTRA TOOLS\n"
+"-ch, --checksum\n"
+"-b, --benchmark"
+"";
+// clang-format on
 
 
 class AkoImage
@@ -143,7 +159,13 @@ void AkoDec(const vector<string>& args)
 	{
 		if (Shared::CheckArgumentSingle("-v", "--version", it) == 0)
 		{
-			cout << version_string << endl;
+			printf("Ako decoding tool v%i.%i.%i\n", TOOLS_VERSION_MAJOR, TOOLS_VERSION_MINOR, TOOLS_VERSION_PATCH);
+			printf(" - libako v%i.%i.%i, format %i\n", akoVersionMajor(), akoVersionMinor(), akoVersionPatch(),
+			       akoFormatVersion());
+			printf(" - lodepng %s\n", LODEPNG_VERSION_STRING);
+			printf("\n");
+			printf("Copyright (c) 2021-2022 Alexander Brandt. Under MIT License.\n");
+			printf("More information at 'https://github.com/baAlex/Ako'\n");
 			return;
 		}
 		else if (Shared::CheckArgumentSingle("-h", "--help", it) == 0)
