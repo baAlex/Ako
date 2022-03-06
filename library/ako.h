@@ -43,6 +43,7 @@ enum akoStatus
 enum akoWrap // Wrap mode
 {
 	AKO_WRAP_CLAMP = 0,
+	AKO_WRAP_MIRROR,
 	AKO_WRAP_REPEAT,
 	AKO_WRAP_ZERO,
 };

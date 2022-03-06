@@ -45,6 +45,7 @@ class AkoImage
 	enum akoColor color_;
 	enum akoCompression compression_;
 	size_t tiles_dimension_;
+	size_t blob_size_;
 
   public:
 	// clang-format off
@@ -58,6 +59,7 @@ class AkoImage
 	enum akoColor color() const             { return color_; };
 	enum akoCompression compression() const { return compression_; };
 	size_t tiles_dimension() const          { return tiles_dimension_; };
+	size_t blob_size() const                { return blob_size_; };
 	// clang-format on
 
 	AkoImage(const string& filename, bool benchmark)
@@ -70,7 +72,8 @@ class AkoImage
 			if (file->fail() == true)
 				throw Shared::Error("Error at opening file '" + filename + "'");
 
-			blob->resize(file->tellg());
+			blob_size_ = file->tellg();
+			blob->resize(blob_size_);
 			file->seekg(0, std::ios::beg);
 
 			file->read((char*)blob->data(), blob->size());
@@ -184,15 +187,9 @@ void AkoDec(const vector<string>& args)
 		     << endl;
 
 	// Checksum data
+	uint32_t input_checksum = 0;
 	if (checksum == true)
-	{
-		auto value = Shared::Adler32((uint8_t*)ako->data(), ako->width() * ako->height() * ako->channels());
-
-		if (verbose == true)
-			cout << "Input data checksum: " << std::hex << value << std::dec << std::endl;
-		else
-			cout << "Checksum of input '" << filename_input << "' data: " << std::hex << value << std::dec << std::endl;
-	}
+		input_checksum = Shared::Adler32((uint8_t*)ako->data(), ako->width() * ako->height() * ako->channels());
 
 	if (verbose == true)
 	{
@@ -204,50 +201,61 @@ void AkoDec(const vector<string>& args)
 	}
 
 	// Encode
-	if (filename_output == "")
-		return;
-
-	void* blob = NULL;
-	size_t blob_size = 0;
+	if (filename_output != "")
 	{
+		void* blob = NULL;
+		size_t blob_size = 0;
+		{
+			if (verbose == true)
+				cout << "Encoding output: '" << filename_output << "'..." << endl;
+
+			LodePNGState state;
+
+			lodepng_state_init(&state);
+			state.info_raw.bitdepth = 8;
+
+			switch (ako->channels())
+			{
+			case 1: state.info_raw.colortype = LCT_GREY; break;
+			case 2: state.info_raw.colortype = LCT_GREY_ALPHA; break;
+			case 3: state.info_raw.colortype = LCT_RGB; break;
+			case 4: state.info_raw.colortype = LCT_RGBA; break;
+			default: throw Shared::Error("Unsupported channels number (" + to_string(ako->channels()) + ")");
+			}
+
+			if (fast_png != 0)
+			{
+				state.encoder.zlibsettings.btype = 0;     // No compression
+				state.encoder.filter_strategy = LFS_ZERO; // No prediction
+			}
+
+			unsigned error = lodepng_encode((unsigned char**)(&blob), &blob_size, (unsigned char*)ako->data(),
+			                                (unsigned)ako->width(), (unsigned)ako->height(), &state);
+
+			if (error != 0)
+				throw Shared::Error("LodePng error: '" + string(lodepng_error_text(error)) + "'");
+		}
+
+		// Write
 		if (verbose == true)
-			cout << "Encoding output: '" << filename_output << "'..." << endl;
+			cout << "Writing output: '" << filename_output << "'..." << endl;
 
-		LodePNGState state;
-
-		lodepng_state_init(&state);
-		state.info_raw.bitdepth = 8;
-
-		switch (ako->channels())
-		{
-		case 1: state.info_raw.colortype = LCT_GREY; break;
-		case 2: state.info_raw.colortype = LCT_GREY_ALPHA; break;
-		case 3: state.info_raw.colortype = LCT_RGB; break;
-		case 4: state.info_raw.colortype = LCT_RGBA; break;
-		default: throw Shared::Error("Unsupported channels number (" + to_string(ako->channels()) + ")");
-		}
-
-		if (fast_png != 0)
-		{
-			state.encoder.zlibsettings.btype = 0;     // No compression
-			state.encoder.filter_strategy = LFS_ZERO; // No prediction
-		}
-
-		unsigned error = lodepng_encode((unsigned char**)(&blob), &blob_size, (unsigned char*)ako->data(),
-		                                (unsigned)ako->width(), (unsigned)ako->height(), &state);
-
-		if (error != 0)
-			throw Shared::Error("LodePng error: '" + string(lodepng_error_text(error)) + "'");
+		Shared::WriteBlob(filename_output, blob, blob_size);
+		free(blob);
 	}
 
-	// Write
-	if (verbose == true)
-		cout << "Writing output: '" << filename_output << "'..." << endl;
-
-	Shared::WriteBlob(filename_output, blob, blob_size);
-
 	// Bye!
-	free(blob);
+	const auto uncompressed_size = (double)(ako->width() * ako->height() * ako->channels());
+	const auto compressed_size = (double)(ako->blob_size());
+	const auto bpp =
+	    (compressed_size / (double)(ako->width() * ako->height() * ako->channels())) * 8.0F * ako->channels();
+
+	if (checksum == true)
+		printf("(%08x) %.2f kB <- %.2f kB, ratio: %.2f:1, %.4f bpp\n", input_checksum, compressed_size / 1000.0F,
+		       compressed_size / 1000.0F, uncompressed_size / compressed_size, bpp);
+	else
+		printf("%.2f kB <- %.2f kB, ratio: %.2f:1, %.4f bpp\n", uncompressed_size / 1000.0F, compressed_size / 1000.0F,
+		       uncompressed_size / compressed_size, bpp);
 }
 
 

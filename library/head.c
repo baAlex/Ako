@@ -45,7 +45,7 @@ static inline enum akoStatus sValidate(size_t channels, size_t width, size_t hei
 	    (tiles_dimension < AKO_MIN_TILES_DIMENSION || tiles_dimension > AKO_MAX_TILES_DIMENSION))
 		return AKO_INVALID_TILES_DIMENSIONS;
 
-	if (wrap != AKO_WRAP_CLAMP && wrap != AKO_WRAP_REPEAT && wrap != AKO_WRAP_ZERO)
+	if (wrap != AKO_WRAP_CLAMP && wrap != AKO_WRAP_MIRROR && wrap != AKO_WRAP_REPEAT && wrap != AKO_WRAP_ZERO)
 		return AKO_INVALID_WRAP_MODE;
 
 	if (wavelet != AKO_WAVELET_DD137 && wavelet != AKO_WAVELET_CDF53 && wavelet != AKO_WAVELET_HAAR &&
