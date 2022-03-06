@@ -150,9 +150,11 @@ void AkoEnc(const vector<string>& args)
 		{
 			if (*it == "clamp" || *it == "0")
 				settings.wrap = AKO_WRAP_CLAMP;
-			else if (*it == "repeat" || *it == "1")
+			else if (*it == "mirror" || *it == "1")
+				settings.wrap = AKO_WRAP_MIRROR;
+			else if (*it == "repeat" || *it == "2")
 				settings.wrap = AKO_WRAP_REPEAT;
-			else if (*it == "zero" || *it == "2")
+			else if (*it == "zero" || *it == "3")
 				settings.wrap = AKO_WRAP_ZERO;
 			else
 				throw Shared::Error("Unknown wrap mode '" + *it + "'");
@@ -220,15 +222,9 @@ void AkoEnc(const vector<string>& args)
 		     << endl;
 
 	// Checksum data
+	uint32_t input_checksum = 0;
 	if (checksum == true)
-	{
-		auto value = Shared::Adler32((uint8_t*)png->data(), png->width() * png->height() * png->channels());
-
-		if (verbose == true)
-			cout << "Input data checksum: " << std::hex << value << std::dec << std::endl;
-		else
-			cout << "Checksum of input '" << filename_input << "' data: " << std::hex << value << std::dec << std::endl;
-	}
+		input_checksum = Shared::Adler32((uint8_t*)png->data(), png->width() * png->height() * png->channels());
 
 	if (verbose == true)
 	{
@@ -287,8 +283,12 @@ void AkoEnc(const vector<string>& args)
 	const auto bpp =
 	    (compressed_size / (double)(png->width() * png->height() * png->channels())) * 8.0F * png->channels();
 
-	printf("%.2f kB -> %.2f kB, ratio: %.2f:1, %.4f bpp\n", uncompressed_size / 1000.0F, compressed_size / 1000.0F,
-	       uncompressed_size / compressed_size, bpp);
+	if (checksum == true)
+		printf("(%08x) %.2f kB -> %.2f kB, ratio: %.2f:1, %.4f bpp\n", input_checksum, uncompressed_size / 1000.0F,
+		       compressed_size / 1000.0F, uncompressed_size / compressed_size, bpp);
+	else
+		printf("%.2f kB -> %.2f kB, ratio: %.2f:1, %.4f bpp\n", uncompressed_size / 1000.0F, compressed_size / 1000.0F,
+		       uncompressed_size / compressed_size, bpp);
 
 	akoDefaultFree(blob);
 }
