@@ -31,6 +31,7 @@ set(AKO_SOURCES
 	"./library/quantization.c"
 	"./library/version.c"
 	"./library/wavelet-cdf53.c"
+	"./library/wavelet-dd137.c"
 	"./library/wavelet-haar.c")
 
 
@@ -81,6 +82,9 @@ if (AKO_TESTS)
 
 	add_executable("elias-test" "./tests/elias-test.c")
 	target_link_libraries("elias-test" PRIVATE "ako-static")
+
+	add_executable("dd137-test" "./tests/dd137-test.c")
+	target_link_libraries("dd137-test" PRIVATE "ako-static")
 
 	add_executable("cdf53-test" "./tests/cdf53-test.c")
 	target_link_libraries("cdf53-test" PRIVATE "ako-static")
