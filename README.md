@@ -5,13 +5,13 @@ Ako
 Lossy image codec using discrete wavelet transform.
 
 It supports/implements:
-- Deslauriers-Dubuc 13/7 wavelet.
+- Deslauriers-Dubuc 13/7 and CDF 5/3, wavelets.
 - Configurable quality loss ([examples](#examples) below).
 - 8 bits per component. 4 channels.
 - Reversible YCoCg color transformation.
-- Elias coding + Rle compression. Nonetheless the codec can handle ratios of 1:10 before artifacts became visible.
+- Elias coding + Rle compression. Nonetheless the codec can handle ratios of 1:12 before artifacts became visible.
 - Good performance. There is care on cache and memory usage.
-- Everything is done with integers. This provides better performance and ensure always identical outputs (even with lossy images).
+- Everything is done with integers. This ensure always identical outputs (even in lossy compression) and provides gain in performance.
 
 And in a more experimental state:
 - Lossless compression.
