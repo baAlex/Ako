@@ -99,9 +99,9 @@ int16_t akoQuantization(int factor, size_t tile_w, size_t tile_h, size_t current
 
 // wavelet-cdf53.c:
 
-void akoCdf53LiftH(enum akoWrap, int16_t q, size_t current_h, size_t target_w, size_t fake_last, size_t in_stride,
+void akoCdf53LiftH(enum akoWrap, size_t current_h, size_t target_w, size_t fake_last, size_t in_stride,
                    const int16_t* in, int16_t* out);
-void akoCdf53LiftV(enum akoWrap, int16_t q, size_t target_w, size_t target_h, const int16_t* in, int16_t* out);
+void akoCdf53LiftV(enum akoWrap, size_t target_w, size_t target_h, const int16_t* in, int16_t* out);
 
 void akoCdf53UnliftH(enum akoWrap, size_t current_w, size_t current_h, size_t out_stride, size_t ignore_last,
                      const int16_t* in_lp, const int16_t* in_hp, int16_t* out);
@@ -110,9 +110,9 @@ void akoCdf53InPlaceishUnliftV(enum akoWrap, size_t current_w, size_t current_h,
 
 // wavelet-dd137.c:
 
-void akoDd137LiftH(enum akoWrap, int16_t q, size_t current_h, size_t target_w, size_t fake_last, size_t in_stride,
+void akoDd137LiftH(enum akoWrap, size_t current_h, size_t target_w, size_t fake_last, size_t in_stride,
                    const int16_t* in, int16_t* out);
-void akoDd137LiftV(enum akoWrap, int16_t q, size_t target_w, size_t target_h, const int16_t* in, int16_t* out);
+void akoDd137LiftV(enum akoWrap, size_t target_w, size_t target_h, const int16_t* in, int16_t* out);
 
 void akoDd137UnliftH(enum akoWrap, size_t current_w, size_t current_h, size_t out_stride, size_t ignore_last,
                      const int16_t* in_lp, const int16_t* in_hp, int16_t* out);
@@ -121,9 +121,9 @@ void akoDd137InPlaceishUnliftV(enum akoWrap, size_t current_w, size_t current_h,
 
 // wavelet-haar.c:
 
-void akoHaarLiftH(int16_t q, size_t current_h, size_t target_w, size_t fake_last, size_t in_stride, const int16_t* in,
+void akoHaarLiftH(size_t current_h, size_t target_w, size_t fake_last, size_t in_stride, const int16_t* in,
                   int16_t* out);
-void akoHaarLiftV(int16_t q, size_t target_w, size_t target_h, const int16_t* in, int16_t* out);
+void akoHaarLiftV(size_t target_w, size_t target_h, const int16_t* in, int16_t* out);
 
 void akoHaarUnliftH(size_t current_w, size_t current_h, size_t out_stride, size_t ignore_last, const int16_t* in_lp,
                     const int16_t* in_hp, int16_t* out);

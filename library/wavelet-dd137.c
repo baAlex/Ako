@@ -54,7 +54,7 @@ static inline int16_t sOdd(int16_t hp, int16_t even_l1, int16_t even, int16_t ev
 }
 
 
-void akoDd137LiftH(enum akoWrap wrap, int16_t q, size_t current_h, size_t target_w, size_t fake_last, size_t in_stride,
+void akoDd137LiftH(enum akoWrap wrap, size_t current_h, size_t target_w, size_t fake_last, size_t in_stride,
                    const int16_t* in, int16_t* out)
 {
 	for (size_t r = 0; r < current_h; r++)
@@ -205,18 +205,11 @@ void akoDd137LiftH(enum akoWrap wrap, int16_t q, size_t current_h, size_t target
 			// printf("L - lp(%i, %i, %i, %i, %i)\n", even, hp_l2, hp_l1, hp, hp_p1);
 			out[(r * target_w * 2) + (c)] = sLp(even, hp_l2, hp_l1, hp, hp_p1);
 		}
-
-		// Quantize HP
-		for (size_t c = 0; c < target_w; c++)
-		{
-			const int16_t hp = out[(r * target_w * 2) + c + target_w];
-			out[(r * target_w * 2) + c + target_w] = (int16_t)(hp / q);
-		}
 	}
 }
 
 
-void akoDd137LiftV(enum akoWrap wrap, int16_t q, size_t target_w, size_t target_h, const int16_t* in, int16_t* out)
+void akoDd137LiftV(enum akoWrap wrap, size_t target_w, size_t target_h, const int16_t* in, int16_t* out)
 {
 	// HP
 	for (size_t r = 0; r < 1; r++)
@@ -387,14 +380,6 @@ void akoDd137LiftV(enum akoWrap wrap, int16_t q, size_t target_w, size_t target_
 			out[(target_w * r) + (c)] = lp;
 		}
 	}
-
-	// Quantize
-	for (size_t r = 0; r < target_h; r++)
-		for (size_t c = 0; c < target_w; c++)
-		{
-			const int16_t hp = out[(target_w * (target_h + r)) + c];
-			out[(target_w * (target_h + r)) + c] = hp / q;
-		}
 }
 
 

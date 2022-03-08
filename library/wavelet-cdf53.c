@@ -50,7 +50,7 @@ SOFTWARE.
 #define ODD(hp, even, even_p1) ((hp) + ((even) + (even_p1)) / 2)
 
 
-void akoCdf53LiftH(enum akoWrap wrap, int16_t q, size_t current_h, size_t target_w, size_t fake_last, size_t in_stride,
+void akoCdf53LiftH(enum akoWrap wrap, size_t current_h, size_t target_w, size_t fake_last, size_t in_stride,
                    const int16_t* in, int16_t* out)
 {
 	int16_t hp_l1 = 0;
@@ -124,18 +124,11 @@ void akoCdf53LiftH(enum akoWrap wrap, int16_t q, size_t current_h, size_t target
 			out[(r * target_w * 2) + c + 0] = lp;
 			out[(r * target_w * 2) + c + target_w] = hp;
 		}
-
-		// Quantize
-		for (size_t c = 0; c < target_w; c++)
-		{
-			const int16_t hp = out[(r * target_w * 2) + c + target_w];
-			out[(r * target_w * 2) + c + target_w] = hp / q;
-		}
 	}
 }
 
 
-void akoCdf53LiftV(enum akoWrap wrap, int16_t q, size_t target_w, size_t target_h, const int16_t* in, int16_t* out)
+void akoCdf53LiftV(enum akoWrap wrap, size_t target_w, size_t target_h, const int16_t* in, int16_t* out)
 {
 	// First values
 	{
@@ -211,14 +204,6 @@ void akoCdf53LiftV(enum akoWrap wrap, int16_t q, size_t target_w, size_t target_
 			out[(target_w * (target_h + r)) + c] = hp;
 		}
 	}
-
-	// Quantize
-	for (size_t r = 0; r < target_h; r++)
-		for (size_t c = 0; c < target_w; c++)
-		{
-			const int16_t hp = out[(target_w * (target_h + r)) + c];
-			out[(target_w * (target_h + r)) + c] = hp / q;
-		}
 }
 
 

@@ -27,7 +27,7 @@ SOFTWARE.
 #include "ako-private.h"
 
 
-void akoHaarLiftH(int16_t q, size_t current_h, size_t target_w, size_t fake_last, size_t in_stride, const int16_t* in,
+void akoHaarLiftH(size_t current_h, size_t target_w, size_t fake_last, size_t in_stride, const int16_t* in,
                   int16_t* out)
 {
 	for (size_t r = 0; r < current_h; r++)
@@ -51,18 +51,11 @@ void akoHaarLiftH(int16_t q, size_t current_h, size_t target_w, size_t fake_last
 			out[(r * target_w * 2) + c + 0] = even;                         // LP
 			out[(r * target_w * 2) + c + target_w] = (int16_t)(odd - even); // HP
 		}
-
-		// Quantize
-		for (size_t c = 0; c < target_w; c++)
-		{
-			const int16_t hp = out[(r * target_w * 2) + c + target_w];
-			out[(r * target_w * 2) + c + target_w] = hp / q;
-		}
 	}
 }
 
 
-void akoHaarLiftV(int16_t q, size_t target_w, size_t target_h, const int16_t* in, int16_t* out)
+void akoHaarLiftV(size_t target_w, size_t target_h, const int16_t* in, int16_t* out)
 {
 	for (size_t r = 0; r < target_h; r++)
 	{
@@ -75,14 +68,6 @@ void akoHaarLiftV(int16_t q, size_t target_w, size_t target_h, const int16_t* in
 			out[(target_w * (target_h + r)) + c] = (int16_t)(odd - even); // HP
 		}
 	}
-
-	// Quantize
-	for (size_t r = 0; r < target_h; r++)
-		for (size_t c = 0; c < target_w; c++)
-		{
-			const int16_t hp = out[(target_w * (target_h + r)) + c];
-			out[(target_w * (target_h + r)) + c] = hp / q;
-		}
 }
 
 
