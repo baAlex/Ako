@@ -9,11 +9,11 @@ It supports/implements:
 - Configurable quality loss ([examples](#examples) below).
 - 8 bits per component. 4 channels.
 - Reversible YCoCg color transformation.
-- Elias coding + Rle compression. Nonetheless the codec can handle ratios of 1:12 before artifacts became visible.
+- Elias coding + Rle compression. Nonetheless can handle ratios of 1:12 before artifacts became visible.
 - Good performance. There is care on cache and memory usage.
-- Everything is done with integers. This ensure always identical outputs (even in lossy compression) and provides gain in performance.
+- Everything is done with integers. Ensure always identical outputs (even in lossy compression) and provides gain in performance.
 
-And in a more experimental state:
+And in an experimental state:
 - Lossless compression.
 
 
@@ -47,9 +47,7 @@ akoenc -q 16 -i "input.png" -o "out.ako"
 
 Examples
 --------
-Following examples are mere illustrations. Chosen compression ratios are too high to be useful in real life.
-
-Note how fine details are discarded while sharp lines and overall shapes remain intact, this whitout visible blocks. And all modern codecs do this, however here it is remarkable since Ako lacks of quality estimation or rate-distortion optimizations (tasks to improve the codec further).
+Note how fine details are discarded while sharp lines and overall shapes remain intact, this whitout visible blocks. And while all modern codecs do this, here it is remarkable since Ako lacks of quality estimation, rate-distortion optimizations or filters (tasks to improve the codec further).
 
 > **TODO, upss, already outdated**
 
