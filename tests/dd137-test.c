@@ -1,5 +1,6 @@
 
 
+#include "ako.h"
 #undef NDEBUG
 
 #include "ako-private.h"
@@ -79,7 +80,7 @@ static void sHorizontalTest(size_t len, int16_t callback_data, int16_t (*callbac
 		sHorizontalPrint(sMin(len, PRINT_MAX), 1, "   \t", "\t", buffer_a);
 	}
 
-	for (int i = 0; i < 3; i++)
+	for (int i = 0; i < 4; i++)
 	{
 		// clang-format off
 		enum akoWrap wr;
@@ -133,7 +134,7 @@ static void sVerticalTest(size_t height, int16_t callback_data, int16_t (*callba
 {
 	assert((height % 2) == 0); // Vertical functions doesn't follow the plus one rule
 
-	const size_t width = 3;
+	const size_t width = 3; // To check boundaries errors
 	int16_t* buffer_a = malloc(height * width * sizeof(int16_t));
 	int16_t* buffer_b = malloc(height * width * sizeof(int16_t));
 	int16_t* buffer_c = malloc(height * sizeof(int16_t));
@@ -147,6 +148,7 @@ static void sVerticalTest(size_t height, int16_t callback_data, int16_t (*callba
 	{
 		int16_t value = 0;
 		for (size_t r = 0; r < height; r++)
+		{
 			for (size_t c = 0; c < width; c++)
 			{
 				if (c == 0)
@@ -157,19 +159,20 @@ static void sVerticalTest(size_t height, int16_t callback_data, int16_t (*callba
 				else
 					buffer_a[width * r + c] = 99;
 			}
+		}
 
 		sEvenOddPrint(sMin(height, PRINT_MAX), "   \t", "\t");
 		sVerticalPrint(sMin(height, PRINT_MAX), width, 1, "   \t", "\t", buffer_a);
 	}
 
-	for (int i = 0; i < 3; i++)
+	for (int i = 0; i < 4; i++)
 	{
 		// clang-format off
 		enum akoWrap w;
 		switch (i)
 		{
 		case 0: w = AKO_WRAP_CLAMP;  printf("[clamp]\n"); break;
-		case 1: w = AKO_WRAP_MIRROR;  printf("[mirror]\n"); break;
+		case 1: w = AKO_WRAP_MIRROR; printf("[mirror]\n"); break;
 		case 2: w = AKO_WRAP_ZERO;   printf("[zero]\n"); break;
 		case 3: w = AKO_WRAP_REPEAT; printf("[repeat]\n"); break;
 		}
@@ -181,17 +184,16 @@ static void sVerticalTest(size_t height, int16_t callback_data, int16_t (*callba
 		sVerticalPrint(sMin(height / 2, PRINT_MAX / 2), width, 1, "Lp:\t", "\t\t", buffer_b);
 		sVerticalPrint(sMin(height / 2, PRINT_MAX / 2), width, 1, "Hp:\t", "\t\t", buffer_b + (width * (height / 2)));
 
-		// Inverse DWT (in place in buffer b, then copied to c)
-		{
-			akoDd137InPlaceishUnliftV(w, width, height / 2, buffer_b, buffer_b + (width * (height / 2)), buffer_b,
-			                          buffer_b + (width * (height / 2)));
+		// Inverse DWT (in place in buffer b)
+		akoDd137InPlaceishUnliftV(w, width, height / 2, buffer_b, buffer_b + (width * (height / 2)), buffer_b,
+		                          buffer_b + (width * (height / 2)));
 
-			size_t i = 0;
-			for (size_t r = 0; r < (height / 2); r++)
-			{
-				buffer_c[i++] = buffer_b[width * r];
-				buffer_c[i++] = buffer_b[width * (r + height / 2)];
-			}
+		// Copy as row (buffer b to c)
+		size_t i = 0;
+		for (size_t r = 0; r < (height / 2); r++)
+		{
+			buffer_c[i++] = buffer_b[width * r];
+			buffer_c[i++] = buffer_b[width * (r + height / 2)];
 		}
 
 #if 1
@@ -222,6 +224,7 @@ static void sVerticalTest(size_t height, int16_t callback_data, int16_t (*callba
 
 static int16_t sCallbackLinear(size_t i, int16_t prev, int16_t callback_data)
 {
+	(void)prev;
 	return (int16_t)(i + (size_t)callback_data) * 5;
 }
 
@@ -238,21 +241,24 @@ static int16_t sCallbackRandom(size_t i, int16_t prev, int16_t callback_data)
 int main()
 {
 	sHorizontalTest(22, 2, sCallbackRandom);
-	// sVerticalTest(22, 2, sCallbackRandom);
+	sVerticalTest(22, 2, sCallbackRandom);
 
 	sHorizontalTest(22, 1, sCallbackLinear);
-	// sVerticalTest(22, 1, sCallbackLinear);
+	sVerticalTest(22, 1, sCallbackLinear);
 
+#if 1
 	sHorizontalTest(13, 3, sCallbackRandom);
-	// sHorizontalTest(17, 4, sCallbackRandom);
+	sHorizontalTest(17, 4, sCallbackRandom);
 
 	sHorizontalTest(512, 5, sCallbackRandom);
-	sHorizontalTest(150, 5, sCallbackRandom);
-	sHorizontalTest(300, 5, sCallbackRandom);
+	sVerticalTest(512, 5, sCallbackRandom);
 
-	// sVerticalTest(512, 5, sCallbackRandom);
-	// sVerticalTest(150, 5, sCallbackRandom);
-	// sVerticalTest(300, 5, sCallbackRandom);
+	sHorizontalTest(150, 5, sCallbackRandom);
+	sVerticalTest(150, 5, sCallbackRandom);
+
+	sHorizontalTest(300, 5, sCallbackRandom);
+	sVerticalTest(300, 5, sCallbackRandom);
+#endif
 
 	return 0;
 }

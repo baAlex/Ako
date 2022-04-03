@@ -14,5 +14,8 @@ elias-test
 /dev/
 /.vscode/
 
+/.clangd/
+compile_commands.json
+
 .ninja_deps
 .ninja_log

@@ -75,7 +75,7 @@ void akoDd137LiftH(enum akoWrap wrap, size_t current_h, size_t target_w, size_t 
 				{
 				case AKO_WRAP_CLAMP: // falltrough
 				case AKO_WRAP_MIRROR: even_l1 = even; break;
-				case AKO_WRAP_REPEAT: even_l1 = in[(r * in_stride) + ((target_w - 1 - c) * 2)]; break;
+				case AKO_WRAP_REPEAT: even_l1 = in[(r * in_stride) + (target_w - 1) * 2]; break;
 				case AKO_WRAP_ZERO: even_l1 = 0; break;
 				}
 
@@ -102,7 +102,7 @@ void akoDd137LiftH(enum akoWrap wrap, size_t current_h, size_t target_w, size_t 
 			const int16_t even = in[(r * in_stride) + (c * 2 + 0)];
 
 			int16_t even_p1;
-			if (c < (target_w - 1))
+			if (c < target_w - 1)
 				even_p1 = in[(r * in_stride) + (c * 2 + 2)];
 			else
 				switch (wrap)
@@ -114,7 +114,7 @@ void akoDd137LiftH(enum akoWrap wrap, size_t current_h, size_t target_w, size_t 
 				}
 
 			int16_t even_p2;
-			if (c < (target_w - 2))
+			if (c < target_w - 2)
 				even_p2 = in[(r * in_stride) + (c * 2 + 4)];
 			else
 				switch (wrap)
@@ -167,7 +167,7 @@ void akoDd137LiftH(enum akoWrap wrap, size_t current_h, size_t target_w, size_t 
 				}
 
 			// printf("F - lp(%i, %i, %i, %i, %i)\n", even, hp_l2, hp_l1, hp, hp_p1);
-			out[(r * target_w * 2) + (c)] = sLp(even, hp_l2, hp_l1, hp, hp_p1);
+			out[(r * target_w * 2) + c] = sLp(even, hp_l2, hp_l1, hp, hp_p1);
 		}
 
 		// LP, middle values
@@ -179,7 +179,7 @@ void akoDd137LiftH(enum akoWrap wrap, size_t current_h, size_t target_w, size_t 
 			const int16_t hp = out[(r * target_w * 2) + (c + target_w + 0)];
 			const int16_t hp_p1 = out[(r * target_w * 2) + (c + target_w + 1)];
 
-			out[(r * target_w * 2) + (c)] = sLp(even, hp_l2, hp_l1, hp, hp_p1);
+			out[(r * target_w * 2) + c] = sLp(even, hp_l2, hp_l1, hp, hp_p1);
 		}
 
 		// LP, last values
@@ -191,19 +191,19 @@ void akoDd137LiftH(enum akoWrap wrap, size_t current_h, size_t target_w, size_t 
 			const int16_t hp = out[(r * target_w * 2) + (c + target_w + 0)];
 
 			int16_t hp_p1;
-			if (c < (target_w - 1))
+			if (c < target_w - 1)
 				hp_p1 = out[(r * target_w * 2) + (c + target_w + 1)];
 			else
 				switch (wrap)
 				{
 				case AKO_WRAP_CLAMP: // falltrough
 				case AKO_WRAP_MIRROR: hp_p1 = hp; break;
-				case AKO_WRAP_REPEAT: hp_p1 = out[(r * target_w * 2) + (target_w + (c % (target_w - 1)))]; break;
+				case AKO_WRAP_REPEAT: hp_p1 = out[(r * target_w * 2) + target_w + (c % (target_w - 1))]; break;
 				case AKO_WRAP_ZERO: hp_p1 = 0; break;
 				}
 
 			// printf("L - lp(%i, %i, %i, %i, %i)\n", even, hp_l2, hp_l1, hp, hp_p1);
-			out[(r * target_w * 2) + (c)] = sLp(even, hp_l2, hp_l1, hp, hp_p1);
+			out[(r * target_w * 2) + c] = sLp(even, hp_l2, hp_l1, hp, hp_p1);
 		}
 	}
 }
@@ -211,7 +211,7 @@ void akoDd137LiftH(enum akoWrap wrap, size_t current_h, size_t target_w, size_t 
 
 void akoDd137LiftV(enum akoWrap wrap, size_t target_w, size_t target_h, const int16_t* in, int16_t* out)
 {
-	// HP
+	// HP, first values
 	for (size_t r = 0; r < 1; r++)
 	{
 		for (size_t c = 0; c < target_w; c++)
@@ -225,21 +225,20 @@ void akoDd137LiftV(enum akoWrap wrap, size_t target_w, size_t target_h, const in
 			if (r > 0)
 				even_l1 = in[(r * 2 - 2) * target_w + c];
 			else
-			{
 				switch (wrap)
 				{
-				case AKO_WRAP_CLAMP: even_l1 = even; break;
+				case AKO_WRAP_CLAMP: // falltrough
 				case AKO_WRAP_MIRROR: even_l1 = even; break;
-				case AKO_WRAP_REPEAT: even_l1 = 0; break;
+				case AKO_WRAP_REPEAT: even_l1 = in[(target_h - 1) * 2 * target_w + c]; break;
 				case AKO_WRAP_ZERO: even_l1 = 0; break;
 				}
-			}
 
-			const int16_t hp = sHp(odd, even_l1, even, even_p1, even_p2);
-			out[(target_w * (target_h + r)) + c] = hp;
+			// printf("F - hp(%i, %i, %i, %i, %i)\n", odd, even_l1, even, even_p1, even_p2);
+			out[target_w * (target_h + r) + c] = sHp(odd, even_l1, even, even_p1, even_p2);
 		}
 	}
 
+	// HP, middle values
 	for (size_t r = 1; r < (target_h - 2); r++)
 	{
 		for (size_t c = 0; c < target_w; c++)
@@ -250,11 +249,11 @@ void akoDd137LiftV(enum akoWrap wrap, size_t target_w, size_t target_h, const in
 			const int16_t even_p1 = in[(r * 2 + 2) * target_w + c];
 			const int16_t even_p2 = in[(r * 2 + 4) * target_w + c];
 
-			const int16_t hp = sHp(odd, even_l1, even, even_p1, even_p2);
-			out[(target_w * (target_h + r)) + (c)] = hp;
+			out[target_w * (target_h + r) + c] = sHp(odd, even_l1, even, even_p1, even_p2);
 		}
 	}
 
+	// HP, last values
 	for (size_t r = (target_h - 2); r < target_h; r++)
 	{
 		for (size_t c = 0; c < target_w; c++)
@@ -264,120 +263,111 @@ void akoDd137LiftV(enum akoWrap wrap, size_t target_w, size_t target_h, const in
 			const int16_t odd = in[(r * 2 + 1) * target_w + c];
 
 			int16_t even_p1;
-			if (r < (target_h - 1))
+			if (r < target_h - 1)
 				even_p1 = in[(r * 2 + 2) * target_w + c];
 			else
-			{
 				switch (wrap)
 				{
-				case AKO_WRAP_CLAMP: even_p1 = even; break;
+				case AKO_WRAP_CLAMP: // falltrough
 				case AKO_WRAP_MIRROR: even_p1 = even; break;
-				case AKO_WRAP_REPEAT: even_p1 = 0; break;
+				case AKO_WRAP_REPEAT: even_p1 = in[((r + 0) % (target_h - 1)) * 2 * target_w + c]; break;
 				case AKO_WRAP_ZERO: even_p1 = 0; break;
 				}
-			}
 
 			int16_t even_p2;
-			if (r < (target_h - 2))
+			if (r < target_h - 2)
 				even_p2 = in[(r * 2 + 4) * target_w + c];
 			else
-			{
 				switch (wrap)
 				{
 				case AKO_WRAP_CLAMP: even_p2 = even_p1; break;
 				case AKO_WRAP_MIRROR: even_p2 = even_l1; break;
-				case AKO_WRAP_REPEAT: even_p2 = 0; break;
+				case AKO_WRAP_REPEAT: even_p2 = in[((r + 1) % (target_h - 1)) * 2 * target_w + c]; break;
 				case AKO_WRAP_ZERO: even_p2 = 0; break;
 				}
-			}
 
-			const int16_t hp = sHp(odd, even_l1, even, even_p1, even_p2);
-			out[(target_w * (target_h + r)) + (c)] = hp;
+			// printf("L - hp(%i, %i, %i, %i, %i)\n", odd, even_l1, even, even_p1, even_p2);
+			out[target_w * (target_h + r) + c] = sHp(odd, even_l1, even, even_p1, even_p2);
 		}
 	}
 
-	// LP
+	// LP, first values
 	for (size_t r = 0; r < 2; r++)
 	{
 		for (size_t c = 0; c < target_w; c++)
 		{
 			const int16_t even = in[(r * 2 + 0) * target_w + c];
-			const int16_t hp = out[(target_w * (target_h + r + 0)) + c];
-			const int16_t hp_p1 = out[(target_w * (target_h + r + 1)) + c];
+			const int16_t hp = out[target_w * (target_h + r + 0) + c];
+			const int16_t hp_p1 = out[target_w * (target_h + r + 1) + c];
 
 			int16_t hp_l1;
 			if (r > 0)
-				hp_l1 = out[(target_w * (target_h + r - 1)) + c];
+				hp_l1 = out[target_w * (target_h + r - 1) + c];
 			else
-			{
 				switch (wrap)
 				{
-				case AKO_WRAP_CLAMP: hp_l1 = hp; break;
+				case AKO_WRAP_CLAMP: // falltrough
 				case AKO_WRAP_MIRROR: hp_l1 = hp; break;
-				case AKO_WRAP_REPEAT: hp_l1 = 0; break;
+				case AKO_WRAP_REPEAT: hp_l1 = out[target_w * (target_h * 2 - 1 + r) + c]; break;
 				case AKO_WRAP_ZERO: hp_l1 = 0; break;
 				}
-			}
 
 			int16_t hp_l2;
 			if (r > 1)
-				hp_l2 = out[(target_w * (target_h + r - 2)) + c];
+				hp_l2 = out[target_w * (target_h + r - 2) + c];
 			else
-			{
 				switch (wrap)
 				{
 				case AKO_WRAP_CLAMP: hp_l2 = hp_l1; break;
 				case AKO_WRAP_MIRROR: hp_l2 = hp_p1; break;
-				case AKO_WRAP_REPEAT: hp_l2 = 0; break;
+				case AKO_WRAP_REPEAT: hp_l2 = out[target_w * (target_h * 2 - 2 + r) + c]; break;
 				case AKO_WRAP_ZERO: hp_l2 = 0; break;
 				}
-			}
 
-			const int16_t lp = sLp(even, hp_l2, hp_l1, hp, hp_p1);
-			out[(target_w * r) + c] = lp;
+			// printf("F - lp(%i, %i, %i, %i, %i)\n", even, hp_l2, hp_l1, hp, hp_p1);
+			out[(target_w * r) + c] = sLp(even, hp_l2, hp_l1, hp, hp_p1);
 		}
 	}
 
+	// LP, middle values
 	for (size_t r = 2; r < (target_h - 1); r++)
 	{
 		for (size_t c = 0; c < target_w; c++)
 		{
 			const int16_t even = in[(r * 2 + 0) * target_w + c];
-			const int16_t hp_l2 = out[(target_w * (target_h + r - 2)) + c];
-			const int16_t hp_l1 = out[(target_w * (target_h + r - 1)) + c];
-			const int16_t hp = out[(target_w * (target_h + r + 0)) + c];
-			const int16_t hp_p1 = out[(target_w * (target_h + r + 1)) + c];
+			const int16_t hp_l2 = out[target_w * (target_h + r - 2) + c];
+			const int16_t hp_l1 = out[target_w * (target_h + r - 1) + c];
+			const int16_t hp = out[target_w * (target_h + r + 0) + c];
+			const int16_t hp_p1 = out[target_w * (target_h + r + 1) + c];
 
-			const int16_t lp = sLp(even, hp_l2, hp_l1, hp, hp_p1);
-			out[(target_w * r) + (c)] = lp;
+			out[(target_w * r) + c] = sLp(even, hp_l2, hp_l1, hp, hp_p1);
 		}
 	}
 
+	// LP, last values
 	for (size_t r = (target_h - 1); r < target_h; r++)
 	{
 		for (size_t c = 0; c < target_w; c++)
 		{
 			const int16_t even = in[(r * 2 + 0) * target_w + c];
-			const int16_t hp_l2 = out[(target_w * (target_h + r - 2)) + c];
-			const int16_t hp_l1 = out[(target_w * (target_h + r - 1)) + c];
-			const int16_t hp = out[(target_w * (target_h + r + 0)) + c];
+			const int16_t hp_l2 = out[target_w * (target_h + r - 2) + c];
+			const int16_t hp_l1 = out[target_w * (target_h + r - 1) + c];
+			const int16_t hp = out[target_w * (target_h + r + 0) + c];
 
 			int16_t hp_p1;
-			if (r < (target_h - 1))
-				hp_p1 = out[(target_w * (target_h + r + 1)) + c];
+			if (r < target_h - 1)
+				hp_p1 = out[target_w * (target_h + r + 1) + c];
 			else
-			{
 				switch (wrap)
 				{
-				case AKO_WRAP_CLAMP: hp_p1 = hp; break;
+				case AKO_WRAP_CLAMP: // falltrough
 				case AKO_WRAP_MIRROR: hp_p1 = hp; break;
-				case AKO_WRAP_REPEAT: hp_p1 = 0; break;
+				case AKO_WRAP_REPEAT: hp_p1 = out[target_w * target_h + c]; break;
 				case AKO_WRAP_ZERO: hp_p1 = 0; break;
 				}
-			}
 
-			const int16_t lp = sLp(even, hp_l2, hp_l1, hp, hp_p1);
-			out[(target_w * r) + (c)] = lp;
+			// printf("L - lp(%i, %i, %i, %i, %i)\n", even, hp_l2, hp_l1, hp, hp_p1);
+			out[(target_w * r) + c] = sLp(even, hp_l2, hp_l1, hp, hp_p1);
 		}
 	}
 }
@@ -448,8 +438,8 @@ void akoDd137UnliftH(enum akoWrap wrap, size_t current_w, size_t current_h, size
 					const int16_t hp_l2 = in_hp[(r * current_w) + (c - 2)];
 					const int16_t hp_l1 = in_hp[(r * current_w) + (c - 1)];
 					const int16_t hp = in_hp[(r * current_w) + (c + 0)];
-					const int16_t hp_p1 = in_hp[(r * current_w) + (0)]; // TODO, only works if outscope 'c' equals zero
-					even_l1 = sEven(lp, hp_l2, hp_l1, hp, hp_p1);       // Last even
+					const int16_t hp_p1 = in_hp[(r * current_w) + 0];
+					even_l1 = sEven(lp, hp_l2, hp_l1, hp, hp_p1); // Last even
 					break;
 				}
 				case AKO_WRAP_ZERO: even_l1 = 0; break;
@@ -491,7 +481,7 @@ void akoDd137UnliftH(enum akoWrap wrap, size_t current_w, size_t current_h, size
 			const int16_t hp = in_hp[(r * current_w) + (c + 0)];
 
 			int16_t hp_p1;
-			if (c < (current_w - 1))
+			if (c < current_w - 1)
 				hp_p1 = in_hp[(r * current_w) + (c + 1)];
 			else
 				switch (wrap)
@@ -550,8 +540,8 @@ void akoDd137UnliftH(enum akoWrap wrap, size_t current_w, size_t current_h, size
 void akoDd137InPlaceishUnliftV(enum akoWrap wrap, size_t current_w, size_t current_h, const int16_t* in_lp,
                                const int16_t* in_hp, int16_t* out_lp, int16_t* out_hp)
 {
-	// First values
-	for (size_t r = 0; r < (ODD_DELAY + 1); r++)
+	// Even, first values
+	for (size_t r = 0; r < 2; r++)
 	{
 		for (size_t c = 0; c < current_w; c++)
 		{
@@ -563,65 +553,33 @@ void akoDd137InPlaceishUnliftV(enum akoWrap wrap, size_t current_w, size_t curre
 			if (r > 0)
 				hp_l1 = in_hp[(r - 1) * current_w + c];
 			else
-			{
 				switch (wrap)
 				{
-				case AKO_WRAP_CLAMP: hp_l1 = hp; break;
+				case AKO_WRAP_CLAMP: // falltrough
 				case AKO_WRAP_MIRROR: hp_l1 = hp; break;
-				case AKO_WRAP_REPEAT: hp_l1 = 0; break;
+				case AKO_WRAP_REPEAT: hp_l1 = in_hp[(current_h - 1 + r) * current_w + c]; break;
 				case AKO_WRAP_ZERO: hp_l1 = 0; break;
 				}
-			}
 
 			int16_t hp_l2;
 			if (r > 1)
 				hp_l2 = in_hp[(r - 2) * current_w + c];
 			else
-			{
 				switch (wrap)
 				{
 				case AKO_WRAP_CLAMP: hp_l2 = hp_l1; break;
 				case AKO_WRAP_MIRROR: hp_l2 = hp_p1; break;
-				case AKO_WRAP_REPEAT: hp_l2 = 0; break;
+				case AKO_WRAP_REPEAT: hp_l2 = in_hp[(current_h - 2 + r) * current_w + c]; break;
 				case AKO_WRAP_ZERO: hp_l2 = 0; break;
 				}
-			}
 
-			const int16_t even = sEven(lp, hp_l2, hp_l1, hp, hp_p1);
-			out_lp[(r * current_w) + c] = even;
+			// printf("F - even(%i, %i, %i, %i, %i)\n", lp, hp_l2, hp_l1, hp, hp_p1);
+			out_lp[(r * current_w) + c] = sEven(lp, hp_l2, hp_l1, hp, hp_p1);
 		}
 	}
 
-	for (size_t r = 0; r < 1; r++)
-	{
-		for (size_t c = 0; c < current_w; c++)
-		{
-			const int16_t hp = in_hp[(r + 0) * current_w + c];
-			const int16_t even = out_lp[((r + 0) * current_w) + c];
-			const int16_t even_p1 = out_lp[((r + 1) * current_w) + c];
-			const int16_t even_p2 = out_lp[((r + 2) * current_w) + c];
-
-			int16_t even_l1;
-			if (r > 0)
-				even_l1 = out_lp[(r - 1) * current_w + c];
-			else
-			{
-				switch (wrap)
-				{
-				case AKO_WRAP_CLAMP: even_l1 = even; break;
-				case AKO_WRAP_MIRROR: even_l1 = even; break;
-				case AKO_WRAP_REPEAT: even_l1 = 0; break;
-				case AKO_WRAP_ZERO: even_l1 = 0; break;
-				}
-			}
-
-			const int16_t odd = sOdd(hp, even_l1, even, even_p1, even_p2);
-			out_hp[(r * current_w) + c] = odd;
-		}
-	}
-
-	// Middle values
-	for (size_t r = (ODD_DELAY + 1); r < (current_h - 2); r++)
+	// Even, middle values
+	for (size_t r = 2; r < (current_h - 2); r++)
 	{
 		for (size_t c = 0; c < current_w; c++)
 		{
@@ -631,25 +589,11 @@ void akoDd137InPlaceishUnliftV(enum akoWrap wrap, size_t current_w, size_t curre
 			const int16_t hp = in_hp[(r + 0) * current_w + c];
 			const int16_t hp_p1 = in_hp[(r + 1) * current_w + c];
 
-			const int16_t even = sEven(lp, hp_l2, hp_l1, hp, hp_p1);
-			out_lp[(r * current_w) + c] = even;
-		}
-
-		// #pragma unroll 16
-		for (size_t c = 0; c < current_w; c++)
-		{
-			const int16_t hp = in_hp[(r + 0 - ODD_DELAY) * current_w + c];
-			const int16_t even_l1 = out_lp[(r - 1 - ODD_DELAY) * current_w + c];
-			const int16_t even = out_lp[((r + 0 - ODD_DELAY) * current_w) + c];
-			const int16_t even_p1 = out_lp[((r + 1 - ODD_DELAY) * current_w) + c];
-			const int16_t even_p2 = out_lp[((r + 2 - ODD_DELAY) * current_w) + c];
-
-			const int16_t odd = sOdd(hp, even_l1, even, even_p1, even_p2);
-			out_hp[((r - ODD_DELAY) * current_w) + c] = odd;
+			out_lp[(r * current_w) + c] = sEven(lp, hp_l2, hp_l1, hp, hp_p1);
 		}
 	}
 
-	// Last values
+	// Even, last values
 	for (size_t r = (current_h - 2); r < current_h; r++)
 	{
 		for (size_t c = 0; c < current_w; c++)
@@ -660,62 +604,99 @@ void akoDd137InPlaceishUnliftV(enum akoWrap wrap, size_t current_w, size_t curre
 			const int16_t hp = in_hp[(r + 0) * current_w + c];
 
 			int16_t hp_p1;
-			if (r < (current_h - 1))
+			if (r < current_h - 1)
 				hp_p1 = in_hp[(r + 1) * current_w + c];
 			else
-			{
 				switch (wrap)
 				{
-				case AKO_WRAP_CLAMP: hp_p1 = hp; break;
+				case AKO_WRAP_CLAMP: // falltrough
 				case AKO_WRAP_MIRROR: hp_p1 = hp; break;
-				case AKO_WRAP_REPEAT: hp_p1 = 0; break;
+				case AKO_WRAP_REPEAT: hp_p1 = in_hp[c]; break;
 				case AKO_WRAP_ZERO: hp_p1 = 0; break;
 				}
-			}
 
-			const int16_t even = sEven(lp, hp_l2, hp_l1, hp, hp_p1);
-			out_lp[(r * current_w) + c] = even;
+			// printf("L - even(%i, %i, %i, %i, %i)\n", lp, hp_l2, hp_l1, hp, hp_p1);
+			out_lp[(r * current_w) + c] = sEven(lp, hp_l2, hp_l1, hp, hp_p1);
 		}
 	}
 
-	for (size_t r = (current_h - 2 - ODD_DELAY); r < current_h; r++)
+	// Odd, first values
+	for (size_t r = 0; r < 1; r++)
+	{
+		for (size_t c = 0; c < current_w; c++)
+		{
+			const int16_t hp = in_hp[(r + 0) * current_w + c];
+			const int16_t even = out_lp[(r + 0) * current_w + c];
+			const int16_t even_p1 = out_lp[(r + 1) * current_w + c];
+			const int16_t even_p2 = out_lp[(r + 2) * current_w + c];
+
+			int16_t even_l1;
+			if (r > 0)
+				even_l1 = out_lp[(r - 1) * current_w + c];
+			else
+				switch (wrap)
+				{
+				case AKO_WRAP_CLAMP: // falltrough
+				case AKO_WRAP_MIRROR: even_l1 = even; break;
+				case AKO_WRAP_REPEAT: even_l1 = out_lp[(current_h - 1) * current_w + c]; break;
+				case AKO_WRAP_ZERO: even_l1 = 0; break;
+				}
+
+			// printf("F - odd(%i, %i, %i, %i, %i)\n", hp, even_l1, even, even_p1, even_p2);
+			out_hp[(r * current_w) + c] = sOdd(hp, even_l1, even, even_p1, even_p2);
+		}
+	}
+
+	// Odd, middle values
+	for (size_t r = 1; r < (current_h - 2); r++)
 	{
 		for (size_t c = 0; c < current_w; c++)
 		{
 			const int16_t hp = in_hp[(r + 0) * current_w + c];
 			const int16_t even_l1 = out_lp[(r - 1) * current_w + c];
-			const int16_t even = out_lp[((r + 0) * current_w) + c];
+			const int16_t even = out_lp[(r + 0) * current_w + c];
+			const int16_t even_p1 = out_lp[(r + 1) * current_w + c];
+			const int16_t even_p2 = out_lp[(r + 2) * current_w + c];
+
+			out_hp[(r * current_w) + c] = sOdd(hp, even_l1, even, even_p1, even_p2);
+		}
+	}
+
+	// Odd, last values
+	for (size_t r = current_h - 2; r < current_h; r++)
+	{
+		for (size_t c = 0; c < current_w; c++)
+		{
+			const int16_t hp = in_hp[(r + 0) * current_w + c];
+			const int16_t even_l1 = out_lp[(r - 1) * current_w + c];
+			const int16_t even = out_lp[(r + 0) * current_w + c];
 
 			int16_t even_p1;
-			if (r < (current_h - 1))
-				even_p1 = out_lp[((r + 1) * current_w) + c];
+			if (r < current_h - 1)
+				even_p1 = out_lp[(r + 1) * current_w + c];
 			else
-			{
 				switch (wrap)
 				{
-				case AKO_WRAP_CLAMP: even_p1 = even; break;
+				case AKO_WRAP_CLAMP: // falltrough
 				case AKO_WRAP_MIRROR: even_p1 = even; break;
-				case AKO_WRAP_REPEAT: even_p1 = 0; break;
+				case AKO_WRAP_REPEAT: even_p1 = out_lp[((r + 0) % (current_h - 1)) * current_w + c]; break;
 				case AKO_WRAP_ZERO: even_p1 = 0; break;
 				}
-			}
 
 			int16_t even_p2;
-			if (r < (current_h - 2))
+			if (r < current_h - 2)
 				even_p2 = out_lp[((r + 2) * current_w) + c];
 			else
-			{
 				switch (wrap)
 				{
 				case AKO_WRAP_CLAMP: even_p2 = even_p1; break;
 				case AKO_WRAP_MIRROR: even_p2 = even_l1; break;
-				case AKO_WRAP_REPEAT: even_p2 = 0; break;
+				case AKO_WRAP_REPEAT: even_p2 = out_lp[((r + 1) % (current_h - 1)) * current_w + c]; break;
 				case AKO_WRAP_ZERO: even_p2 = 0; break;
 				}
-			}
 
-			const int16_t odd = sOdd(hp, even_l1, even, even_p1, even_p2);
-			out_hp[(r * current_w) + c] = odd;
+			// printf("L - odd(%i, %i, %i, %i, %i)\n", hp, even_l1, even, even_p1, even_p2);
+			out_hp[(r * current_w) + c] = sOdd(hp, even_l1, even, even_p1, even_p2);
 		}
 	}
 }
