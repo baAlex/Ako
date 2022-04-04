@@ -246,6 +246,9 @@ int main()
 	sHorizontalTest(22, 1, sCallbackLinear);
 	sVerticalTest(22, 1, sCallbackLinear);
 
+	sHorizontalTest(16, 3, sCallbackRandom); // Minimum
+	sVerticalTest(16, 4, sCallbackRandom);
+
 #if 1
 	sHorizontalTest(13, 3, sCallbackRandom);
 	sHorizontalTest(17, 4, sCallbackRandom);
