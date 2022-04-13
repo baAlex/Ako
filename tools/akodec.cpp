@@ -24,276 +24,315 @@ SOFTWARE.
 */
 
 
-#include "shared.hpp"
-using namespace std;
+#include "benchmark.hpp"
+#include "misc.hpp"
+#include "options.hpp"
+
+#include "thirdparty/lodepng.h"
+
+extern "C"
+{
+#include "ako.h"
+}
+
+#define TOOLS_VERSION_MAJOR 0
+#define TOOLS_VERSION_MINOR 2
+#define TOOLS_VERSION_PATCH 0
 
 
 // clang-format off
-const char* help_string = ""
-"USAGE\n"
-"    akodec [optional options] -i <input filename> -o <output filename>\n"
-"    akodec [optional options] -i <input filename>\n"
-"\n    Only PNG files supported as output.\n"
-"\nINFORMATION OPTIONS\n"
-"-v --version\n    Print program version and license terms.\n"
-"\n-h, --help\n    Print this help.\n"
-"\n-verbose, --verbose\n    Print all available information while encoding.\n"
-"\nDECODING OPTIONS\n"
-"-f, --fast\n"
-"    Uncompressed PNG files.\n"
-"\nEXTRA TOOLS\n"
-"-ch, --checksum\n"
-"-b, --benchmark"
-"";
+const LodePNGCompressSettings ZLIB_PRESET[10] ={
+	{2, 1, 32768, 3, 256, 1, 0, 0, 0},
+	{2, 1, 8192, 3, 256, 1, 0, 0, 0},
+	{2, 1, 4096, 3, 128, 1, 0, 0, 0},
+	{2, 1, 2048, 3, 128, 1, 0, 0, 0}, // lodepng_default_compress_settings
+	{2, 1, 2048, 3, 92, 1, 0, 0, 0},
+	{2, 1, 1024, 6, 92, 1, 0, 0, 0},
+	{1, 1, 1024, 6, 64, 0, 0, 0, 0},
+	{1, 1, 512, 6, 64, 0, 0, 0, 0},
+	{1, 1, 512, 6, 32, 0, 0, 0, 0},
+	{0, 1, 256, 6, 32, 0, 0, 0, 0}
+};
+
+const LodePNGFilterStrategy PNG_FILTER_PRESET[10] = {
+	LFS_BRUTE_FORCE,
+	LFS_MINSUM,
+	LFS_MINSUM,
+	LFS_MINSUM,
+	LFS_MINSUM,
+	LFS_MINSUM,
+	LFS_MINSUM,
+	LFS_MINSUM,
+	LFS_MINSUM,
+	LFS_ZERO
+};
 // clang-format on
 
 
 class AkoImage
 {
   private:
-	size_t width_;
-	size_t height_;
-	size_t channels_;
-	void* data_;
+	size_t width;
+	size_t height;
+	size_t channels;
+	void* data;
 
-	enum akoWrap wrap_;
-	enum akoWavelet wavelet_;
-	enum akoColor color_;
-	enum akoCompression compression_;
-	size_t tiles_dimension_;
-	size_t blob_size_;
+	enum akoWrap wrap;
+	enum akoWavelet wavelet;
+	enum akoColor color;
+	size_t blob_size;
 
   public:
 	// clang-format off
-	size_t width() const     { return width_; };
-	size_t height() const    { return height_; };
-	size_t channels() const  { return channels_; };
-	const void* data() const { return (const void*)(data_); };
+	size_t      get_width() const    { return width; };
+	size_t      get_height() const   { return height; };
+	size_t      get_channels() const { return channels; };
+	const void* get_data() const     { return (const void*)(data); };
 
-	enum akoWrap wrap() const               { return wrap_; };
-	enum akoWavelet wavelet() const         { return wavelet_; };
-	enum akoColor color() const             { return color_; };
-	enum akoCompression compression() const { return compression_; };
-	size_t tiles_dimension() const          { return tiles_dimension_; };
-	size_t blob_size() const                { return blob_size_; };
+	enum akoWrap    get_wrap() const      { return wrap; };
+	enum akoWavelet get_wavelet() const   { return wavelet; };
+	enum akoColor   get_color() const     { return color; };
+	size_t          get_blob_size() const { return blob_size; };
 	// clang-format on
 
-	AkoImage(const string& filename, bool benchmark)
+	AkoImage(const std::string& filename, bool quiet, bool benchmark)
 	{
-		// Open/read file
-		auto blob = make_unique<vector<uint8_t>>();
+		// Read file
+		auto blob = std::vector<uint8_t>();
 		{
-			auto file = make_unique<fstream>(filename, std::ios::binary | ios_base::in | std::ios::ate);
+			auto file = std::fstream(filename, std::ios::binary | std::ios_base::in | std::ios::ate);
 
-			if (file->fail() == true)
-				throw Shared::Error("Error at opening file '" + filename + "'");
+			if (file.fail() == true)
+				throw ErrorStr("Error at opening file '" + filename + "'");
 
-			blob_size_ = file->tellg();
-			blob->resize(blob_size_);
-			file->seekg(0, std::ios::beg);
+			blob_size = file.tellg();
+			blob.resize(blob_size);
+			file.seekg(0, std::ios::beg);
 
-			file->read((char*)blob->data(), blob->size());
-			if (file->fail() == true)
-				throw Shared::Error("Error at reading file '" + filename + "'");
+			file.read((char*)blob.data(), blob.size());
+			if (file.fail() == true)
+				throw ErrorStr("Error at reading file '" + filename + "'");
+
+			file.close();
 		}
 
 		// Decode
 		akoSettings settings;
 		{
-			Shared::Stopwatch total_benchmark;
+			Stopwatch total_benchmark;
 			akoCallbacks callbacks = akoDefaultCallbacks();
 			akoStatus status = AKO_ERROR;
 
-			if (benchmark == true)
+			if (benchmark == true && quiet == false)
 			{
 				total_benchmark.start(true);
 
-				Shared::EventsData events_data;
-				callbacks.events = Shared::EventsCallback;
+				EventsData events_data;
+				callbacks.events = EventsCallback;
 				callbacks.events_data = &events_data;
 
-				cout << "Benchmark: " << endl;
+				std::printf("Benchmark: \n");
 			}
 
-			data_ = (void*)akoDecodeExt(&callbacks, blob->size(), blob->data(), &settings, &channels_, &width_,
-			                            &height_, &status);
+			data = (void*)akoDecodeExt(&callbacks, blob.size(), blob.data(), &settings, &channels, &width, &height,
+			                           &status);
 
-			if (benchmark == true)
+			if (benchmark == true && quiet == false)
 				total_benchmark.pause_stop(true, " - Total: ");
 
-			if (data_ == NULL)
-				throw Shared::Error("Ako decode error: '" + string(akoStatusString(status)) + "'");
+			if (data == NULL)
+				throw ErrorStr("Ako error: '" + std::string(akoStatusString(status)) + "'");
 		}
 
-		wrap_ = settings.wrap;
-		wavelet_ = settings.wavelet;
-		color_ = settings.color;
-		compression_ = settings.compression;
-		tiles_dimension_ = settings.tiles_dimension;
+		// Bye!
+		wrap = settings.wrap;
+		wavelet = settings.wavelet;
+		color = settings.color;
 	}
 
 	~AkoImage()
 	{
-		akoDefaultFree(data_);
+		akoDefaultFree(data);
 	}
 };
 
 
-void AkoDec(const vector<string>& args)
+void AkoDec(const std::string& filename_input, const std::string& filename_output, int effort, bool verbose = false,
+            bool quiet = false, bool benchmark = false, bool checksum = false)
 {
-	string filename_input = "";
-	string filename_output = "";
-	bool verbose = false;
-	bool checksum = false;
-	bool benchmark = false;
-	bool fast_png = false;
-
-	// Check arguments
-	if (args.size() == 1)
-	{
-		cout << help_string << endl;
-		return;
-	}
-
-	for (auto it = begin(args) + 1, it_end = end(args); it != it_end; it++)
-	{
-		if (Shared::CheckArgumentSingle("-v", "--version", it) == 0)
-		{
-			printf("Ako decoding tool v%i.%i.%i\n", TOOLS_VERSION_MAJOR, TOOLS_VERSION_MINOR, TOOLS_VERSION_PATCH);
-			printf(" - libako v%i.%i.%i, format %i\n", akoVersionMajor(), akoVersionMinor(), akoVersionPatch(),
-			       akoFormatVersion());
-			printf(" - lodepng %s\n", LODEPNG_VERSION_STRING);
-			printf("\n");
-			printf("Copyright (c) 2021-2022 Alexander Brandt. Under MIT License.\n");
-			printf("More information at 'https://github.com/baAlex/Ako'\n");
-			return;
-		}
-		else if (Shared::CheckArgumentSingle("-h", "--help", it) == 0)
-		{
-			cout << help_string << endl;
-			return;
-		}
-		else if (Shared::CheckArgumentSingle("-verbose", "--verbose", it) == 0)
-			verbose = true;
-		else if (Shared::CheckArgumentSingle("-ch", "--checksum", it) == 0)
-			checksum = true;
-		else if (Shared::CheckArgumentSingle("-b", "--benchmark", it) == 0)
-			benchmark = true;
-		else if (Shared::CheckArgumentSingle("-f", "--fast", it) == 0)
-			fast_png = true;
-		else if (Shared::CheckArgumentPair("-i", "--input", it, it_end) == 0)
-			filename_input = *it;
-		else if (Shared::CheckArgumentPair("-o", "--output", it, it_end) == 0)
-			filename_output = *it;
-		else
-			throw Shared::Error("Unknown argument '" + *it + "'");
-	}
-
 	if (filename_input == "")
-		throw Shared::Error("No input filename specified");
+		throw ErrorStr("No input filename specified");
 
 	// Open input
 	if (verbose == true)
 	{
-		cout << "# AkoDec v" << TOOLS_VERSION_MAJOR << "." << TOOLS_VERSION_MINOR << "." << TOOLS_VERSION_PATCH;
-		cout << " (format " << akoFormatVersion() << ", library v" << akoVersionMajor() << "." << akoVersionMinor()
-		     << "." << akoVersionPatch() << ")" << endl;
+		std::printf("Ako decoding tool v%i.%i.%i\n", TOOLS_VERSION_MAJOR, TOOLS_VERSION_MINOR, TOOLS_VERSION_PATCH);
+		std::printf(" - libako v%i.%i.%i, format %i\n", akoVersionMajor(), akoVersionMinor(), akoVersionPatch(),
+		            akoFormatVersion());
+		std::printf(" - lodepng %s\n", LODEPNG_VERSION_STRING);
 
-		cout << "Opening input: '" << filename_input << "'..." << endl;
+		std::printf("Opening input: '%s'...\n", filename_input.c_str());
 	}
 
-	const auto ako = make_unique<AkoImage>(filename_input, benchmark);
+	const auto ako = std::make_unique<AkoImage>(filename_input, quiet, benchmark);
 
 	if (verbose == true)
-		cout << "Input data: " << ako->channels() << " channels, " << ako->width() << "x" << ako->height() << " px"
-		     << endl;
+		std::printf("Input data: %zu channels, %zux%zu px, wavelet: %i, color: %i, wrap: %i\n", ako->get_channels(),
+		            ako->get_width(), ako->get_height(), (int)ako->get_wavelet(), (int)ako->get_color(),
+		            (int)ako->get_wrap());
 
 	// Checksum data
 	uint32_t input_checksum = 0;
 	if (checksum == true)
-		input_checksum = Shared::Adler32((uint8_t*)ako->data(), ako->width() * ako->height() * ako->channels());
-
-	if (verbose == true)
-	{
-		cout << "[Compression: " << (int)ako->compression();
-		cout << ", Color: " << (int)ako->color();
-		cout << ", Wavelet: " << (int)ako->wavelet();
-		cout << ", Wrap: " << (int)ako->wrap();
-		cout << ", Tiles dimension: " << (int)ako->tiles_dimension() << "]" << endl;
-	}
+		input_checksum = Adler32((uint8_t*)ako->get_data(), ako->get_width() * ako->get_height() * ako->get_channels());
 
 	// Encode
-	if (filename_output != "")
+	if (verbose == true)
+		std::printf("Encoding...\n");
+
+	void* blob = NULL;
+	size_t get_blob_size = 0;
 	{
-		void* blob = NULL;
-		size_t blob_size = 0;
+		LodePNGState state;
+		lodepng_state_init(&state);
+
+		state.info_raw.bitdepth = 8;
+
+		switch (ako->get_channels())
 		{
-			if (verbose == true)
-				cout << "Encoding output: '" << filename_output << "'..." << endl;
-
-			LodePNGState state;
-
-			lodepng_state_init(&state);
-			state.info_raw.bitdepth = 8;
-
-			switch (ako->channels())
-			{
-			case 1: state.info_raw.colortype = LCT_GREY; break;
-			case 2: state.info_raw.colortype = LCT_GREY_ALPHA; break;
-			case 3: state.info_raw.colortype = LCT_RGB; break;
-			case 4: state.info_raw.colortype = LCT_RGBA; break;
-			default: throw Shared::Error("Unsupported channels number (" + to_string(ako->channels()) + ")");
-			}
-
-			if (fast_png != 0)
-			{
-				state.encoder.zlibsettings.btype = 0;     // No compression
-				state.encoder.filter_strategy = LFS_ZERO; // No prediction
-			}
-
-			unsigned error = lodepng_encode((unsigned char**)(&blob), &blob_size, (unsigned char*)ako->data(),
-			                                (unsigned)ako->width(), (unsigned)ako->height(), &state);
-
-			if (error != 0)
-				throw Shared::Error("LodePng error: '" + string(lodepng_error_text(error)) + "'");
+		case 1: state.info_raw.colortype = LCT_GREY; break;
+		case 2: state.info_raw.colortype = LCT_GREY_ALPHA; break;
+		case 3: state.info_raw.colortype = LCT_RGB; break;
+		case 4: state.info_raw.colortype = LCT_RGBA; break;
+		default: throw ErrorStr("Unsupported channels number (" + std::to_string(ako->get_channels()) + ")");
 		}
 
-		// Write
-		if (verbose == true)
-			cout << "Writing output: '" << filename_output << "'..." << endl;
+		state.encoder.zlibsettings = ZLIB_PRESET[10 - effort];
+		state.encoder.filter_strategy = PNG_FILTER_PRESET[10 - effort];
 
-		Shared::WriteBlob(filename_output, blob, blob_size);
-		free(blob);
+		const unsigned error = lodepng_encode((unsigned char**)(&blob), &get_blob_size, (unsigned char*)ako->get_data(),
+		                                      (unsigned)ako->get_width(), (unsigned)ako->get_height(), &state);
+
+		if (error != 0)
+			throw ErrorStr("LodePng error: '" + std::string(lodepng_error_text(error)) + "'");
+	}
+
+	// Write output
+	if (filename_output != "")
+	{
+		if (verbose == true)
+			std::printf("Writing output: '%s'...\n", filename_output.c_str());
+
+		WriteBlob(filename_output, blob, get_blob_size);
 	}
 
 	// Bye!
-	const auto uncompressed_size = (double)(ako->width() * ako->height() * ako->channels());
-	const auto compressed_size = (double)(ako->blob_size());
-	const auto bpp =
-	    (compressed_size / (double)(ako->width() * ako->height() * ako->channels())) * 8.0F * ako->channels();
+	const auto uncompressed_size = (double)(ako->get_width() * ako->get_height() * ako->get_channels());
+	const auto compressed_size = (double)ako->get_blob_size();
+	const auto bpp = (compressed_size / (double)(ako->get_width() * ako->get_height() * ako->get_channels())) * 8.0F *
+	                 ako->get_channels();
 
-	if (checksum == true)
-		printf("(%08x) %.2f kB <- %.2f kB, ratio: %.2f:1, %.4f bpp\n", input_checksum, compressed_size / 1000.0F,
-		       compressed_size / 1000.0F, uncompressed_size / compressed_size, bpp);
-	else
-		printf("%.2f kB <- %.2f kB, ratio: %.2f:1, %.4f bpp\n", uncompressed_size / 1000.0F, compressed_size / 1000.0F,
-		       uncompressed_size / compressed_size, bpp);
+	if (quiet == false)
+	{
+		if (checksum == true)
+			std::printf("(%08x) %.2f kB <- %.2f kB, ratio: %.2f:1, %.4f bpp\n", input_checksum,
+			            uncompressed_size / 1000.0F, compressed_size / 1000.0F, uncompressed_size / compressed_size,
+			            bpp);
+		else
+			std::printf("%.2f kB <- %.2f kB, ratio: %.2f:1, %.4f bpp\n", uncompressed_size / 1000.0F,
+			            compressed_size / 1000.0F, uncompressed_size / compressed_size, bpp);
+	}
+
+	std::free(blob);
 }
 
 
 int main(int argc, const char* argv[])
 {
+	std::string input_filename;
+	std::string output_filename;
+	int effort = 7;
+	bool verbose = false;
+	bool quiet = false;
+	bool benchmark = false;
+	bool checksum = false;
+
+	// Options
+	{
+		auto opts = std::make_unique<OptionsManager>();
+
+		const auto print_category = opts->add_category("PRINT OPTIONS");
+		opts->add_bool("-v", "--version", "Print program version and license terms.", print_category);
+		opts->add_bool("-h", "--help", "Print this help.", print_category);
+		opts->add_bool("-verbose", "--verbose", "Print all available information while encoding.", print_category);
+		opts->add_bool("-quiet", "--quiet", "Don't print anything.", print_category);
+
+		const auto io_category = opts->add_category("INPUT/OUTPUT OPTIONS");
+		opts->add_string("-i", "--input", "Input filename.", "", "", io_category);
+		opts->add_string(
+		    "-o", "--output",
+		    "Output filename. If not specified, all operations will take place then the result will be discarded.", "",
+		    "", io_category);
+
+		const auto encoding_category = opts->add_category("ENCODING OPTIONS");
+		opts->add_integer("-e", "--effort", "Computational effort to encode output, from 1 to 10.", 7, 1, 10,
+		                  encoding_category);
+
+		const auto extra_category = opts->add_category("EXTRA TOOLS");
+		opts->add_bool("-b", "--benchmark", "", extra_category);
+		opts->add_bool("-ch", "--checksum", "", extra_category);
+
+		if (opts->parse_arguments(argc, argv) != 0)
+			return 1;
+
+		// Help message
+		if (opts->get_bool("--help") == true)
+		{
+			std::printf("USAGE\n");
+			std::printf("    akodec [optional options] -i <input filename> -o <output filename>\n");
+			std::printf("    akodec [optional options] -i <input filename>\n");
+			std::printf("\n    Only PNG files supported as output.\n");
+			std::printf("\n");
+
+			opts->print_help();
+
+			return 0;
+		}
+
+		// Version message
+		if (opts->get_bool("--version") == true)
+		{
+			std::printf("Ako decoding tool v%i.%i.%i\n", TOOLS_VERSION_MAJOR, TOOLS_VERSION_MINOR, TOOLS_VERSION_PATCH);
+			std::printf(" - libako v%i.%i.%i, format %i\n", akoVersionMajor(), akoVersionMinor(), akoVersionPatch(),
+			            akoFormatVersion());
+			std::printf(" - lodepng %s\n", LODEPNG_VERSION_STRING);
+			std::printf("\n");
+			std::printf("Copyright (c) 2021-2022 Alexander Brandt. Under MIT License.\n");
+			std::printf("\n");
+			std::printf("More information at 'https://github.com/baAlex/Ako'\n");
+			return 0;
+		}
+
+		// Set decoding settings
+		input_filename = opts->get_string("--input");
+		output_filename = opts->get_string("--output");
+
+		effort = opts->get_integer("--effort");
+		verbose = opts->get_bool("--verbose");
+		quiet = opts->get_bool("--quiet");
+		benchmark = opts->get_bool("--benchmark");
+		checksum = opts->get_bool("--checksum");
+	}
+
+	// Decode!
 	try
 	{
-		auto args = make_unique<vector<string>>();
-		for (int i = 0; i < argc; i++)
-			args->push_back(string(argv[i]));
-
-		AkoDec(*args);
+		AkoDec(input_filename, output_filename, effort, verbose, quiet, benchmark, checksum);
+		return 0;
 	}
-	catch (Shared::Error& e)
+	catch (ErrorStr& e)
 	{
-		cout << e.info << std::endl;
+		std::cout << e.info << "\n";
 		return 1;
 	}
 

@@ -36,7 +36,7 @@ cmake --build . --config Release
 
 Usage
 -----
-Two executables: `akoenc` and `akodec` will let you try the codec. Run them whitout any argument to read the usage help. But, in most cases is:
+Two executables: `akoenc` and `akodec` will let you try the codec. Run them without any argument to read the usage help. But, in most cases is:
 
 ```
 akoenc -q 16 -i "input.png" -o "out.ako"
@@ -47,7 +47,7 @@ akoenc -q 16 -i "input.png" -o "out.ako"
 
 Examples
 --------
-Note how fine details are discarded while sharp lines and overall shapes remain intact, this whitout visible blocks. And while all modern codecs do this, here it is remarkable since Ako lacks of quality estimation, rate-distortion optimizations or filters (tasks to improve the codec further).
+Note how fine details are discarded while sharp lines and overall shapes remain intact, this without visible blocks. And while all modern codecs do this, here it is remarkable since Ako lacks of quality estimation, rate-distortion optimizations or filters (tasks to improve the codec further).
 
 > **TODO, upss, already outdated**
 

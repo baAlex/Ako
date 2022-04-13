@@ -24,78 +24,39 @@ SOFTWARE.
 */
 
 
-#include "shared.hpp"
-using namespace std;
+#include "benchmark.hpp"
+#include "misc.hpp"
+#include "options.hpp"
 
+#include "thirdparty/lodepng.h"
 
-// clang-format off
-const char* help_string = ""
-"USAGE\n"
-"    akoenc [optional options] -i <input filename> -o <output filename>\n"
-"    akoenc [optional options] -i <input filename>\n"
-"\n    Only PNG files supported as input.\n"
-"\nINFORMATION OPTIONS\n"
-"-v --version\n    Print program version and license terms.\n"
-"\n-h, --help\n    Print this help.\n"
-"\n-verbose, --verbose\n    Print all available information while encoding.\n"
-"\nENCODING OPTIONS\n"
-"-q, --quantization\n"
-"    Controls loss in the final image and in turn, compression gains.\n"
-"    Achieves it by reducing accuracy of wavelet coefficients according\n"
-"    to the provided value. Default and recommended loss method. Set it \n"
-"    to zero for lossless compression.\n"
-"\n    Default value: 16\n"
-"\n-g, --noise-gate\n"
-"    Loss method similar to '--quantization', however it removes wavelet\n"
-"    coefficients. Provided value sets a threshold. Set it to zero for\n"
-"    lossless compression.\n"
-"\n    Default value: 0\n"
-"\n-w, --wavelet\n"
-"    Wavelet transformation to apply. Options are: DD137, CDF53, HAAR\n"
-"    and NONE. For lossy compression DD137 provides better results, for\n"
-"    lossless CDF53.\n"
-"\n    Default value: DD137\n"
-"\n-c, --color\n"
-"    Color transformation to apply. Options are: YCOCG, SUBTRACT-G and\n"
-"    NONE. All options serve both lossy and lossless compression.\n"
-"\n    Default value: YCOCG\n"
-"\n-wr, --wrap\n"
-"    Controls how loss wrap around image borders. Options are: CLAMP,\n"
-"    MIRROR, REPEAT and ZERO; all them analog to texture-wrapping\n"
-"    options in OpenGL. Two common choices are CLAMP that perform no\n"
-"    wrap, and REPEAT for images intended to serve as tiled textures.\n"
-"\n    Default value: CLAMP\n"
-"\n-d, --discard-transparent-pixels\n"
-"    Set pixels under transparent areas to zero. For lossless compression,\n"
-"    do not set this option.\n"
-"\n    Default value: not set\n"
-"\nEXTRA TOOLS\n"
-"-ch, --checksum\n"
-"-b, --benchmark\n"
-"\nEXPERIMENTAL\n"
-"-dev-n, --dev-no-compression\n"
-"-dev-t, --dev-tiles (expect crashes)"
-"";
-// clang-format on
+extern "C"
+{
+#include "ako.h"
+}
+
+#define VERSION_MAJOR 0
+#define VERSION_MINOR 2
+#define VERSION_PATCH 0
 
 
 class PngImage
 {
   private:
-	size_t width_;
-	size_t height_;
-	size_t channels_;
-	void* data_;
+	size_t width;
+	size_t height;
+	size_t channels;
+	void* data;
 
   public:
 	// clang-format off
-	size_t width() const     { return width_; };
-	size_t height() const    { return height_; };
-	size_t channels() const  { return channels_; };
-	const void* data() const { return (const void*)(data_); };
+	size_t      get_width() const    { return width; };
+	size_t      get_height() const   { return height; };
+	size_t      get_channels() const { return channels; };
+	const void* get_data() const     { return (const void*)(data); };
 	// clang-format on
 
-	PngImage(const string& filename)
+	PngImage(const std::string& filename)
 	{
 		unsigned char* blob;
 		size_t blob_size;
@@ -103,241 +64,142 @@ class PngImage
 		LodePNGState state;
 		unsigned error;
 
-		unsigned width;
-		unsigned height;
-		unsigned char* data;
+		unsigned png_width;
+		unsigned png_height;
+		unsigned char* png_data;
 
 		// Set
 		lodepng_state_init(&state);
-		state.decoder.color_convert = 0; // Do not convert
+		state.decoder.color_convert = 0; // Do not convert color
 
 		// Load/decode
 		if ((error = lodepng_load_file(&blob, &blob_size, filename.c_str())) != 0)
-			throw Shared::Error("LodePng error: '" + string(lodepng_error_text(error)) + "'");
+			throw ErrorStr("LodePng error: '" + std::string(lodepng_error_text(error)) + "'");
 
-		if ((error = lodepng_decode(&data, &width, &height, &state, blob, blob_size)) != 0)
-			throw Shared::Error("LodePng error: '" + string(lodepng_error_text(error)) + "'");
+		if ((error = lodepng_decode(&png_data, &png_width, &png_height, &state, blob, blob_size)) != 0)
+			throw ErrorStr("LodePng error: '" + std::string(lodepng_error_text(error)) + "'");
 
 		// Validate
 		switch (state.info_png.color.colortype)
 		{
-		case LCT_GREY: channels_ = 1; break;
-		case LCT_GREY_ALPHA: channels_ = 2; break;
-		case LCT_RGB: channels_ = 3; break;
-		case LCT_RGBA: channels_ = 4; break;
-		default: throw Shared::Error("Unsupported channels number (" + to_string(state.info_png.color.colortype) + ")");
+		case LCT_GREY: channels = 1; break;
+		case LCT_GREY_ALPHA: channels = 2; break;
+		case LCT_RGB: channels = 3; break;
+		case LCT_RGBA: channels = 4; break;
+		default: throw ErrorStr("Unsupported channels number (" + std::to_string(state.info_png.color.colortype) + ")");
 		}
 
 		if (state.info_png.color.bitdepth != 8)
-			throw Shared::Error("Unsupported bits per pixel-component (" + to_string(state.info_png.color.bitdepth) +
-			                    ")");
-
-		data_ = (void*)data;
-		width_ = (size_t)width;
-		height_ = (size_t)height;
+			throw ErrorStr("Unsupported bits per pixel-component (" + std::to_string(state.info_png.color.bitdepth) +
+			               ")");
 
 		// Bye!
+		data = (void*)png_data;
+		width = (size_t)png_width;
+		height = (size_t)png_height;
+
 		lodepng_state_cleanup(&state);
 		free(blob);
 	}
 
 	~PngImage()
 	{
-		free(data_);
+		free(data);
 	}
 };
 
 
-void AkoEnc(const vector<string>& args)
+void AkoEnc(const akoSettings& settings, const std::string& filename_input, const std::string& filename_output,
+            bool verbose = false, bool quiet = false, bool benchmark = false, bool checksum = false)
 {
-	string filename_input = "";
-	string filename_output = "";
-	bool verbose = false;
-	bool checksum = false;
-	bool benchmark = false;
-
-	akoSettings settings = akoDefaultSettings();
-
-	// Check arguments
-	if (args.size() == 1)
-	{
-		cout << help_string << endl;
-		return;
-	}
-
-	for (auto it = begin(args) + 1, it_end = end(args); it != it_end; it++)
-	{
-		if (Shared::CheckArgumentSingle("-v", "--version", it) == 0)
-		{
-			printf("Ako encoding tool v%i.%i.%i\n", TOOLS_VERSION_MAJOR, TOOLS_VERSION_MINOR, TOOLS_VERSION_PATCH);
-			printf(" - libako v%i.%i.%i, format %i\n", akoVersionMajor(), akoVersionMinor(), akoVersionPatch(),
-			       akoFormatVersion());
-			printf(" - lodepng %s\n", LODEPNG_VERSION_STRING);
-			printf("\n");
-			printf("Copyright (c) 2021-2022 Alexander Brandt. Under MIT License.\n");
-			printf("More information at 'https://github.com/baAlex/Ako'\n");
-			return;
-		}
-		else if (Shared::CheckArgumentSingle("-h", "--help", it) == 0)
-		{
-			cout << help_string << endl;
-			return;
-		}
-		else if (Shared::CheckArgumentSingle("-verbose", "--verbose", it) == 0)
-			verbose = true;
-		else if (Shared::CheckArgumentSingle("-ch", "--checksum", it) == 0)
-			checksum = true;
-		else if (Shared::CheckArgumentSingle("-b", "--benchmark", it) == 0)
-			benchmark = true;
-		else if (Shared::CheckArgumentPair("-i", "--input", it, it_end) == 0)
-			filename_input = *it;
-		else if (Shared::CheckArgumentPair("-o", "--output", it, it_end) == 0)
-			filename_output = *it;
-		else if (Shared::CheckArgumentSingle("-dev-n", "--dev-no-compression", it) == 0)
-			settings.compression = AKO_COMPRESSION_NONE;
-		else if (Shared::CheckArgumentPair("-wr", "--wrap", it, it_end) == 0)
-		{
-			if (*it == "clamp" || *it == "CLAMP" || *it == "0")
-				settings.wrap = AKO_WRAP_CLAMP;
-			else if (*it == "mirror" || *it == "MIRROR" || *it == "1")
-				settings.wrap = AKO_WRAP_MIRROR;
-			else if (*it == "repeat" || *it == "REPEAT" || *it == "2")
-				settings.wrap = AKO_WRAP_REPEAT;
-			else if (*it == "zero" || *it == "ZERO" || *it == "3")
-				settings.wrap = AKO_WRAP_ZERO;
-			else
-				throw Shared::Error("Unknown wrap mode '" + *it + "'");
-		}
-		else if (Shared::CheckArgumentPair("-w", "--wavelet", it, it_end) == 0)
-		{
-			if (*it == "dd137" || *it == "DD137" || *it == "0")
-				settings.wavelet = AKO_WAVELET_DD137;
-			else if (*it == "cdf53" || *it == "CDF53" || *it == "1")
-				settings.wavelet = AKO_WAVELET_CDF53;
-			else if (*it == "haar" || *it == "HAAR" || *it == "2")
-				settings.wavelet = AKO_WAVELET_HAAR;
-			else if (*it == "none" || *it == "NONE" || *it == "3")
-				settings.wavelet = AKO_WAVELET_NONE;
-			else
-				throw Shared::Error("Unknown wavelet transformation '" + *it + "'");
-		}
-		else if (Shared::CheckArgumentPair("-c", "--color", it, it_end) == 0)
-		{
-			if (*it == "ycocg" || *it == "YCOCG" || *it == "0")
-				settings.color = AKO_COLOR_YCOCG;
-			else if (*it == "subtract-g" || *it == "SUBTRACT-G" || *it == "1")
-				settings.color = AKO_COLOR_SUBTRACT_G;
-			else if (*it == "none" || *it == "NONE" || *it == "2")
-				settings.color = AKO_COLOR_NONE;
-			else
-				throw Shared::Error("Unknown color transformation'" + *it + "'");
-		}
-		else if (Shared::CheckArgumentPair("-dev-t", "--dev-tiles", it, it_end) == 0)
-			settings.tiles_dimension = stol(*it);
-		else if (Shared::CheckArgumentPair("-q", "--quantization", it, it_end) == 0)
-			settings.quantization = stoi(*it);
-		else if (Shared::CheckArgumentPair("-g", "--gate", it, it_end) == 0)
-			settings.gate = stoi(*it);
-		else if (Shared::CheckArgumentPair("-d", "--discard-transparent-pixels", it, it_end) == 0)
-		{
-			if (*it == "1" || *it == "true" || *it == "yes")
-				settings.discard_transparent_pixels = 1;
-			else if (*it == "0" || *it == "false" || *it == "no")
-				settings.discard_transparent_pixels = 0;
-			else
-				throw Shared::Error("Unknown boolean value '" + *it + "' for discard-transparent-pixels argument");
-		}
-		else
-			throw Shared::Error("Unknown argument '" + *it + "'");
-	}
-
 	if (filename_input == "")
-		throw Shared::Error("No input filename specified");
+		throw ErrorStr("No input filename specified");
 
 	// Open input
 	if (verbose == true)
 	{
-		cout << "# AkoEnc v" << TOOLS_VERSION_MAJOR << "." << TOOLS_VERSION_MINOR << "." << TOOLS_VERSION_PATCH;
-		cout << " (format " << akoFormatVersion() << ", library v" << akoVersionMajor() << "." << akoVersionMinor()
-		     << "." << akoVersionPatch() << ")" << endl;
+		std::printf("Ako encoding tool v%i.%i.%i\n", VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH);
+		std::printf(" - libako v%i.%i.%i, format %i\n", akoVersionMajor(), akoVersionMinor(), akoVersionPatch(),
+		            akoFormatVersion());
+		std::printf(" - lodepng %s\n", LODEPNG_VERSION_STRING);
 
-		cout << "Opening input: '" << filename_input << "'..." << endl;
+		std::printf("Opening input: '%s'...\n", filename_input.c_str());
 	}
 
-	const auto png = make_unique<PngImage>(filename_input);
+	const auto png = std::make_unique<PngImage>(filename_input);
 
 	if (verbose == true)
-		cout << "Input data: " << png->channels() << " channels, " << png->width() << "x" << png->height() << " px"
-		     << endl;
+		std::printf("Input data: %zu channels, %zux%zu px\n", png->get_channels(), png->get_width(), png->get_height());
 
 	// Checksum data
 	uint32_t input_checksum = 0;
 	if (checksum == true)
-		input_checksum = Shared::Adler32((uint8_t*)png->data(), png->width() * png->height() * png->channels());
-
-	if (verbose == true)
-	{
-		cout << "[Compression: " << (int)settings.compression;
-		cout << ", Color: " << (int)settings.color;
-		cout << ", Wavelet: " << (int)settings.wavelet;
-		cout << ", Wrap: " << (int)settings.wrap;
-		cout << ", Tiles dimension: " << (int)settings.tiles_dimension;
-		cout << ", Discard transparent pixels: " << (bool)settings.discard_transparent_pixels << "]" << endl;
-	}
+		input_checksum = Adler32((uint8_t*)png->get_data(), png->get_width() * png->get_height() * png->get_channels());
 
 	// Encode
+	if (verbose == true)
+	{
+		std::printf("Encoding...\n");
+
+		std::printf("[Color: %i", (int)settings.color);
+		std::printf(", wavelet: %i", (int)settings.wavelet);
+		std::printf(", wrap: %i", (int)settings.wrap);
+		std::printf(", discard non-visible: %i]\n", (int)settings.discard_transparent_pixels);
+	}
+
 	void* blob = NULL;
 	size_t blob_size = 0;
 	{
-		if (verbose == true)
-			cout << "Encoding output: '" << filename_output << "'..." << endl;
-
-		Shared::Stopwatch total_benchmark;
+		Stopwatch total_benchmark;
 		akoCallbacks callbacks = akoDefaultCallbacks();
 		akoStatus status = AKO_ERROR;
 
-		if (benchmark == true)
+		if (benchmark == true && quiet == false)
 		{
 			total_benchmark.start(true);
 
-			Shared::EventsData events_data;
-			callbacks.events = Shared::EventsCallback;
+			EventsData events_data;
+			callbacks.events = EventsCallback;
 			callbacks.events_data = &events_data;
 
-			cout << "Benchmark: " << endl;
+			std::printf("Benchmark: \n");
 		}
 
-		blob_size = akoEncodeExt(&callbacks, &settings, png->channels(), png->width(), png->height(), png->data(),
-		                         &blob, &status);
+		blob_size = akoEncodeExt(&callbacks, &settings, png->get_channels(), png->get_width(), png->get_height(),
+		                         png->get_data(), &blob, &status);
 
-		if (benchmark == true)
+		if (benchmark == true && quiet == false)
 			total_benchmark.pause_stop(true, " - Total: ");
 
 		if (blob_size == 0)
-			throw Shared::Error("Ako encode error: '" + string(akoStatusString(status)) + "'");
+			throw ErrorStr("Ako error: '" + std::string(akoStatusString(status)) + "'");
 	}
 
-	// Write
+	// Write output
 	if (filename_output != "")
 	{
 		if (verbose == true)
-			cout << "Writing output: '" << filename_output << "'..." << endl;
+			std::printf("Writing output: '%s'...\n", filename_output.c_str());
 
-		Shared::WriteBlob(filename_output, blob, blob_size);
+		WriteBlob(filename_output, blob, blob_size);
 	}
 
 	// Bye!
-	const auto uncompressed_size = (double)(png->width() * png->height() * png->channels());
+	const auto uncompressed_size = (double)(png->get_width() * png->get_height() * png->get_channels());
 	const auto compressed_size = (double)blob_size;
-	const auto bpp =
-	    (compressed_size / (double)(png->width() * png->height() * png->channels())) * 8.0F * png->channels();
+	const auto bpp = (compressed_size / (double)(png->get_width() * png->get_height() * png->get_channels())) * 8.0F *
+	                 png->get_channels();
 
-	if (checksum == true)
-		printf("(%08x) %.2f kB -> %.2f kB, ratio: %.2f:1, %.4f bpp\n", input_checksum, uncompressed_size / 1000.0F,
-		       compressed_size / 1000.0F, uncompressed_size / compressed_size, bpp);
-	else
-		printf("%.2f kB -> %.2f kB, ratio: %.2f:1, %.4f bpp\n", uncompressed_size / 1000.0F, compressed_size / 1000.0F,
-		       uncompressed_size / compressed_size, bpp);
+	if (quiet == false)
+	{
+		if (checksum == true)
+			std::printf("(%08x) %.2f kB -> %.2f kB, ratio: %.2f:1, %.4f bpp\n", input_checksum,
+			            uncompressed_size / 1000.0F, compressed_size / 1000.0F, uncompressed_size / compressed_size,
+			            bpp);
+		else
+			std::printf("%.2f kB -> %.2f kB, ratio: %.2f:1, %.4f bpp\n", uncompressed_size / 1000.0F,
+			            compressed_size / 1000.0F, uncompressed_size / compressed_size, bpp);
+	}
 
 	akoDefaultFree(blob);
 }
@@ -345,17 +207,120 @@ void AkoEnc(const vector<string>& args)
 
 int main(int argc, const char* argv[])
 {
+	akoSettings settings = akoDefaultSettings();
+	std::string input_filename;
+	std::string output_filename;
+	bool verbose = false;
+	bool quiet = false;
+	bool benchmark = false;
+	bool checksum = false;
+
+	// Options
+	{
+		auto opts = std::make_unique<OptionsManager>();
+
+		const auto print_category = opts->add_category("PRINT OPTIONS");
+		opts->add_bool("-v", "--version", "Print program version and license terms.", print_category);
+		opts->add_bool("-h", "--help", "Print this help.", print_category);
+		opts->add_bool("-verbose", "--verbose", "Print all available information while encoding.", print_category);
+		opts->add_bool("-quiet", "--quiet", "Don't print anything.", print_category);
+
+		const auto io_category = opts->add_category("INPUT/OUTPUT OPTIONS");
+		opts->add_string("-i", "--input", "Input filename.", "", "", io_category);
+		opts->add_string(
+		    "-o", "--output",
+		    "Output filename. If not specified, all operations will take place then the result will be discarded.", "",
+		    "", io_category);
+
+		const auto encoding_category = opts->add_category("ENCODING OPTIONS");
+		opts->add_integer("-q", "--quantization",
+		                  "Controls loss in the final image and in turn, compression gains. Achieves it by reducing "
+		                  "wavelet coefficients accuracy accordingly  to the provided value. Default and recommended "
+		                  "loss method. Set it to zero for lossless compression.",
+		                  16, 0, 4096, encoding_category);
+		opts->add_integer("-g", "--noise-gate",
+		                  "Loss method similar to '--quantization', however it removes wavelet coefficients under a "
+		                  "threshold set by the provided value. Set it to zero for lossless compression.",
+		                  0, 0, 4096, encoding_category);
+		opts->add_string("-w", "--wavelet",
+		                 "Wavelet transformation to apply. Options are: DD137, CDF53, HAAR and NONE. For lossy "
+		                 "compression DD137 provides better results, for lossless CDF53.",
+		                 "DD137", "DD137 CDF53 HAAR NONE", encoding_category);
+		opts->add_string("-c", "--color",
+		                 "Color transformation to apply. Options are: YCOCG, SUBTRACT-G and NONE. All options serve "
+		                 "both lossy and lossless compression.",
+		                 "YCOCG", "YCOCG SUBTRACT-G NONE", encoding_category);
+		opts->add_string("-wr", "--wrap",
+		                 "Controls how loss wrap around image borders. Options are: CLAMP, MIRROR, REPEAT and ZERO; "
+		                 "all them analog to texture-wrapping options in OpenGL. Two common choices are CLAMP that "
+		                 "perform no wrap, and REPEAT for images intended to serve as tiled textures.",
+		                 "CLAMP", "CLAMP MIRROR REPEAT ZERO", encoding_category);
+		opts->add_bool("-d", "--discard-non-visible",
+		               "Discard pixels that do not contribute to the final image (those in transparent areas). For "
+		               "lossless compression do not set this option.",
+		               encoding_category);
+
+		const auto extra_category = opts->add_category("EXTRA TOOLS");
+		opts->add_bool("-b", "--benchmark", "", extra_category);
+		opts->add_bool("-ch", "--checksum", "", extra_category);
+
+		if (opts->parse_arguments(argc, argv) != 0)
+			return 1;
+
+		// Help message
+		if (opts->get_bool("--help") == true)
+		{
+			std::printf("USAGE\n");
+			std::printf("    akoenc [optional options] -i <input filename> -o <output filename>\n");
+			std::printf("    akoenc [optional options] -i <input filename>\n");
+			std::printf("\n    Only PNG files supported as input.\n");
+			std::printf("\n");
+
+			opts->print_help();
+
+			return 0;
+		}
+
+		// Version message
+		if (opts->get_bool("--version") == true)
+		{
+			std::printf("Ako encoding tool v%i.%i.%i\n", VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH);
+			std::printf(" - libako v%i.%i.%i, format %i\n", akoVersionMajor(), akoVersionMinor(), akoVersionPatch(),
+			            akoFormatVersion());
+			std::printf(" - lodepng %s\n", LODEPNG_VERSION_STRING);
+			std::printf("\n");
+			std::printf("Copyright (c) 2021-2022 Alexander Brandt. Under MIT License.\n");
+			std::printf("\n");
+			std::printf("More information at 'https://github.com/baAlex/Ako'\n");
+			return 0;
+		}
+
+		// Set encoding settings
+		input_filename = opts->get_string("--input");
+		output_filename = opts->get_string("--output");
+
+		verbose = opts->get_bool("--verbose");
+		quiet = opts->get_bool("--quiet");
+		benchmark = opts->get_bool("--benchmark");
+		checksum = opts->get_bool("--checksum");
+
+		settings.quantization = opts->get_integer("--quantization");
+		settings.gate = opts->get_integer("--noise-gate");
+		settings.discard_transparent_pixels = opts->get_bool("--discard-non-visible");
+		settings.wavelet = (akoWavelet)opts->get_string_index("--wavelet");
+		settings.color = (akoColor)opts->get_string_index("--color");
+		settings.wrap = (akoWrap)opts->get_string_index("--wrap");
+	}
+
+	// Encode!
 	try
 	{
-		auto args = make_unique<vector<string>>();
-		for (int i = 0; i < argc; i++)
-			args->push_back(string(argv[i]));
-
-		AkoEnc(*args);
+		AkoEnc(settings, input_filename, output_filename, verbose, quiet, benchmark, checksum);
+		return 0;
 	}
-	catch (Shared::Error& e)
+	catch (ErrorStr& e)
 	{
-		cout << e.info << std::endl;
+		std::cout << e.info << "\n";
 		return 1;
 	}
 
