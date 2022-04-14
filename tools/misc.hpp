@@ -45,7 +45,7 @@ class ErrorStr
 
 inline void WriteBlob(const std::string& filename, const void* blob, size_t size)
 {
-	auto fp = std::fstream(filename, std::ios::binary | std::ios_base::out);
+	auto fp = std::fstream(filename, std::ios::binary | std::ios::out);
 
 	fp.write((char*)blob, size);
 

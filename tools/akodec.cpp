@@ -174,17 +174,17 @@ void AkoDec(const std::string& filename_input, const std::string& filename_outpu
 		std::printf("Opening input: '%s'...\n", filename_input.c_str());
 	}
 
-	const auto ako = std::make_unique<AkoImage>(filename_input, quiet, benchmark);
+	const auto ako = AkoImage(filename_input, quiet, benchmark);
 
 	if (verbose == true)
-		std::printf("Input data: %zu channels, %zux%zu px, wavelet: %i, color: %i, wrap: %i\n", ako->get_channels(),
-		            ako->get_width(), ako->get_height(), (int)ako->get_wavelet(), (int)ako->get_color(),
-		            (int)ako->get_wrap());
+		std::printf("Input data: %zu channels, %zux%zu px, wavelet: %i, color: %i, wrap: %i\n", ako.get_channels(),
+		            ako.get_width(), ako.get_height(), (int)ako.get_wavelet(), (int)ako.get_color(),
+		            (int)ako.get_wrap());
 
 	// Checksum data
 	uint32_t input_checksum = 0;
 	if (checksum == true)
-		input_checksum = Adler32((uint8_t*)ako->get_data(), ako->get_width() * ako->get_height() * ako->get_channels());
+		input_checksum = Adler32((uint8_t*)ako.get_data(), ako.get_width() * ako.get_height() * ako.get_channels());
 
 	// Encode
 	if (verbose == true)
@@ -198,20 +198,20 @@ void AkoDec(const std::string& filename_input, const std::string& filename_outpu
 
 		state.info_raw.bitdepth = 8;
 
-		switch (ako->get_channels())
+		switch (ako.get_channels())
 		{
 		case 1: state.info_raw.colortype = LCT_GREY; break;
 		case 2: state.info_raw.colortype = LCT_GREY_ALPHA; break;
 		case 3: state.info_raw.colortype = LCT_RGB; break;
 		case 4: state.info_raw.colortype = LCT_RGBA; break;
-		default: throw ErrorStr("Unsupported channels number (" + std::to_string(ako->get_channels()) + ")");
+		default: throw ErrorStr("Unsupported channels number (" + std::to_string(ako.get_channels()) + ")");
 		}
 
 		state.encoder.zlibsettings = ZLIB_PRESET[10 - effort];
 		state.encoder.filter_strategy = PNG_FILTER_PRESET[10 - effort];
 
-		const unsigned error = lodepng_encode((unsigned char**)(&blob), &get_blob_size, (unsigned char*)ako->get_data(),
-		                                      (unsigned)ako->get_width(), (unsigned)ako->get_height(), &state);
+		const unsigned error = lodepng_encode((unsigned char**)(&blob), &get_blob_size, (unsigned char*)ako.get_data(),
+		                                      (unsigned)ako.get_width(), (unsigned)ako.get_height(), &state);
 
 		if (error != 0)
 			throw ErrorStr("LodePng error: '" + std::string(lodepng_error_text(error)) + "'");
@@ -227,10 +227,10 @@ void AkoDec(const std::string& filename_input, const std::string& filename_outpu
 	}
 
 	// Bye!
-	const auto uncompressed_size = (double)(ako->get_width() * ako->get_height() * ako->get_channels());
-	const auto compressed_size = (double)ako->get_blob_size();
-	const auto bpp = (compressed_size / (double)(ako->get_width() * ako->get_height() * ako->get_channels())) * 8.0F *
-	                 ako->get_channels();
+	const auto uncompressed_size = (double)(ako.get_width() * ako.get_height() * ako.get_channels());
+	const auto compressed_size = (double)ako.get_blob_size();
+	const auto bpp = (compressed_size / (double)(ako.get_width() * ako.get_height() * ako.get_channels())) * 8.0F *
+	                 ako.get_channels();
 
 	if (quiet == false)
 	{
@@ -259,34 +259,34 @@ int main(int argc, const char* argv[])
 
 	// Options
 	{
-		auto opts = std::make_unique<OptionsManager>();
+		auto opts = OptionsManager();
 
-		const auto print_category = opts->add_category("PRINT OPTIONS");
-		opts->add_bool("-v", "--version", "Print program version and license terms.", print_category);
-		opts->add_bool("-h", "--help", "Print this help.", print_category);
-		opts->add_bool("-verbose", "--verbose", "Print all available information while encoding.", print_category);
-		opts->add_bool("-quiet", "--quiet", "Don't print anything.", print_category);
+		const auto print_category = opts.add_category("PRINT OPTIONS");
+		opts.add_bool("-v", "--version", "Print program version and license terms.", print_category);
+		opts.add_bool("-h", "--help", "Print this help.", print_category);
+		opts.add_bool("-verbose", "--verbose", "Print all available information while encoding.", print_category);
+		opts.add_bool("-quiet", "--quiet", "Don't print anything.", print_category);
 
-		const auto io_category = opts->add_category("INPUT/OUTPUT OPTIONS");
-		opts->add_string("-i", "--input", "Input filename.", "", "", io_category);
-		opts->add_string(
+		const auto io_category = opts.add_category("INPUT/OUTPUT OPTIONS");
+		opts.add_string("-i", "--input", "Input filename.", "", "", io_category);
+		opts.add_string(
 		    "-o", "--output",
 		    "Output filename. If not specified, all operations will take place then the result will be discarded.", "",
 		    "", io_category);
 
-		const auto encoding_category = opts->add_category("ENCODING OPTIONS");
-		opts->add_integer("-e", "--effort", "Computational effort to encode output, from 1 to 10.", 7, 1, 10,
-		                  encoding_category);
+		const auto encoding_category = opts.add_category("ENCODING OPTIONS");
+		opts.add_integer("-e", "--effort", "Computational effort to encode output, from 1 to 10.", 7, 1, 10,
+		                 encoding_category);
 
-		const auto extra_category = opts->add_category("EXTRA TOOLS");
-		opts->add_bool("-b", "--benchmark", "", extra_category);
-		opts->add_bool("-ch", "--checksum", "", extra_category);
+		const auto extra_category = opts.add_category("EXTRA TOOLS");
+		opts.add_bool("-b", "--benchmark", "", extra_category);
+		opts.add_bool("-ch", "--checksum", "", extra_category);
 
-		if (opts->parse_arguments(argc, argv) != 0)
+		if (opts.parse_arguments(argc, argv) != 0)
 			return 1;
 
 		// Help message
-		if (opts->get_bool("--help") == true)
+		if (opts.get_bool("--help") == true)
 		{
 			std::printf("USAGE\n");
 			std::printf("    akodec [optional options] -i <input filename> -o <output filename>\n");
@@ -294,13 +294,13 @@ int main(int argc, const char* argv[])
 			std::printf("\n    Only PNG files supported as output.\n");
 			std::printf("\n");
 
-			opts->print_help();
+			opts.print_help();
 
 			return 0;
 		}
 
 		// Version message
-		if (opts->get_bool("--version") == true)
+		if (opts.get_bool("--version") == true)
 		{
 			std::printf("Ako decoding tool v%i.%i.%i\n", TOOLS_VERSION_MAJOR, TOOLS_VERSION_MINOR, TOOLS_VERSION_PATCH);
 			std::printf(" - libako v%i.%i.%i, format %i\n", akoVersionMajor(), akoVersionMinor(), akoVersionPatch(),
@@ -314,14 +314,14 @@ int main(int argc, const char* argv[])
 		}
 
 		// Set decoding settings
-		input_filename = opts->get_string("--input");
-		output_filename = opts->get_string("--output");
+		input_filename = opts.get_string("--input");
+		output_filename = opts.get_string("--output");
 
-		effort = opts->get_integer("--effort");
-		verbose = opts->get_bool("--verbose");
-		quiet = opts->get_bool("--quiet");
-		benchmark = opts->get_bool("--benchmark");
-		checksum = opts->get_bool("--checksum");
+		effort = opts.get_integer("--effort");
+		verbose = opts.get_bool("--verbose");
+		quiet = opts.get_bool("--quiet");
+		benchmark = opts.get_bool("--benchmark");
+		checksum = opts.get_bool("--checksum");
 	}
 
 	// Decode!

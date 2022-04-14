@@ -109,8 +109,116 @@ class PngImage
 };
 
 
+size_t EncodePass(bool verbose, int ratio, const akoCallbacks* callbacks, const akoSettings* settings, size_t channels,
+                  size_t width, size_t height, const void* in, void** out, enum akoStatus* out_status)
+{
+	// One pass, no ratio specified
+	if (ratio == 0 || settings->wavelet == AKO_WAVELET_NONE)
+	{
+		return akoEncodeExt(callbacks, settings, channels, width, height, in, out, out_status);
+	}
+
+	// Lossless, if ratio == 1
+	else if (ratio == 1)
+	{
+		auto new_settings = *settings;
+		new_settings.quantization = 0;
+		new_settings.gate = 0;
+		return akoEncodeExt(callbacks, &new_settings, channels, width, height, in, out, out_status);
+	}
+
+	// Multiple passes to find a quantization value that
+	// place us close to the desired compression ratio
+	{
+		const size_t target_size = (width * height * channels) / ratio;
+		const size_t error_margin = (target_size * 4) / 100;
+
+		if (verbose == true)
+			std::printf("Target: %.2f kB, error: %.2f kB...\n", (double)target_size / 1000.0F,
+			            (double)error_margin / 1000.0F);
+
+		// Ceil zero
+		auto new_settings = *settings;
+		new_settings.quantization = 0;
+
+		size_t ceil_size = akoEncodeExt(callbacks, &new_settings, channels, width, height, in, out, out_status);
+
+		// Exponentially find a floor
+		new_settings.quantization = 1;
+
+		size_t floor_size = ceil_size;
+		int floor_q = 0;
+		int ceil_q = 0;
+		do
+		{
+			new_settings.quantization *= 4;
+
+			ceil_size = floor_size;
+			ceil_q = floor_q;
+
+			floor_size = akoEncodeExt(callbacks, &new_settings, channels, width, height, in, out, out_status);
+			floor_q = new_settings.quantization;
+
+			if (verbose == true)
+				std::printf(" - Q: %i|%i, %.1f|%.1f kB\n", ceil_q, floor_q, (double)ceil_size / 1000.0F,
+				            (double)floor_size / 1000.0F);
+
+		} while (floor_size > target_size);
+
+		// Divide range in two
+		size_t last_size = floor_size;
+		while (std::max(floor_size, ceil_size) - std::min(floor_size, ceil_size) > error_margin &&
+		       std::abs(floor_q - ceil_q) > 1)
+		{
+			new_settings.quantization = (ceil_q + floor_q) / 2;
+			last_size = akoEncodeExt(callbacks, &new_settings, channels, width, height, in, out, out_status);
+
+			if (last_size > target_size)
+			{
+				ceil_size = last_size;
+				ceil_q = new_settings.quantization;
+			}
+			else
+			{
+				floor_size = last_size;
+				floor_q = new_settings.quantization;
+			}
+
+			if (verbose == true)
+				std::printf(" - Q: %i|%i, %.1f|%.1f kB\n", ceil_q, floor_q, (double)ceil_size / 1000.0F,
+				            (double)floor_size / 1000.0F);
+		}
+
+		// Bye!
+		if (std::max(floor_size, target_size) - std::min(floor_size, target_size) <
+		    std::max(ceil_size, target_size) - std::min(ceil_size, target_size))
+		{
+			if (verbose == true)
+				std::printf(" - Q: %i\n", floor_q);
+
+			new_settings.quantization = floor_q;
+			if (last_size == floor_size)
+				return last_size;
+		}
+		else
+		{
+			if (verbose == true)
+				std::printf(" - Q: %i\n", ceil_q);
+
+			new_settings.quantization = ceil_q;
+			if (last_size == ceil_size)
+				return last_size;
+		}
+
+		return akoEncodeExt(callbacks, &new_settings, channels, width, height, in, out, out_status);
+	}
+
+	return 0;
+}
+
+
 void AkoEnc(const akoSettings& settings, const std::string& filename_input, const std::string& filename_output,
-            bool verbose = false, bool quiet = false, bool benchmark = false, bool checksum = false)
+            int ratio = 0, bool verbose = false, bool quiet = false, bool benchmark = false, bool checksum = false)
 {
 	if (filename_input == "")
 		throw ErrorStr("No input filename specified");
@@ -126,15 +234,15 @@ void AkoEnc(const akoSettings& settings, const std::string& filename_input, cons
 		std::printf("Opening input: '%s'...\n", filename_input.c_str());
 	}
 
-	const auto png = std::make_unique<PngImage>(filename_input);
+	const auto png = PngImage(filename_input);
 
 	if (verbose == true)
-		std::printf("Input data: %zu channels, %zux%zu px\n", png->get_channels(), png->get_width(), png->get_height());
+		std::printf("Input data: %zu channels, %zux%zu px\n", png.get_channels(), png.get_width(), png.get_height());
 
 	// Checksum data
 	uint32_t input_checksum = 0;
 	if (checksum == true)
-		input_checksum = Adler32((uint8_t*)png->get_data(), png->get_width() * png->get_height() * png->get_channels());
+		input_checksum = Adler32((uint8_t*)png.get_data(), png.get_width() * png.get_height() * png.get_channels());
 
 	// Encode
 	if (verbose == true)
@@ -158,18 +266,25 @@ void AkoEnc(const akoSettings& settings, const std::string& filename_input, cons
 		{
 			total_benchmark.start(true);
 
-			EventsData events_data;
-			callbacks.events = EventsCallback;
-			callbacks.events_data = &events_data;
-
-			std::printf("Benchmark: \n");
+			if (ratio == 0)
+			{
+				EventsData events_data;
+				callbacks.events = EventsCallback;
+				callbacks.events_data = &events_data;
+				std::printf("Benchmark: \n");
+			}
 		}
 
-		blob_size = akoEncodeExt(&callbacks, &settings, png->get_channels(), png->get_width(), png->get_height(),
-		                         png->get_data(), &blob, &status);
+		blob_size = EncodePass(verbose, ratio, &callbacks, &settings, png.get_channels(), png.get_width(),
+		                       png.get_height(), png.get_data(), &blob, &status);
 
 		if (benchmark == true && quiet == false)
+		{
+			if (ratio != 0)
+				std::printf("Benchmark: \n");
+
 			total_benchmark.pause_stop(true, " - Total: ");
+		}
 
 		if (blob_size == 0)
 			throw ErrorStr("Ako error: '" + std::string(akoStatusString(status)) + "'");
@@ -185,10 +300,10 @@ void AkoEnc(const akoSettings& settings, const std::string& filename_input, cons
 	}
 
 	// Bye!
-	const auto uncompressed_size = (double)(png->get_width() * png->get_height() * png->get_channels());
+	const auto uncompressed_size = (double)(png.get_width() * png.get_height() * png.get_channels());
 	const auto compressed_size = (double)blob_size;
-	const auto bpp = (compressed_size / (double)(png->get_width() * png->get_height() * png->get_channels())) * 8.0F *
-	                 png->get_channels();
+	const auto bpp = (compressed_size / (double)(png.get_width() * png.get_height() * png.get_channels())) * 8.0F *
+	                 png.get_channels();
 
 	if (quiet == false)
 	{
@@ -210,6 +325,7 @@ int main(int argc, const char* argv[])
 	akoSettings settings = akoDefaultSettings();
 	std::string input_filename;
 	std::string output_filename;
+	int ratio = 0;
 	bool verbose = false;
 	bool quiet = false;
 	bool benchmark = false;
@@ -217,58 +333,59 @@ int main(int argc, const char* argv[])
 
 	// Options
 	{
-		auto opts = std::make_unique<OptionsManager>();
+		auto opts = OptionsManager();
 
-		const auto print_category = opts->add_category("PRINT OPTIONS");
-		opts->add_bool("-v", "--version", "Print program version and license terms.", print_category);
-		opts->add_bool("-h", "--help", "Print this help.", print_category);
-		opts->add_bool("-verbose", "--verbose", "Print all available information while encoding.", print_category);
-		opts->add_bool("-quiet", "--quiet", "Don't print anything.", print_category);
+		const auto print_category = opts.add_category("PRINT OPTIONS");
+		opts.add_bool("-v", "--version", "Print program version and license terms.", print_category);
+		opts.add_bool("-h", "--help", "Print this help.", print_category);
+		opts.add_bool("-verbose", "--verbose", "Print all available information while encoding.", print_category);
+		opts.add_bool("-quiet", "--quiet", "Don't print anything.", print_category);
 
-		const auto io_category = opts->add_category("INPUT/OUTPUT OPTIONS");
-		opts->add_string("-i", "--input", "Input filename.", "", "", io_category);
-		opts->add_string(
+		const auto io_category = opts.add_category("INPUT/OUTPUT OPTIONS");
+		opts.add_string("-i", "--input", "Input filename.", "", "", io_category);
+		opts.add_string(
 		    "-o", "--output",
 		    "Output filename. If not specified, all operations will take place then the result will be discarded.", "",
 		    "", io_category);
 
-		const auto encoding_category = opts->add_category("ENCODING OPTIONS");
-		opts->add_integer("-q", "--quantization",
-		                  "Controls loss in the final image and in turn, compression gains. Achieves it by reducing "
-		                  "wavelet coefficients accuracy accordingly  to the provided value. Default and recommended "
-		                  "loss method. Set it to zero for lossless compression.",
-		                  16, 0, 4096, encoding_category);
-		opts->add_integer("-g", "--noise-gate",
-		                  "Loss method similar to '--quantization', however it removes wavelet coefficients under a "
-		                  "threshold set by the provided value. Set it to zero for lossless compression.",
-		                  0, 0, 4096, encoding_category);
-		opts->add_string("-w", "--wavelet",
-		                 "Wavelet transformation to apply. Options are: DD137, CDF53, HAAR and NONE. For lossy "
-		                 "compression DD137 provides better results, for lossless CDF53.",
-		                 "DD137", "DD137 CDF53 HAAR NONE", encoding_category);
-		opts->add_string("-c", "--color",
-		                 "Color transformation to apply. Options are: YCOCG, SUBTRACT-G and NONE. All options serve "
-		                 "both lossy and lossless compression.",
-		                 "YCOCG", "YCOCG SUBTRACT-G NONE", encoding_category);
-		opts->add_string("-wr", "--wrap",
-		                 "Controls how loss wrap around image borders. Options are: CLAMP, MIRROR, REPEAT and ZERO; "
-		                 "all them analog to texture-wrapping options in OpenGL. Two common choices are CLAMP that "
-		                 "perform no wrap, and REPEAT for images intended to serve as tiled textures.",
-		                 "CLAMP", "CLAMP MIRROR REPEAT ZERO", encoding_category);
-		opts->add_bool("-d", "--discard-non-visible",
-		               "Discard pixels that do not contribute to the final image (those in transparent areas). For "
-		               "lossless compression do not set this option.",
-		               encoding_category);
+		const auto encoding_category = opts.add_category("ENCODING OPTIONS");
+		opts.add_integer("-q", "--quantization",
+		                 "Controls loss in the final image and in turn, compression gains. Achieves it by reducing "
+		                 "wavelet coefficients accuracy accordingly  to the provided value. Default and recommended "
+		                 "loss method. Set it to zero for lossless compression.",
+		                 16, 0, 4096, encoding_category);
+		opts.add_integer("-g", "--noise-gate",
+		                 "Loss method similar to '--quantization', however it removes wavelet coefficients under a "
+		                 "threshold set by the provided value. Set it to zero for lossless compression.",
+		                 0, 0, 4096, encoding_category);
+		opts.add_string("-w", "--wavelet",
+		                "Wavelet transformation to apply. Options are: DD137, CDF53, HAAR and NONE. For lossy "
+		                "compression DD137 provides better results, for lossless CDF53.",
+		                "DD137", "DD137 CDF53 HAAR NONE", encoding_category);
+		opts.add_string("-c", "--color",
+		                "Color transformation to apply. Options are: YCOCG, SUBTRACT-G and NONE. All options serve "
+		                "both lossy and lossless compression.",
+		                "YCOCG", "YCOCG SUBTRACT-G NONE", encoding_category);
+		opts.add_string("-wr", "--wrap",
+		                "Controls how loss wrap around image borders. Options are: CLAMP, MIRROR, REPEAT and ZERO; "
+		                "all them analog to texture-wrapping options in OpenGL. Two common choices are CLAMP that "
+		                "perform no wrap, and REPEAT for images intended to serve as tiled textures.",
+		                "CLAMP", "CLAMP MIRROR REPEAT ZERO", encoding_category);
+		opts.add_bool("-d", "--discard-non-visible",
+		              "Discard pixels that do not contribute to the final image (those in transparent areas). For "
+		              "lossless compression do not set this option.",
+		              encoding_category);
+		opts.add_integer("-r", "--ratio", "", 0, 0, 4096, encoding_category);
 
-		const auto extra_category = opts->add_category("EXTRA TOOLS");
-		opts->add_bool("-b", "--benchmark", "", extra_category);
-		opts->add_bool("-ch", "--checksum", "", extra_category);
+		const auto extra_category = opts.add_category("EXTRA TOOLS");
+		opts.add_bool("-b", "--benchmark", "", extra_category);
+		opts.add_bool("-ch", "--checksum", "", extra_category);
 
-		if (opts->parse_arguments(argc, argv) != 0)
+		if (opts.parse_arguments(argc, argv) != 0)
 			return 1;
 
 		// Help message
-		if (opts->get_bool("--help") == true)
+		if (opts.get_bool("--help") == true)
 		{
 			std::printf("USAGE\n");
 			std::printf("    akoenc [optional options] -i <input filename> -o <output filename>\n");
@@ -276,13 +393,13 @@ int main(int argc, const char* argv[])
 			std::printf("\n    Only PNG files supported as input.\n");
 			std::printf("\n");
 
-			opts->print_help();
+			opts.print_help();
 
 			return 0;
 		}
 
 		// Version message
-		if (opts->get_bool("--version") == true)
+		if (opts.get_bool("--version") == true)
 		{
 			std::printf("Ako encoding tool v%i.%i.%i\n", VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH);
 			std::printf(" - libako v%i.%i.%i, format %i\n", akoVersionMajor(), akoVersionMinor(), akoVersionPatch(),
@@ -296,26 +413,27 @@ int main(int argc, const char* argv[])
 		}
 
 		// Set encoding settings
-		input_filename = opts->get_string("--input");
-		output_filename = opts->get_string("--output");
+		input_filename = opts.get_string("--input");
+		output_filename = opts.get_string("--output");
 
-		verbose = opts->get_bool("--verbose");
-		quiet = opts->get_bool("--quiet");
-		benchmark = opts->get_bool("--benchmark");
-		checksum = opts->get_bool("--checksum");
+		ratio = opts.get_integer("--ratio");
+		verbose = opts.get_bool("--verbose");
+		quiet = opts.get_bool("--quiet");
+		benchmark = opts.get_bool("--benchmark");
+		checksum = opts.get_bool("--checksum");
 
-		settings.quantization = opts->get_integer("--quantization");
-		settings.gate = opts->get_integer("--noise-gate");
-		settings.discard_transparent_pixels = opts->get_bool("--discard-non-visible");
-		settings.wavelet = (akoWavelet)opts->get_string_index("--wavelet");
-		settings.color = (akoColor)opts->get_string_index("--color");
-		settings.wrap = (akoWrap)opts->get_string_index("--wrap");
+		settings.quantization = opts.get_integer("--quantization");
+		settings.gate = opts.get_integer("--noise-gate");
+		settings.discard_transparent_pixels = opts.get_bool("--discard-non-visible");
+		settings.wavelet = (akoWavelet)opts.get_string_index("--wavelet");
+		settings.color = (akoColor)opts.get_string_index("--color");
+		settings.wrap = (akoWrap)opts.get_string_index("--wrap");
 	}
 
 	// Encode!
 	try
 	{
-		AkoEnc(settings, input_filename, output_filename, verbose, quiet, benchmark, checksum);
+		AkoEnc(settings, input_filename, output_filename, ratio, verbose, quiet, benchmark, checksum);
 		return 0;
 	}
 	catch (ErrorStr& e)
