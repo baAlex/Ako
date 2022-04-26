@@ -19,7 +19,7 @@ And in an experimental state:
 
 Compilation
 -----------
-Aside from C and C++ compilers (later only needed to build executable tools), the only requirement is [cmake][1]. On Ubuntu you can install them with:
+Aside from C and C++ compilers (later only needed to build executable tools), the only requirement is [cmake][1]. On Ubuntu you can install it with:
 
 ```
 sudo apt install cmake
