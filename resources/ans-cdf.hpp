@@ -16,18 +16,14 @@ NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE
 USE OR PERFORMANCE OF THIS SOFTWARE.
 */
 
-#ifndef CDF_HPP
-#define CDF_HPP
+#ifndef ANS_CDF_HPP
+#define ANS_CDF_HPP
 
 #include <algorithm>
 #include <cmath>
+#include <iostream>
 #include <unordered_map>
 #include <vector>
-
-#define DEVELOPERS_DEVELOPERS_DEVELOPERS
-#ifdef DEVELOPERS_DEVELOPERS_DEVELOPERS
-#include <iostream>
-#endif
 
 
 template <typename T> struct CdfEntry
@@ -56,7 +52,7 @@ template <typename T> class Cdf
 	}
 
   public:
-	Cdf(const T* message, size_t len)
+	Cdf(const T* message, size_t len, uint32_t normalize_to = 0)
 	{
 		// Cumulative distribution function (CDF) following Pasco (1976, p.10)
 		// (on my own nomenclature):
@@ -80,7 +76,7 @@ template <typename T> class Cdf
 			// Count symbols
 			auto hashmap = std::unordered_map<T, uint32_t>();
 			for (const T* m = message; m != (message + len); m++)
-				hashmap[*m] += 1;
+				hashmap[*m]++;
 
 			// Create sorted table
 			for (const auto& i : hashmap)
@@ -100,7 +96,6 @@ template <typename T> class Cdf
 
 		// Accumulate frequencies
 		uint32_t cumulative = 0;
-
 		for (auto& i : table)
 		{
 			max_cumulative_ = cumulative + 1;
@@ -108,29 +103,69 @@ template <typename T> class Cdf
 			cumulative += i.frequency;
 		}
 
-#ifdef DEVELOPERS_DEVELOPERS_DEVELOPERS
-		const size_t MESSAGE_MAX_PRINT = 80;
-		const size_t SYMBOLS_MAX_PRINT = 10;
+		// Normalize (TODO, TODO, TODO)
+		bool normalized = false;
+		if (normalize_to != 0 && max_cumulative_ > normalize_to)
+		{
+			const auto div = std::ceil(static_cast<double>(max_cumulative_ - 1) / static_cast<double>(normalize_to));
+			normalized = true;
 
-		std::cout << "\nMessage: \"";
+			uint32_t cumulative = 0;
+			for (auto& i : table)
+			{
+				i.frequency = static_cast<uint32_t>(std::floor(static_cast<double>(i.frequency) / div));
+				if (i.frequency == 0)
+					i.frequency = 1;
 
-		for (const T* i = message; i != message + std::min(len, MESSAGE_MAX_PRINT); i++)
-			std::cout << *i;
+				max_cumulative_ = cumulative + 1;
+				i.cumulative = cumulative;
+				cumulative += i.frequency;
+			}
 
-		std::cout << "\"\n";
-		std::cout << "Length: " << len << "\n";
-		std::cout << "Maximum cumulative: " << max_cumulative_ << "\n";
-		std::cout << "Unique symbols: " << table.size() << "\n";
-		std::cout << "Entropy: " << h << " bits per symbol\n";
-		std::cout << "Shannon target: " << (h * static_cast<double>(len)) / 8.0 << " bytes\n";
+			if (max_cumulative_ > normalize_to)
+			{
+				std::cout << max_cumulative_ << " > " << normalize_to << "\n";
+				std::cout << "Entropy: " << h << " bits per symbol\n";
+				throw std::runtime_error("No enough precision (and bad maths).");
+			}
+		}
 
-		for (size_t i = 0; i < std::min(table.size(), SYMBOLS_MAX_PRINT); i++)
-			std::cout << " - '" << table[i].symbol << "' (f: " << table[i].frequency << ", c: " << table[i].cumulative
-			          << ")\n";
+		// Developers, developers, developers
+		{
+			const size_t MESSAGE_MAX_PRINT = 80;
+			const size_t SYMBOLS_MAX_PRINT = 10;
 
-		if (table.size() > SYMBOLS_MAX_PRINT)
-			std::cout << " - (...)\n";
-#endif
+			std::cout << "Message: \"";
+
+			for (const T* i = message; i != message + std::min(len, MESSAGE_MAX_PRINT); i++)
+			{
+				if (*i != static_cast<T>('\n'))
+					std::cout << *i;
+				else
+					std::cout << " ";
+			}
+
+			std::cout << "\"\n";
+			std::cout << "Length: " << len << " symbols\n";
+			std::cout << "Maximum cumulative: " << max_cumulative_ << "\n";
+			std::cout << "Unique symbols: " << table.size() << "\n";
+			std::cout << "Entropy: " << h << " bits per symbol"
+			          << ((normalized == true) ? " (before normalization)\n" : "\n");
+			std::cout << "Shannon target: " << (h * static_cast<double>(len)) / 8.0 << " bytes"
+			          << ((normalized == true) ? " (before normalization)\n" : "\n");
+
+			for (size_t i = 0; i < std::min(table.size(), SYMBOLS_MAX_PRINT); i++)
+				std::cout << " - '" << table[i].symbol << "' (f: " << table[i].frequency
+				          << ", c: " << table[i].cumulative << ")\n";
+
+			if (table.size() > SYMBOLS_MAX_PRINT)
+			{
+				std::cout << " - (...)\n";
+				const auto i = table.size() - 1;
+				std::cout << " - '" << table[i].symbol << "' (f: " << table[i].frequency
+				          << ", c: " << table[i].cumulative << ")\n";
+			}
+		}
 	}
 
 	const CdfEntry<T>& of_symbol(T s) const
@@ -160,5 +195,4 @@ template <typename T> class Cdf
 		return max_cumulative_;
 	}
 };
-#undef DEVELOPERS_DEVELOPERS_DEVELOPERS
 #endif

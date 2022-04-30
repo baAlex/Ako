@@ -24,15 +24,19 @@ USE OR PERFORMANCE OF THIS SOFTWARE.
 
 // ----
 
-// > clang++ ans1.cpp -std=c++20 -Wall -Wextra -Wconversion -pedantic -Werror -o ans
+
+// rANS CORE
+// =========
+
+// > clang++ ans1-core.cpp -std=c++20 -Wall -Wextra -Wconversion -pedantic -Werror -o ans
 // > clang-tidy -checks="-*,cppcoreguidelines-*,bugprone-*,clang-analyzer-*,cert-*,misc-*,performance-*,portability-*"
-// ans1.cpp
+// ans1-core.cpp
 
 
 #include <cstring>
 #include <iostream>
 
-#include "cdf.hpp"
+#include "ans-cdf.hpp"
 
 
 typedef uint64_t state_t;
@@ -108,7 +112,7 @@ template <typename T> void Decode(const Cdf<T>& cdf, state_t state)
 
 int main()
 {
-	std::cout << "rANS Test 1\n";
+	std::cout << "rANS Test 1\n\n";
 
 	// Using Uint8 (char)
 	{
@@ -136,6 +140,7 @@ int main()
 
 	// Using Int16
 	{
+		std::cout << "\n";
 		const size_t length = 8;
 		const int16_t message[length] = {1, 9, 2, 1, 6, 8, 0, 1};
 
