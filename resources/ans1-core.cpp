@@ -33,8 +33,8 @@ USE OR PERFORMANCE OF THIS SOFTWARE.
 // ans1-core.cpp
 
 
-#include <cstring>
 #include <iostream>
+#include <vector>
 
 #include "ans-cdf.hpp"
 
@@ -43,44 +43,43 @@ typedef uint64_t state_t;
 const state_t INITIAL_STATE = 123;
 
 
-template <typename T> state_t Encode(const Cdf<T>& cdf, const T* message, size_t len)
+// (En)coding:
+// « C(s, x) = m * floor(x / l[s]) + b[s] + mod(x, l[s]) » (Duda 2014, p.8)
+
+// Decoding:
+// D(x) = (s <- s[mod(x, m)])
+// D(x, s) = (x <- l[s] * floor(x / m) + mod(x, m) - b[s])
+
+// Own nomenclature on Duda (2014, ibid.)
+
+// Where 'l[s]' and 'b[s]' are, respectively, the probabilities of symbol 's' and its
+// cumulative frequency. 'x' the state/accumulator and 'm' a number greater than the
+// cumulative frequency of the last symbol in our lexicographic ordered cumulative-table.
+// This last one can be also a power of two (helps in replace multiplications and
+// divisions with shifts).
+
+
+state_t C(state_t state, uint32_t frequency, uint32_t cumulative, uint32_t m)
 {
-	// (En)coding:
-	// « C(s, x) = m * floor(x / l[s]) + b[s] + mod(x, l[s]) » (Duda 2014, p.8)
+	return m * (state / frequency) + (state % frequency) + cumulative;
+}
 
-	// Decoding:
-	// D(x) = (s <- s[mod(x, m)])
-	// D(x, s) = (x <- l[s] * floor(x / m) + mod(x, m) - b[s])
+state_t D(state_t state, uint32_t frequency, uint32_t cumulative, uint32_t m, uint32_t modulo_point)
+{
+	return frequency * (state / m) + modulo_point - cumulative;
+}
 
-	// Own nomenclature on Duda (2014, ibid.)
 
-	// Where 'l[s]' and 'b[s]' are, respectively, the probabilities of symbol 's' and its
-	// cumulative frequency. 'x' the state/accumulator and 'm' a number greater than the
-	// cumulative frequency of the last symbol in our lexicographic ordered cumulative-table.
-	// This last one can be also a power of two (helps in replace multiplications and
-	// divisions with shifts).
-
+template <typename T> state_t AnsEncode(const Cdf<T>& cdf, const std::vector<T>& message)
+{
 	std::cout << "\nEncode:\n";
 	state_t state = INITIAL_STATE;
 
-	for (const T* i = message; i != message + len; i++)
+	for (const auto& i : message)
 	{
 		// Encode
-		const CdfEntry<T>& e = cdf.of_symbol(*i);
-
-		const auto prev_state = state;
-		state = cdf.max_cumulative() * (state / e.frequency) + (state % e.frequency) + e.cumulative;
-
-		// Try to decode, a failure means that the state overflow-ed (well... wrap-around)
-		{
-			const uint32_t point = (state % cdf.max_cumulative()); // "Point" as is inside a range
-			const CdfEntry<T>& e = cdf.of_point(point);
-
-			const state_t decode_state = e.frequency * (state / cdf.max_cumulative()) + point - e.cumulative;
-
-			if (decode_state != prev_state)
-				throw std::runtime_error("ANS overflow, we don't have a reversible state.");
-		}
+		const CdfEntry<T>& e = cdf.of_symbol(i);
+		state = C(state, e.frequency, e.cumulative, cdf.m());
 
 		// Developers, developers, developers
 		std::cout << " - '" << e.symbol << "' (f: " << e.frequency << ", c: " << e.cumulative << ")\t->\t" << state
@@ -91,20 +90,20 @@ template <typename T> state_t Encode(const Cdf<T>& cdf, const T* message, size_t
 }
 
 
-template <typename T> void Decode(const Cdf<T>& cdf, state_t state)
+template <typename T> void AnsDecode(const Cdf<T>& cdf, state_t state)
 {
 	std::cout << "\nDecode:\n";
 
 	while (state > INITIAL_STATE)
 	{
 		// Decode
-		const uint32_t point = (state % cdf.max_cumulative());
-		const CdfEntry<T>& e = cdf.of_point(point);
+		const uint32_t modulo_point = (state % cdf.m());
 
-		state = e.frequency * (state / cdf.max_cumulative()) + point - e.cumulative;
+		const CdfEntry<T>& e = cdf.of_point(modulo_point);
+		state = D(state, e.frequency, e.cumulative, cdf.m(), modulo_point);
 
 		// Developers, developers, developers
-		std::cout << " - '" << e.symbol << "' (p: " << point << ", f: " << e.frequency << ", c: " << e.cumulative
+		std::cout << " - '" << e.symbol << "' (p: " << modulo_point << ", f: " << e.frequency << ", c: " << e.cumulative
 		          << ")\t->\t" << state << "\n";
 	}
 }
@@ -116,20 +115,21 @@ int main()
 
 	// Using Uint8 (char)
 	{
-		// const auto message = "hello";
-		const auto message = "hello there";
-		// const auto message = "abracadabra";
-		// const auto message = "111111111112";
-		// const auto message = "211111111111";
+		// const std::string s = "hello";
+		const std::string s = "hello there";
+		// const std::string s = "abracadabra";
+		// const std::string s = "111111111112";
+		// const std::string s = "211111111111";
 
-		// const auto message = "hello there, come here my little friend"; // Should fail
-		// const auto message = "1111111"; // Should fail
+		// const std::string s = "hello there, come here my little friend"; // Should fail
+		// const std::string s = "1111111"; // Should fail
 
 		try
 		{
-			const auto cdf = Cdf<char>(message, strlen(message));
-			const auto state = Encode<char>(cdf, message, strlen(message));
-			Decode<char>(cdf, state);
+			const auto message = std::vector<char>(s.begin(), s.end());
+			const auto cdf = Cdf<char>(message.data(), message.size());
+			const auto state = AnsEncode(cdf, message);
+			AnsDecode(cdf, state);
 		}
 		catch (const std::exception& e)
 		{
@@ -141,14 +141,13 @@ int main()
 	// Using Int16
 	{
 		std::cout << "\n";
-		const size_t length = 8;
-		const int16_t message[length] = {1, 9, 2, 1, 6, 8, 0, 1};
+		const std::vector<uint16_t> message = {1, 9, 2, 1, 6, 8, 0, 1};
 
 		try
 		{
-			const auto cdf = Cdf<int16_t>(message, length);
-			const auto state = Encode<int16_t>(cdf, message, length);
-			Decode<int16_t>(cdf, state);
+			const auto cdf = Cdf<uint16_t>(message.data(), message.size());
+			const auto state = AnsEncode(cdf, message);
+			AnsDecode(cdf, state);
 		}
 		catch (const std::exception& e)
 		{

@@ -52,7 +52,7 @@ template <typename T> class Cdf
 	}
 
   public:
-	Cdf(const T* message, size_t len, uint32_t normalize_to = 0)
+	Cdf(const T* message, size_t len, uint32_t scale_to = 0)
 	{
 		// Cumulative distribution function (CDF) following Pasco (1976, p.10)
 		// (on my own nomenclature):
@@ -103,31 +103,87 @@ template <typename T> class Cdf
 			cumulative += i.frequency;
 		}
 
-		// Normalize (TODO, TODO, TODO)
-		bool normalized = false;
-		if (normalize_to != 0 && max_cumulative_ > normalize_to)
+		// Scale (TODO, not good nor that bad... I need to
+		// study real-world projects, hopefully find a paper)
+		if (scale_to != 0)
 		{
-			const auto div = std::ceil(static_cast<double>(max_cumulative_ - 1) / static_cast<double>(normalize_to));
-			normalized = true;
+			const auto mul = static_cast<double>(scale_to) / static_cast<double>(max_cumulative_);
+
+			std::cout << "### Original cumulative: " << max_cumulative_ << "\n";
+			std::cout << "### Scale: " << mul << "x\n";
 
 			uint32_t cumulative = 0;
-			for (auto& i : table)
-			{
-				i.frequency = static_cast<uint32_t>(std::floor(static_cast<double>(i.frequency) / div));
-				if (i.frequency == 0)
-					i.frequency = 1;
+			size_t zeros_from = table.size();
+			size_t twos_from = table.size();
 
+			// Accumulate, again, this time scaling frequencies
+			for (size_t i = 0; i < table.size(); i++)
+			{
+				struct CdfEntry<T>& e = table[i];
+
+				// Accumulate those that do not require current frequency
 				max_cumulative_ = cumulative + 1;
-				i.cumulative = cumulative;
-				cumulative += i.frequency;
+				e.cumulative = cumulative;
+
+				// Scale frequency, if ends up being zero, as long
+				// 'max_cumulative' allow us, convert it back to one
+				e.frequency = static_cast<uint32_t>(std::floor(static_cast<double>(e.frequency) * mul));
+
+				if (e.frequency == 0 && max_cumulative_ < scale_to)
+					e.frequency = 1;
+
+				// Accumulate frequency
+				cumulative += e.frequency;
+
+				// We need to keep track of some numbers
+				if (e.frequency == 0)
+				{
+					zeros_from = i;
+					break; // From here all values will be zero
+				}
+				else if (e.frequency > 1)
+					twos_from = i;
 			}
 
-			if (max_cumulative_ > normalize_to)
+			// Bad news, we need to fix zero values. We are going to convert
+			// them to one while subtracting one to those greater than... one
+			std::cout << "### Zeros: " << table.size() - zeros_from << "\n";
+
+			if (zeros_from != table.size())
 			{
-				std::cout << max_cumulative_ << " > " << normalize_to << "\n";
-				std::cout << "Entropy: " << h << " bits per symbol\n";
-				throw std::runtime_error("No enough precision (and bad maths).");
+				if (twos_from == table.size())
+					throw std::runtime_error("No enough entropy."); // White noise isn't funny
+
+				for (size_t i = 0; i < (table.size() - zeros_from); i++)
+				{
+					struct CdfEntry<T>& ez = table[table.size() - i - 1];
+					ez.frequency = 1;
+
+					struct CdfEntry<T>& et = table[twos_from];
+					et.frequency--;
+
+					if (et.frequency == 1)
+						twos_from--;
+
+					if (twos_from > table.size())                         // Underflows
+						throw std::runtime_error("No enough precision."); // Too much data
+				}
+
+				// Accumulate frequencies, for a third time
+				cumulative = 0;
+				for (auto& i : table)
+				{
+					max_cumulative_ = cumulative + 1;
+					i.cumulative = cumulative;
+					cumulative += i.frequency;
+				}
 			}
+
+			// Done
+			if (max_cumulative_ > scale_to) // This shouldn't happen
+				throw std::runtime_error("Bad math involving std::floor()!.");
+
+			max_cumulative_ = scale_to; // Ok, it can be less, in such case we lie
 		}
 
 		// Developers, developers, developers
@@ -147,12 +203,11 @@ template <typename T> class Cdf
 
 			std::cout << "\"\n";
 			std::cout << "Length: " << len << " symbols\n";
-			std::cout << "Maximum cumulative: " << max_cumulative_ << "\n";
 			std::cout << "Unique symbols: " << table.size() << "\n";
-			std::cout << "Entropy: " << h << " bits per symbol"
-			          << ((normalized == true) ? " (before normalization)\n" : "\n");
+			std::cout << "Maximum cumulative: " << max_cumulative_ << ((scale_to != 0) ? " (scaled)\n" : "\n");
+			std::cout << "Entropy: " << h << " bits per symbol" << ((scale_to != 0) ? " (before scaling)\n" : "\n");
 			std::cout << "Shannon target: " << (h * static_cast<double>(len)) / 8.0 << " bytes"
-			          << ((normalized == true) ? " (before normalization)\n" : "\n");
+			          << ((scale_to != 0) ? " (before scaling)\n" : "\n");
 
 			for (size_t i = 0; i < std::min(table.size(), SYMBOLS_MAX_PRINT); i++)
 				std::cout << " - '" << table[i].symbol << "' (f: " << table[i].frequency
@@ -190,7 +245,7 @@ template <typename T> class Cdf
 		return table[table.size() - 1];
 	}
 
-	uint32_t max_cumulative() const
+	uint32_t m() const
 	{
 		return max_cumulative_;
 	}

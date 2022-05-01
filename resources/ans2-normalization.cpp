@@ -25,63 +25,82 @@ USE OR PERFORMANCE OF THIS SOFTWARE.
 // ----
 
 
-// rANS WITH NORMALIZATION (NAIVE APPROACH FOR NOW)
-// ================================================
+// rANS WITH NORMALIZATION
+// =======================
 
 // > clang++ ans2-normalization.cpp -std=c++20 -Wall -Wextra -Wconversion -pedantic -Werror -o ans
 // > clang-tidy -checks="-*,cppcoreguidelines-*,bugprone-*,clang-analyzer-*,cert-*,misc-*,performance-*,portability-*"
 // ans2-normalization.cpp
 
 
-#include <cstring>
 #include <fstream>
 #include <iostream>
-#include <stdexcept>
 #include <vector>
 
 #include "ans-cdf.hpp"
 
 
-typedef uint64_t acc_t;
-const acc_t ACC_INITIAL_STATE = 123;
-const acc_t ACCUMULATOR_MAX = 4294967295; // 32 bits in a 64 bits accumulator in order to check overflows
+typedef uint64_t acc_encode_t; // To avoid overflow at ((2 ^ 32) - 1)
+typedef uint32_t acc_decode_t;
 
-const size_t MESSAGE_MAX_PRINT = 40;
+const size_t ACC_INITIAL_STATE = 123; // Arbitrary number
+const size_t MESSAGE_MAX_PRINT = 40;  // Dev purposes
+
+const size_t B = 1 << 16; // Output/input base, Duda's paper uses base 2 as an example (to extract individual bits),
+                          // also suggests (1 << 8), and another alternative is to extract the exact number of bits for
+                          // each symbol (through requires some math compromises... TODO(?)). This choice here is to
+                          // reduce normalizations by output/input(-ing) 16 bits.
+
+const size_t L =
+    1 << 16; // Must be divisible by 'm' and for now 'm' is hardcoded to (1 << 16) [1], also we should aim to the fewest
+             // normalizations ('L' works in conjunction with 'B'), and finally be a number that accumulators, after all
+             // maths involved, can hold... kinda, this value here fits but we are unable to do a comparision [2] (we
+             // can fix it with an intrinsic or assembly, for now a 64 bits accumulator at encoding do the trick).
+
+
+acc_encode_t C(acc_encode_t accumulator, uint32_t frequency, uint32_t cumulative, uint32_t m)
+{
+	return m * (accumulator / frequency) + (accumulator % frequency) + cumulative;
+}
+
+acc_decode_t D(acc_decode_t accumulator, uint32_t frequency, uint32_t cumulative, uint32_t m, uint32_t modulo_point)
+{
+	return frequency * (accumulator / m) + modulo_point - cumulative;
+}
 
 
 template <typename InputT, typename OutputT>
-std::vector<OutputT> AnsEncode(const Cdf<InputT>& cdf, const std::vector<InputT>& message,
-                               OutputT output_unit_max = ((1 << (sizeof(OutputT) * 8)) - 1))
+std::vector<OutputT> AnsEncode(const Cdf<InputT>& cdf, const std::vector<InputT>& message)
 {
 	std::cout << "\nEncode:\n";
 
 	auto output = std::vector<OutputT>();
-	acc_t acc = ACC_INITIAL_STATE;
+	acc_encode_t acc = ACC_INITIAL_STATE;
 
 	size_t normalizations = 0;       // For stats
 	size_t total_normalizations = 0; // Ditto
 
 	// Main loop
-	for (auto i = message.size() - 1; i < message.size(); i--) // Underflows
+	for (auto i = message.size() - 1; i < message.size(); i--) // Underflows, ANS operates in reverse
 	{
 		const CdfEntry<InputT>& e = cdf.of_symbol(message[i]);
 
-		// Normalize
+		// Normalize (output)
 		normalizations = 0;
-		while ((cdf.max_cumulative() * (acc / e.frequency) + (acc % e.frequency) + e.cumulative) > ACCUMULATOR_MAX)
+		while (C(acc, e.frequency, e.cumulative, cdf.m()) > (L * B) - 1) // [2] see above
 		{
-			output.insert(output.begin(), 1, static_cast<OutputT>(acc % output_unit_max));
-			acc = acc / output_unit_max;
+			output.insert(output.begin(), 1, static_cast<OutputT>(acc % static_cast<acc_encode_t>(B)));
+			acc = acc / static_cast<acc_encode_t>(B);
 
 			normalizations++;
 			total_normalizations++;
 		}
 
 		// Encode
-		acc = cdf.max_cumulative() * (acc / e.frequency) + (acc % e.frequency) + e.cumulative;
+		acc = C(acc, e.frequency, e.cumulative, cdf.m());
 
 		// Developers, developers, developers
-		if (i < MESSAGE_MAX_PRINT)
+		if (i < MESSAGE_MAX_PRINT || i == message.size() - 1)
 		{
 			if (normalizations == 0)
 				std::cout << " - '" << e.symbol << "' (f: " << e.frequency << ", c: " << e.cumulative << ")\t->\t"
@@ -96,15 +115,18 @@ std::vector<OutputT> AnsEncode(const Cdf<InputT>& cdf, const std::vector<InputT>
 					          << acc << " (" << normalizations << " normalizations)\n";
 			}
 		}
+
+		if (i > MESSAGE_MAX_PRINT && i == message.size() - 1)
+			std::cout << " - (...)\n";
 	}
 
-	// Accumulator remainder
+	// Accumulator remainder (output)
 	while (acc != 0)
 	{
-		output.insert(output.begin(), 1, static_cast<OutputT>(acc % output_unit_max));
-		acc = acc / output_unit_max;
-		total_normalizations++;
+		output.insert(output.begin(), 1, static_cast<OutputT>(acc % static_cast<acc_encode_t>(B)));
+		acc = acc / static_cast<acc_encode_t>(B);
 
+		total_normalizations++;
 		std::cout << " - acc remainder\t->\t" << acc << " (" << output[0] << ")\n";
 	}
 
@@ -116,49 +138,44 @@ std::vector<OutputT> AnsEncode(const Cdf<InputT>& cdf, const std::vector<InputT>
 
 
 template <typename OutputT, typename InputT>
-void AnsDecode(const Cdf<OutputT>& cdf, const std::vector<InputT>& bitcode, size_t message_len,
-               InputT input_unit_max = ((1 << (sizeof(InputT) * 8)) - 1))
+std::vector<OutputT> AnsDecode(const Cdf<OutputT>& cdf, const std::vector<InputT>& bitcode, size_t message_len)
 {
 	std::cout << "\nDecode:\n";
 
-	acc_t acc = 0;
+	auto output = std::vector<OutputT>();
+
+	acc_decode_t acc = 0;
 	size_t input_i = 0;
 
 	size_t normalizations = 0;       // For stats
 	size_t total_normalizations = 0; // Ditto
-	size_t i = 0;                    // Ditto
 
-	// Accumulator initialization
-	while (acc < input_unit_max && input_i != bitcode.size())
+	// Accumulator initialization (input)
+	while (acc < L && input_i != bitcode.size())
 	{
-		acc = acc * input_unit_max + bitcode[input_i];
-		total_normalizations++;
-
-		std::cout << " - acc initialization\t->\t" << acc << " (" << bitcode[input_i] << ")\n";
+		acc = acc * static_cast<acc_decode_t>(B) + bitcode[input_i];
 		input_i++;
+
+		total_normalizations++;
+		std::cout << " - acc initialization\t->\t" << acc << " (" << bitcode[input_i - 1] << ")\n";
 	}
 
 	// Main loop
-	while (acc > ACC_INITIAL_STATE)
+	for (size_t i = 0; i < message_len; i++)
 	{
-		if (i == message_len)
-		{
-			std::cout << "Decoded " << i << " symbols, acc: " << acc << "\n";
-			throw std::runtime_error("End never reached.");
-			break;
-		}
-
 		// Decode
-		const uint32_t point = (acc % cdf.max_cumulative());
-		const CdfEntry<OutputT>& e = cdf.of_point(point);
+		const uint32_t modulo_point = (acc % cdf.m());
 
-		acc = e.frequency * (acc / cdf.max_cumulative()) + point - e.cumulative;
+		const CdfEntry<OutputT>& e = cdf.of_point(modulo_point);
+		acc = D(acc, e.frequency, e.cumulative, cdf.m(), modulo_point);
 
-		// Normalize
+		output.emplace_back(e.symbol);
+
+		// Normalize (input)
 		normalizations = 0;
-		while (acc < input_unit_max && input_i != bitcode.size())
+		while (acc < L && input_i != bitcode.size())
 		{
-			acc = acc * input_unit_max + bitcode[input_i];
+			acc = acc * static_cast<acc_decode_t>(B) + bitcode[input_i];
 			input_i++;
 
 			normalizations++;
@@ -166,21 +183,22 @@ void AnsDecode(const Cdf<OutputT>& cdf, const std::vector<InputT>& bitcode, size
 		}
 
 		// Developers, developers, developers
-		if (i++ < MESSAGE_MAX_PRINT)
+		if (i == message_len - 1 && message_len > MESSAGE_MAX_PRINT)
+			std::cout << " - (...)\n";
+
+		if (i < MESSAGE_MAX_PRINT || i == message_len - 1)
 		{
 			if (normalizations == 0)
-				std::cout << " - '" << e.symbol << "' (p: " << point << ", f: " << e.frequency
-				          << ", c: " << e.cumulative << ")\t->\t" << acc << "\n";
+				std::cout << " - '" << e.symbol << "' (f: " << e.frequency << ", c: " << e.cumulative << ")\t->\t"
+				          << acc << "\n";
 			else
 			{
 				if (normalizations == 1)
-					std::cout << " - '" << e.symbol << "' (p: " << point << ", f: " << e.frequency
-					          << ", c: " << e.cumulative << ")\t->\t" << acc << " (1 normalization, "
-					          << bitcode[input_i - 1] << ")\n";
+					std::cout << " - '" << e.symbol << "' (f: " << e.frequency << ", c: " << e.cumulative << ")\t->\t"
+					          << acc << " (1 normalization, " << bitcode[input_i - 1] << ")\n";
 				else
-					std::cout << " - '" << e.symbol << "' (p: " << point << ", f: " << e.frequency
-					          << ", c: " << e.cumulative << ")\t->\t" << acc << " (" << normalizations
-					          << " normalizations)\n";
+					std::cout << " - '" << e.symbol << "' (f: " << e.frequency << ", c: " << e.cumulative << ")\t->\t"
+					          << acc << " (" << normalizations << " normalizations)\n";
 			}
 		}
 	}
@@ -188,6 +206,11 @@ void AnsDecode(const Cdf<OutputT>& cdf, const std::vector<InputT>& bitcode, size
 	// Bye!
 	std::cout << "Total normalizations: " << total_normalizations << "\n";
 	std::cout << "Bitstream size: " << total_normalizations * sizeof(InputT) << " bytes\n";
+
+	if (acc != ACC_INITIAL_STATE)
+		throw std::runtime_error("Out of sync.");
+
+	return output;
 }
 
 
@@ -243,13 +266,12 @@ int main(int argc, const char* argv[])
 	try
 	{
 		const auto data = ReadFile<uint8_t>(argv[1]);
-		const auto cdf = Cdf<uint8_t>(data.data(), data.size(), ((1 << 16) - 1));
-		const auto bitstream = AnsEncode<uint8_t, uint16_t>(cdf, data, ((1 << 16) - 1));
+		const auto cdf = Cdf<uint8_t>(data.data(), data.size(), 1 << 16); // [1]
+		const auto bitstream = AnsEncode<uint8_t, uint16_t>(cdf, data);
+		const auto decoded_data = AnsDecode<uint8_t, uint16_t>(cdf, bitstream, data.size());
 
-		if (argc > 3)
-			WriteFile(bitstream, argv[2]);
-
-		AnsDecode<uint8_t, uint16_t>(cdf, bitstream, data.size(), ((1 << 16) - 1));
+		if (argc > 2)
+			WriteFile(decoded_data, argv[2]);
 	}
 	catch (const std::exception& e)
 	{
