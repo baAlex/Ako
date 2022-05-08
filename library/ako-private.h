@@ -41,7 +41,7 @@ void akoSavePgmI16(size_t width, size_t height, size_t in_stride, const int16_t*
 
 // format.c:
 
-void akoFormatToPlanarI16Yuv(int keep_transparent_pixels, enum akoColor, size_t channels, size_t width, size_t height,
+void akoFormatToPlanarI16Yuv(int discard_non_visible, enum akoColor, size_t channels, size_t width, size_t height,
                              size_t in_stride, size_t out_planes_spacing, const uint8_t* in, int16_t* out);
 void akoFormatToInterleavedU8Rgb(enum akoColor, size_t channels, size_t width, size_t height, size_t in_planes_spacing,
                                  size_t out_stride, int16_t* in,
@@ -94,8 +94,8 @@ size_t akoImageMaxPlanesSpacingSize(size_t image_w, size_t image_h, size_t tiles
 
 // quantization.c:
 
-int16_t akoGate(int factor, size_t tile_w, size_t tile_h, size_t current_w, size_t current_h);
-int16_t akoQuantization(int factor, size_t tile_w, size_t tile_h, size_t current_w, size_t current_h);
+int16_t akoGate(int factor, int factor_mul, size_t tile_w, size_t tile_h, size_t current_w, size_t current_h);
+int16_t akoQuantization(int factor, int factor_mul, size_t tile_w, size_t tile_h, size_t current_w, size_t current_h);
 
 // wavelet-cdf53.c:
 

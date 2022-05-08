@@ -40,15 +40,7 @@ enum akoStatus
 	AKO_BROKEN_INPUT,
 };
 
-enum akoWrap // Wrap mode
-{
-	AKO_WRAP_CLAMP = 0,
-	AKO_WRAP_MIRROR,
-	AKO_WRAP_REPEAT,
-	AKO_WRAP_ZERO,
-};
-
-enum akoWavelet // Wavelet transformation
+enum akoWavelet
 {
 	AKO_WAVELET_DD137 = 0,
 	AKO_WAVELET_CDF53,
@@ -56,7 +48,7 @@ enum akoWavelet // Wavelet transformation
 	AKO_WAVELET_NONE,
 };
 
-enum akoColor // Color transformation
+enum akoColor
 {
 	AKO_COLOR_YCOCG = 0,
 	AKO_COLOR_SUBTRACT_G,
@@ -65,9 +57,18 @@ enum akoColor // Color transformation
 	AKO_COLOR_YCOCG_Q, // Internal
 };
 
-enum akoCompression // Compression method
+enum akoWrap
 {
-	AKO_COMPRESSION_ELIAS_RLE = 0,
+	AKO_WRAP_CLAMP = 0,
+	AKO_WRAP_MIRROR,
+	AKO_WRAP_REPEAT,
+	AKO_WRAP_ZERO,
+};
+
+enum akoCompression
+{
+	AKO_COMPRESSION_KAGARI = 0,
+	AKO_COMPRESSION_MANBAVARAN,
 	AKO_COMPRESSION_NONE,
 };
 
@@ -84,16 +85,17 @@ enum akoEvent
 
 struct akoSettings
 {
-	enum akoWrap wrap;
 	enum akoWavelet wavelet;
 	enum akoColor color;
+	enum akoWrap wrap;
 	enum akoCompression compression;
 	size_t tiles_dimension;
 
-	int discard_transparent_pixels;
-
 	int quantization;
 	int gate;
+
+	int chroma_loss;
+	int discard_non_visible;
 };
 
 struct akoCallbacks
@@ -116,10 +118,10 @@ struct akoHead
 
 	uint32_t flags;
 	// bits 0-3   : Channels,        0 = Gray, 1 = Gray + Alpha, 2 = RGB, 3 = RGBA, etc...
-	// bits 4-5   : Wrap,            0 = Clamp, 1 = Repeat, 2 = Set to zero
+	// bits 4-5   : Wrap,            0 = Clamp, 1 = Mirror, 2 = Repeat, 3 = Zero
 	// bits 6-7   : Wavelet,         0 = DD137, 1 = CDF53, 2 = Haar, 3 = None
-	// bits 8-9   : Color,           0 = YCOCG, 1 = YCOCG-R, 2 = Subtract Green, 3 = RGB
-	// bits 10-11 : Compression,     0 = Elias Coding + Rle, 1 = No compression
+	// bits 8-9   : Color,           0 = YCOCG, 1 = Subtract Green, 2 = None, 3 = Internal
+	// bits 10-11 : Compression,     0 = Elias Coding, 1 = rAns, 2 = No compression
 	// bits 12-16 : Tiles dimension, 0 = No tiles, 1 = 8x8, 2 = 16x16, 3 = 32x32, 4 = 64x64, etc...
 	// bits 17-32 : Unused bits (always zero)
 };

@@ -2,7 +2,7 @@
 
 MIT License
 
-Copyright (c) 2021 Alexander Brandt
+Copyright (c) 2021-2022 Alexander Brandt
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -64,12 +64,13 @@ static float sExponential(float factor, float tile_w, float tile_h, float curren
 }
 
 
-int16_t akoGate(int factor, size_t tile_w, size_t tile_h, size_t current_w, size_t current_h)
+int16_t akoGate(int factor, int factor_mul, size_t tile_w, size_t tile_h, size_t current_w, size_t current_h)
 {
 	if (factor <= 0)
 		return 0;
 
-	float g = sExponential((float)factor, (float)tile_w, (float)tile_h, (float)current_w, (float)current_h);
+	float g = sExponential((float)factor * (float)factor_mul, (float)tile_w, (float)tile_h, (float)current_w,
+	                       (float)current_h);
 
 	if (g < 0.0F)
 		g = 0.0F;
@@ -80,12 +81,13 @@ int16_t akoGate(int factor, size_t tile_w, size_t tile_h, size_t current_w, size
 }
 
 
-int16_t akoQuantization(int factor, size_t tile_w, size_t tile_h, size_t current_w, size_t current_h)
+int16_t akoQuantization(int factor, int factor_mul, size_t tile_w, size_t tile_h, size_t current_w, size_t current_h)
 {
 	if (factor <= 0)
 		return 1;
 
-	float q = sExponential((float)factor, (float)tile_w, (float)tile_h, (float)current_w, (float)current_h);
+	float q = sExponential((float)factor * (float)factor_mul, (float)tile_w, (float)tile_h, (float)current_w,
+	                       (float)current_h);
 
 	if (q < 1.0F)
 		q = 1.0F;

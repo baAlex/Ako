@@ -2,7 +2,7 @@
 
 MIT License
 
-Copyright (c) 2021 Alexander Brandt
+Copyright (c) 2021-2022 Alexander Brandt
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -27,10 +27,10 @@ SOFTWARE.
 #include "ako-private.h"
 
 
-static inline void sDeinterleave(int discard_transparent_pixels, size_t channels, size_t width, size_t in_stride,
+static inline void sDeinterleave(int discard_non_visible, size_t channels, size_t width, size_t in_stride,
                                  size_t out_plane, const uint8_t* in, const uint8_t* in_end, int16_t* out)
 {
-	if (discard_transparent_pixels != 0)
+	if (discard_non_visible != 0)
 	{
 		for (; in < in_end; in += in_stride, out += width)
 			for (size_t col = 0; col < width; col++)
@@ -61,11 +61,10 @@ static inline void sDeinterleave(int discard_transparent_pixels, size_t channels
 }
 
 
-void akoFormatToPlanarI16Yuv(int discard_transparent_pixels, enum akoColor color, size_t channels, size_t width,
-                             size_t height, size_t input_stride, size_t out_planes_spacing, const uint8_t* in,
-                             int16_t* out)
+void akoFormatToPlanarI16Yuv(int discard_non_visible, enum akoColor color, size_t channels, size_t width, size_t height,
+                             size_t input_stride, size_t out_planes_spacing, const uint8_t* in, int16_t* out)
 {
-	// Deinterleave, convert from u8 to i16, and remove (or not) transparent pixels
+	// Deinterleave, convert from u8 to i16, and remove (or not) non visible pixels
 	{
 		const size_t in_stride = input_stride * channels;
 		const size_t out_plane = (width * height) + out_planes_spacing;
@@ -75,9 +74,9 @@ void akoFormatToPlanarI16Yuv(int discard_transparent_pixels, enum akoColor color
 		if (channels == 3)
 			sDeinterleave(0, 3, width, in_stride, out_plane, in, in_end, out);
 		else if (channels == 4)
-			sDeinterleave(discard_transparent_pixels, 4, width, in_stride, out_plane, in, in_end, out);
+			sDeinterleave(discard_non_visible, 4, width, in_stride, out_plane, in, in_end, out);
 		else if (channels == 2)
-			sDeinterleave(discard_transparent_pixels, 2, width, in_stride, out_plane, in, in_end, out);
+			sDeinterleave(discard_non_visible, 2, width, in_stride, out_plane, in, in_end, out);
 		else if (channels == 1)
 			sDeinterleave(0, 1, width, in_stride, out_plane, in, in_end, out);
 		else

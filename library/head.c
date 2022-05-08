@@ -2,7 +2,7 @@
 
 MIT License
 
-Copyright (c) 2021 Alexander Brandt
+Copyright (c) 2021-2022 Alexander Brandt
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -56,7 +56,7 @@ static inline enum akoStatus sValidate(size_t channels, size_t width, size_t hei
 	    color != AKO_COLOR_NONE)
 		return AKO_INVALID_COLOR_TRANSFORMATION;
 
-	if (compression != AKO_COMPRESSION_ELIAS_RLE && compression != AKO_COMPRESSION_NONE)
+	if (compression != AKO_COMPRESSION_KAGARI && compression != AKO_COMPRESSION_NONE)
 		return AKO_INVALID_COMPRESSION_METHOD;
 
 	return AKO_OK;

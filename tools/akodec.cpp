@@ -2,7 +2,7 @@
 
 MIT License
 
-Copyright (c) 2021 Alexander Brandt
+Copyright (c) 2021-2022 Alexander Brandt
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -77,9 +77,10 @@ class AkoImage
 	size_t channels;
 	void* data;
 
-	enum akoWrap wrap;
-	enum akoWavelet wavelet;
-	enum akoColor color;
+	akoWavelet wavelet;
+	akoColor color;
+	akoWrap wrap;
+	akoCompression compression;
 	size_t blob_size;
 
   public:
@@ -89,10 +90,11 @@ class AkoImage
 	size_t      get_channels() const { return channels; };
 	const void* get_data() const     { return (const void*)(data); };
 
-	enum akoWrap    get_wrap() const      { return wrap; };
-	enum akoWavelet get_wavelet() const   { return wavelet; };
-	enum akoColor   get_color() const     { return color; };
-	size_t          get_blob_size() const { return blob_size; };
+	akoWavelet     get_wavelet() const     { return wavelet; };
+	akoColor       get_color() const       { return color; };
+	akoWrap        get_wrap() const        { return wrap; };
+	akoCompression get_compression() const { return compression; };
+	size_t         get_blob_size() const   { return blob_size; };
 	// clang-format on
 
 	AkoImage(const std::string& filename, bool quiet, bool benchmark)
@@ -145,9 +147,10 @@ class AkoImage
 		}
 
 		// Bye!
-		wrap = settings.wrap;
 		wavelet = settings.wavelet;
 		color = settings.color;
+		wrap = settings.wrap;
+		compression = settings.compression;
 	}
 
 	~AkoImage()
@@ -177,9 +180,9 @@ void AkoDec(const std::string& filename_input, const std::string& filename_outpu
 	const auto ako = AkoImage(filename_input, quiet, benchmark);
 
 	if (verbose == true)
-		std::printf("Input data: %zu channels, %zux%zu px, wavelet: %i, color: %i, wrap: %i\n", ako.get_channels(),
-		            ako.get_width(), ako.get_height(), (int)ako.get_wavelet(), (int)ako.get_color(),
-		            (int)ako.get_wrap());
+		std::printf("Input data: %zu channels, %zux%zu px, wavelet: %i, color: %i, wrap: %i, compression: %i\n",
+		            ako.get_channels(), ako.get_width(), ako.get_height(), (int)ako.get_wavelet(), (int)ako.get_color(),
+		            (int)ako.get_wrap(), (int)ako.get_compression());
 
 	// Checksum data
 	uint32_t input_checksum = 0;

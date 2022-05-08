@@ -2,7 +2,7 @@
 
 MIT License
 
-Copyright (c) 2021 Alexander Brandt
+Copyright (c) 2021-2022 Alexander Brandt
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -131,9 +131,9 @@ AKO_EXPORT size_t akoEncodeExt(const struct akoCallbacks* c, const struct akoSet
 		// 1. Format
 		sEvent(t, tiles_no, AKO_EVENT_FORMAT_START, checked_c.events_data, checked_c.events);
 		{
-			akoFormatToPlanarI16Yuv(checked_s.discard_transparent_pixels, checked_s.color, channels, tile_w, tile_h,
-			                        image_w, planes_spacing,
-			                        (const uint8_t*)in + ((image_w * tile_y) + tile_x) * channels, workarea_a);
+			akoFormatToPlanarI16Yuv(checked_s.discard_non_visible, checked_s.color, channels, tile_w, tile_h, image_w,
+			                        planes_spacing, (const uint8_t*)in + ((image_w * tile_y) + tile_x) * channels,
+			                        workarea_a);
 		}
 		sEvent(t, tiles_no, AKO_EVENT_FORMAT_END, checked_c.events_data, checked_c.events);
 

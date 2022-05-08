@@ -2,7 +2,7 @@
 
 MIT License
 
-Copyright (c) 2021 Alexander Brandt
+Copyright (c) 2021-2022 Alexander Brandt
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -110,10 +110,10 @@ class PngImage
 
 
 size_t EncodePass(bool verbose, int ratio, const akoCallbacks* callbacks, const akoSettings* settings, size_t channels,
-                  size_t width, size_t height, const void* in, void** out, enum akoStatus* out_status)
+                  size_t width, size_t height, const void* in, void** out, akoStatus* out_status)
 {
 	// One pass, no ratio specified
-	if (ratio == 0 || settings->wavelet == AKO_WAVELET_NONE)
+	if (ratio == 0 || settings->wavelet == AKO_WAVELET_NONE || settings->compression == AKO_COMPRESSION_NONE)
 	{
 		return akoEncodeExt(callbacks, settings, channels, width, height, in, out, out_status);
 	}
@@ -249,10 +249,12 @@ void AkoEnc(const akoSettings& settings, const std::string& filename_input, cons
 	{
 		std::printf("Encoding...\n");
 
-		std::printf("[Color: %i", (int)settings.color);
-		std::printf(", wavelet: %i", (int)settings.wavelet);
+		std::printf("[Wavelet: %i", (int)settings.wavelet);
+		std::printf(", color: %i", (int)settings.color);
 		std::printf(", wrap: %i", (int)settings.wrap);
-		std::printf(", discard non-visible: %i]\n", (int)settings.discard_transparent_pixels);
+		std::printf(", compression %i", (int)settings.compression);
+		std::printf(", chroma loss: %i", (int)settings.chroma_loss);
+		std::printf(", discard non-visible: %i]\n", (int)settings.discard_non_visible);
 	}
 
 	void* blob = NULL;
@@ -353,11 +355,11 @@ int main(int argc, const char* argv[])
 		                 "Controls loss in the final image and in turn, compression gains. Achieves it by reducing "
 		                 "wavelet coefficients accuracy accordingly  to the provided value. Default and recommended "
 		                 "loss method. Set it to zero for lossless compression.",
-		                 16, 0, 4096, encoding_category);
+		                 16, 0, 8192, encoding_category);
 		opts.add_integer("-g", "--noise-gate",
 		                 "Loss method similar to '--quantization', however it removes wavelet coefficients under a "
 		                 "threshold set by the provided value. Set it to zero for lossless compression.",
-		                 0, 0, 4096, encoding_category);
+		                 0, 0, 8192, encoding_category);
 		opts.add_string("-w", "--wavelet",
 		                "Wavelet transformation to apply. Options are: DD137, CDF53, HAAR and NONE. For lossy "
 		                "compression DD137 provides better results, for lossless CDF53.",
@@ -371,15 +373,26 @@ int main(int argc, const char* argv[])
 		                "all them analog to texture-wrapping options in OpenGL. Two common choices are CLAMP that "
 		                "perform no wrap, and REPEAT for images intended to serve as tiled textures.",
 		                "CLAMP", "CLAMP MIRROR REPEAT ZERO", encoding_category);
+		opts.add_integer("-chroma-loss", "--chroma-loss",
+		                 "Subsampling thingie. Zero to disable it. Only applies if either '--quantization' or "
+		                 "'--noise-gate' is set.",
+		                 1, 0, 8192, encoding_category);
 		opts.add_bool("-d", "--discard-non-visible",
 		              "Discard pixels that do not contribute to the final image (those in transparent areas). For "
 		              "lossless compression do not set this option.",
 		              encoding_category);
-		opts.add_integer("-r", "--ratio", "", 0, 0, 4096, encoding_category);
 
 		const auto extra_category = opts.add_category("EXTRA TOOLS");
 		opts.add_bool("-b", "--benchmark", "", extra_category);
 		opts.add_bool("-ch", "--checksum", "", extra_category);
+
+		const auto experimental_category = opts.add_category("EXPERIMENTAL");
+		opts.add_integer("-dev-r", "--dev-ratio", "", 0, 0, 4096, experimental_category);
+		opts.add_string("-dev-compression", "--dev-compression",
+		                "Compression method, options are: KAGARI, MANBAVARAN and NONE. Be caution of the last two as "
+		                "they can crash your computer, corrupt files, produce invalid data, misbrew your colombian "
+		                "coffee and everything in between.",
+		                "KAGARI", "KAGARI MANBAVARAN NONE", experimental_category);
 
 		if (opts.parse_arguments(argc, argv) != 0)
 			return 1;
@@ -416,7 +429,6 @@ int main(int argc, const char* argv[])
 		input_filename = opts.get_string("--input");
 		output_filename = opts.get_string("--output");
 
-		ratio = opts.get_integer("--ratio");
 		verbose = opts.get_bool("--verbose");
 		quiet = opts.get_bool("--quiet");
 		benchmark = opts.get_bool("--benchmark");
@@ -424,10 +436,14 @@ int main(int argc, const char* argv[])
 
 		settings.quantization = opts.get_integer("--quantization");
 		settings.gate = opts.get_integer("--noise-gate");
-		settings.discard_transparent_pixels = opts.get_bool("--discard-non-visible");
+		settings.discard_non_visible = opts.get_bool("--discard-non-visible");
 		settings.wavelet = (akoWavelet)opts.get_string_index("--wavelet");
 		settings.color = (akoColor)opts.get_string_index("--color");
 		settings.wrap = (akoWrap)opts.get_string_index("--wrap");
+		settings.chroma_loss = opts.get_integer("--chroma-loss");
+
+		ratio = opts.get_integer("--dev-ratio");
+		settings.compression = (akoCompression)opts.get_string_index("--dev-compression");
 	}
 
 	// Encode!

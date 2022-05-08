@@ -2,7 +2,7 @@
 
 MIT License
 
-Copyright (c) 2021 Alexander Brandt
+Copyright (c) 2021-2022 Alexander Brandt
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -31,16 +31,17 @@ AKO_EXPORT struct akoSettings akoDefaultSettings()
 {
 	struct akoSettings s = {0};
 
-	s.wrap = AKO_WRAP_CLAMP;
 	s.wavelet = AKO_WAVELET_DD137;
 	s.color = AKO_COLOR_YCOCG;
-	s.compression = AKO_COMPRESSION_ELIAS_RLE;
+	s.wrap = AKO_WRAP_CLAMP;
+	s.compression = AKO_COMPRESSION_KAGARI;
 	s.tiles_dimension = 0;
-
-	s.discard_transparent_pixels = 0;
 
 	s.quantization = 16;
 	s.gate = 0;
+
+	s.chroma_loss = 1;
+	s.discard_non_visible = 0;
 
 	return s;
 }
