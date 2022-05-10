@@ -2,7 +2,7 @@
 
 MIT License
 
-Copyright (c) 2021 Alexander Brandt
+Copyright (c) 2021-2022 Alexander Brandt
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -179,7 +179,7 @@ AKO_EXPORT uint8_t* akoDecodeExt(const struct akoCallbacks* c, size_t input_size
 		if (s.wavelet != AKO_WAVELET_NONE)
 		{
 			sEvent(t, tiles_no, AKO_EVENT_WAVELET_START, checked_c.events_data, checked_c.events);
-			akoUnlift(t, &s, channels, tile_w, tile_h, planes_spacing, workarea_a, workarea_b);
+			akoUnlift(&s, channels, t, tile_w, tile_h, planes_spacing, workarea_a, workarea_b);
 			sEvent(t, tiles_no, AKO_EVENT_WAVELET_END, checked_c.events_data, checked_c.events);
 		}
 

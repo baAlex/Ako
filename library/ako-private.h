@@ -23,6 +23,9 @@
 #define AKO_EXPORT __attribute__((visibility("default")))
 
 
+typedef int16_t coeff_t; // For future monomorphization...
+
+
 struct akoLiftHead
 {
 	int16_t quantization;
@@ -77,8 +80,8 @@ size_t akoKagariDecode(size_t no, size_t input_size, size_t output_size, const v
 
 void akoLift(size_t tile_no, const struct akoSettings*, size_t channels, size_t tile_w, size_t tile_h,
              size_t planes_space, int16_t* in, int16_t* output);
-void akoUnlift(size_t tile_no, const struct akoSettings* s, size_t channels, size_t tile_w, size_t tile_h,
-               size_t planes_space, int16_t* input, int16_t* out);
+void akoUnlift(const struct akoSettings* s, size_t channels, size_t tile_no, size_t tile_w, size_t tile_h,
+               size_t out_planes_space, coeff_t* input, coeff_t* out);
 
 // misc.c:
 
@@ -91,6 +94,15 @@ size_t akoTileDimension(size_t tile_pos, size_t image_d, size_t tiles_dimension)
 size_t akoImageTilesNo(size_t image_w, size_t image_h, size_t tiles_dimension);
 size_t akoImageMaxTileDataSize(size_t image_w, size_t image_h, size_t tiles_dimension);
 size_t akoImageMaxPlanesSpacingSize(size_t image_w, size_t image_h, size_t tiles_dimension);
+
+void* akoIterateLifts(const struct akoSettings* s, size_t channels, size_t tile_w, size_t tile_h, void* input,
+                      void (*lp_callback)(const struct akoSettings*, size_t ch, size_t tile_w, size_t tile_h,
+                                          size_t target_w, size_t target_h, coeff_t* input_lp, void* user_data),
+                      void (*hp_callback)(const struct akoSettings*, size_t ch, size_t tile_w, size_t tile_h,
+                                          const struct akoLiftHead*, size_t current_w, size_t current_h,
+                                          size_t target_w, size_t target_h, coeff_t* aux, coeff_t* hp_c, coeff_t* hp_b,
+                                          coeff_t* hp_d, void* user_data),
+                      void* user_data);
 
 // quantization.c:
 

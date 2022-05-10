@@ -201,3 +201,88 @@ size_t akoImageTilesNo(size_t image_w, size_t image_h, size_t tiles_dimension)
 
 	return (tiles_x * tiles_y);
 }
+
+
+static void sLiftTargetDimensions(size_t current_w, size_t current_h, size_t tile_w, size_t tile_h, size_t* out_w,
+                                  size_t* out_h)
+{
+	size_t prev_tile_w = tile_w;
+	size_t prev_tile_h = tile_h;
+
+	while (tile_w > current_w && tile_h > current_h)
+	{
+		prev_tile_w = tile_w;
+		prev_tile_h = tile_h;
+
+		if (tile_w <= 2 || tile_h <= 2)
+			break;
+
+		tile_w = akoDividePlusOneRule(tile_w);
+		tile_h = akoDividePlusOneRule(tile_h);
+	}
+
+	*out_w = prev_tile_w;
+	*out_h = prev_tile_h;
+}
+
+
+void* akoIterateLifts(const struct akoSettings* s, size_t channels, size_t tile_w, size_t tile_h, void* input,
+                      void (*lp_callback)(const struct akoSettings*, size_t ch, size_t tile_w, size_t tile_h,
+                                          size_t target_w, size_t target_h, coeff_t* input_lp, void* user_data),
+                      void (*hp_callback)(const struct akoSettings*, size_t ch, size_t tile_w, size_t tile_h,
+                                          const struct akoLiftHead*, size_t current_w, size_t current_h,
+                                          size_t target_w, size_t target_h, coeff_t* aux, coeff_t* hp_c, coeff_t* hp_b,
+                                          coeff_t* hp_d, void* user_data),
+                      void* user_data)
+{
+	size_t target_w = 0;
+	size_t target_h = 0;
+	uint8_t* in = (uint8_t*)input;
+
+	sLiftTargetDimensions(0, 0, tile_w, tile_h, &target_w, &target_h);
+
+	// Lowpasses
+	for (size_t ch = 0; ch < channels; ch++)
+	{
+		// Let the user do something with lowpass coefficients
+		lp_callback(s, ch, tile_w, tile_h, target_w, target_h, (coeff_t*)in, user_data);
+
+		// Adjust input (by one lowpass)
+		in += (target_w * target_h) * sizeof(coeff_t);
+	}
+
+	// Highpasses
+	struct akoLiftHead* head;
+
+	while (target_w < tile_w && target_h < tile_h)
+	{
+		const size_t current_w = target_w;
+		const size_t current_h = target_h;
+		sLiftTargetDimensions(target_w, target_h, tile_w, tile_h, &target_w, &target_h);
+
+		// Interate in Yuv order
+		for (size_t ch = 0; ch < channels; ch++)
+		{
+			// Lift head
+			{
+				head = (struct akoLiftHead*)in;
+
+				// Adjust input (by one lift head)
+				in += sizeof(struct akoLiftHead);
+			}
+
+			// Let the user do something with highpass coefficients
+			coeff_t* hp_c = (coeff_t*)in + (current_w * current_h) * 0;
+			coeff_t* hp_b = (coeff_t*)in + (current_w * current_h) * 1;
+			coeff_t* hp_d = (coeff_t*)in + (current_w * current_h) * 2;
+
+			hp_callback(s, ch, tile_w, tile_h, head, current_w, current_h, target_w, target_h, input, hp_c, hp_b, hp_d,
+			            user_data);
+
+			// Adjust input (by three highpasses)
+			in += (current_w * current_h) * sizeof(coeff_t) * 3;
+		}
+	}
+
+	return in;
+}
