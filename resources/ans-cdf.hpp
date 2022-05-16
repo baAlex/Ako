@@ -52,7 +52,7 @@ template <typename T> class Cdf
 	}
 
   public:
-	Cdf(const T* message, size_t len, uint32_t scale_to = 0)
+	Cdf(const std::vector<T>& message, uint32_t scale_to = 0)
 	{
 		// Cumulative distribution function (CDF) following Pasco (1976, p.10)
 		// (on my own nomenclature):
@@ -75,8 +75,8 @@ template <typename T> class Cdf
 		{
 			// Count symbols
 			auto hashmap = std::unordered_map<T, uint32_t>();
-			for (const T* m = message; m != (message + len); m++)
-				hashmap[*m]++;
+			for (auto& s : message)
+				hashmap[s]++;
 
 			// Create sorted table
 			for (const auto& i : hashmap)
@@ -92,7 +92,7 @@ template <typename T> class Cdf
 			          [](CdfEntry<T> a, CdfEntry<T> b) { return (a.frequency > b.frequency); });
 		}
 
-		const auto h = entropy(table, len);
+		const auto h = entropy(table, message.size());
 
 		// Accumulate frequencies
 		uint32_t cumulative = 0;
@@ -193,20 +193,20 @@ template <typename T> class Cdf
 
 			std::cout << "Message: \"";
 
-			for (const T* i = message; i != message + std::min(len, MESSAGE_MAX_PRINT); i++)
+			for (size_t i = 0; i < std::min(message.size(), MESSAGE_MAX_PRINT); i++)
 			{
-				if (*i != static_cast<T>('\n'))
-					std::cout << *i;
+				if (message[i] != static_cast<T>('\n'))
+					std::cout << message[i];
 				else
 					std::cout << " ";
 			}
 
 			std::cout << "\"\n";
-			std::cout << "Length: " << len << " symbols\n";
+			std::cout << "Length: " << message.size() << " symbols\n";
 			std::cout << "Unique symbols: " << table.size() << "\n";
 			std::cout << "Maximum cumulative: " << max_cumulative_ << ((scale_to != 0) ? " (scaled)\n" : "\n");
 			std::cout << "Entropy: " << h << " bits per symbol" << ((scale_to != 0) ? " (before scaling)\n" : "\n");
-			std::cout << "Shannon target: " << (h * static_cast<double>(len)) / 8.0 << " bytes"
+			std::cout << "Shannon target: " << (h / 8.0) * static_cast<double>(message.size()) << " bytes"
 			          << ((scale_to != 0) ? " (before scaling)\n" : "\n");
 
 			for (size_t i = 0; i < std::min(table.size(), SYMBOLS_MAX_PRINT); i++)

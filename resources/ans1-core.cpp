@@ -127,7 +127,7 @@ int main()
 		try
 		{
 			const auto message = std::vector<char>(s.begin(), s.end());
-			const auto cdf = Cdf<char>(message.data(), message.size());
+			const auto cdf = Cdf<char>(message);
 			const auto state = AnsEncode(cdf, message);
 			AnsDecode(cdf, state);
 		}
@@ -145,7 +145,7 @@ int main()
 
 		try
 		{
-			const auto cdf = Cdf<uint16_t>(message.data(), message.size());
+			const auto cdf = Cdf<uint16_t>(message);
 			const auto state = AnsEncode(cdf, message);
 			AnsDecode(cdf, state);
 		}

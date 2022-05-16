@@ -35,6 +35,7 @@ USE OR PERFORMANCE OF THIS SOFTWARE.
 
 #include <fstream>
 #include <iostream>
+#include <memory>
 #include <vector>
 
 #include "ans-cdf.hpp"
@@ -70,11 +71,13 @@ acc_decode_t D(acc_decode_t accumulator, uint32_t frequency, uint32_t cumulative
 
 
 template <typename InputT, typename OutputT>
-std::vector<OutputT> AnsEncode(const Cdf<InputT>& cdf, const std::vector<InputT>& message)
+std::unique_ptr<std::vector<OutputT>> AnsEncode(const Cdf<InputT>& cdf, const std::vector<InputT>& message)
 {
 	std::cout << "\nEncode:\n";
 
-	auto output = std::vector<OutputT>();
+	auto output = std::make_unique<std::vector<OutputT>>();
+	output->reserve(message.size());
+
 	acc_encode_t acc = ACC_INITIAL_STATE;
 
 	size_t normalizations = 0;       // For stats
@@ -89,7 +92,7 @@ std::vector<OutputT> AnsEncode(const Cdf<InputT>& cdf, const std::vector<InputT>
 		normalizations = 0;
 		while (C(acc, e.frequency, e.cumulative, cdf.m()) > (L * B) - 1) // [2] see above
 		{
-			output.insert(output.begin(), 1, static_cast<OutputT>(acc % static_cast<acc_encode_t>(B)));
+			output->insert(output->begin(), 1, static_cast<OutputT>(acc % static_cast<acc_encode_t>(B)));
 			acc = acc / static_cast<acc_encode_t>(B);
 
 			normalizations++;
@@ -109,7 +112,7 @@ std::vector<OutputT> AnsEncode(const Cdf<InputT>& cdf, const std::vector<InputT>
 			{
 				if (normalizations == 1)
 					std::cout << " - '" << e.symbol << "' (f: " << e.frequency << ", c: " << e.cumulative << ")\t->\t"
-					          << acc << " (1 normalization, " << output[0] << ")\n";
+					          << acc << " (1 normalization, " << output->at(0) << ")\n";
 				else
 					std::cout << " - '" << e.symbol << "' (f: " << e.frequency << ", c: " << e.cumulative << ")\t->\t"
 					          << acc << " (" << normalizations << " normalizations)\n";
@@ -123,11 +126,11 @@ std::vector<OutputT> AnsEncode(const Cdf<InputT>& cdf, const std::vector<InputT>
 	// Accumulator remainder (output)
 	while (acc != 0)
 	{
-		output.insert(output.begin(), 1, static_cast<OutputT>(acc % static_cast<acc_encode_t>(B)));
+		output->insert(output->begin(), 1, static_cast<OutputT>(acc % static_cast<acc_encode_t>(B)));
 		acc = acc / static_cast<acc_encode_t>(B);
 
 		total_normalizations++;
-		std::cout << " - acc remainder\t->\t" << acc << " (" << output[0] << ")\n";
+		std::cout << " - acc remainder\t->\t" << acc << " (" << output->at(0) << ")\n";
 	}
 
 	// Bye!
@@ -138,11 +141,13 @@ std::vector<OutputT> AnsEncode(const Cdf<InputT>& cdf, const std::vector<InputT>
 
 
 template <typename OutputT, typename InputT>
-std::vector<OutputT> AnsDecode(const Cdf<OutputT>& cdf, const std::vector<InputT>& bitcode, size_t message_len)
+std::unique_ptr<std::vector<OutputT>> AnsDecode(const Cdf<OutputT>& cdf, const std::vector<InputT>& bitcode,
+                                                size_t message_len)
 {
 	std::cout << "\nDecode:\n";
 
-	auto output = std::vector<OutputT>();
+	auto output = std::make_unique<std::vector<OutputT>>();
+	output->reserve(message_len);
 
 	acc_decode_t acc = 0;
 	size_t input_i = 0;
@@ -169,7 +174,7 @@ std::vector<OutputT> AnsDecode(const Cdf<OutputT>& cdf, const std::vector<InputT
 		const CdfEntry<OutputT>& e = cdf.of_point(modulo_point);
 		acc = D(acc, e.frequency, e.cumulative, cdf.m(), modulo_point);
 
-		output.emplace_back(e.symbol);
+		output->emplace_back(e.symbol);
 
 		// Normalize (input)
 		normalizations = 0;
@@ -214,11 +219,11 @@ std::vector<OutputT> AnsDecode(const Cdf<OutputT>& cdf, const std::vector<InputT
 }
 
 
-template <typename OutputT> std::vector<OutputT> ReadFile(const std::string& filename)
+template <typename OutputT> std::unique_ptr<std::vector<OutputT>> ReadFile(const std::string& filename)
 {
 	const size_t READ_BLOCK_SIZE = 512 * 1024;
 
-	auto data = std::vector<OutputT>();
+	auto data = std::make_unique<std::vector<OutputT>>();
 	auto file = std::fstream(filename, std::ios::in | std::ios::binary);
 
 	if (file.is_open() == false)
@@ -226,15 +231,15 @@ template <typename OutputT> std::vector<OutputT> ReadFile(const std::string& fil
 
 	for (auto blocks = 0;; blocks++)
 	{
-		const auto append_at = data.size();
+		const auto append_at = data->size();
 
-		data.resize(data.size() + READ_BLOCK_SIZE / sizeof(OutputT));
-		file.read(reinterpret_cast<char*>(data.data()) + append_at * sizeof(OutputT), READ_BLOCK_SIZE);
+		data->resize(data->size() + READ_BLOCK_SIZE / sizeof(OutputT));
+		file.read(reinterpret_cast<char*>(data->data()) + append_at * sizeof(OutputT), READ_BLOCK_SIZE);
 
 		if (file.eof() == true)
 		{
-			data.resize(data.size() - (READ_BLOCK_SIZE - static_cast<size_t>(file.gcount())) / sizeof(OutputT));
-			std::cout << "Input: '" << filename << "', " << data.size() << " symbols, read in " << blocks + 1
+			data->resize(data->size() - (READ_BLOCK_SIZE - static_cast<size_t>(file.gcount())) / sizeof(OutputT));
+			std::cout << "Input: '" << filename << "', " << data->size() << " symbols, read in " << blocks + 1
 			          << " blocks\n";
 			break;
 		}
@@ -266,12 +271,12 @@ int main(int argc, const char* argv[])
 	try
 	{
 		const auto data = ReadFile<uint8_t>(argv[1]);
-		const auto cdf = Cdf<uint8_t>(data.data(), data.size(), 1 << 16); // [1]
-		const auto bitstream = AnsEncode<uint8_t, uint16_t>(cdf, data);
-		const auto decoded_data = AnsDecode<uint8_t, uint16_t>(cdf, bitstream, data.size());
+		const auto cdf = Cdf<uint8_t>(*data, 1 << 16); // [1]
+		const auto bitstream = AnsEncode<uint8_t, uint16_t>(cdf, *data);
+		const auto decoded_data = AnsDecode<uint8_t, uint16_t>(cdf, *bitstream, data->size());
 
 		if (argc > 2)
-			WriteFile(decoded_data, argv[2]);
+			WriteFile(*decoded_data, argv[2]);
 	}
 	catch (const std::exception& e)
 	{
