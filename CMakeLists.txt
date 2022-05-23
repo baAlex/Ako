@@ -3,22 +3,25 @@ cmake_minimum_required(VERSION 3.12)
 project("Ako" C CXX)
 
 
-# option(AKO_EXPORT_SYMBOLS "Export symbols" ON)
 option(AKO_SHARED "Build shared library"   ON)
 option(AKO_STATIC "Build static library"   ON)
-option(AKO_DEC "Build decoding tool"       ON)
-option(AKO_ENC "Build encoding tool"       ON)
-option(AKO_TESTS "Build tests"             ON)
+option(AKO_DEC    "Build decoding tool"    ON)
+option(AKO_ENC    "Build encoding tool"    ON)
+option(AKO_TESTS  "Build tests"            ON)
+
+set(CMAKE_EXPORT_COMPILE_COMMANDS True) # For Clangd
 
 
 if (MSVC)
 	add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
 else ()
-	add_compile_options(-g -Werror -Wall -Wextra -pedantic -Wno-unused-function -Wno-unused-parameter -Wno-unused-variable)
+	add_compile_options(-Werror -Wall -Wextra -pedantic
+	                    -Wno-unused-function -Wno-unused-parameter -Wno-unused-variable -Wno-empty-translation-unit)
 endif ()
 
 
 set(AKO_SOURCES
+	"./library/compression-rle.c"
 	"./library/compression.c"
 	"./library/decode.c"
 	"./library/developer.c"
@@ -97,7 +100,7 @@ if (AKO_TESTS)
 	target_include_directories("cdf53-test" PRIVATE "./library/")
 	target_link_libraries("cdf53-test" PRIVATE "ako-static")
 
-	enable_testing()
-	add_test(NAME "elias-test" COMMAND "elias-test")
-	add_test(NAME "cdf53-test" COMMAND "cdf53-test")
+	add_executable("rle-test" "./tests/rle-test.c")
+	target_include_directories("rle-test" PRIVATE "./library/")
+	target_link_libraries("rle-test" PRIVATE "ako-static")
 endif ()

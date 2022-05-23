@@ -6,6 +6,7 @@ akoencx
 cdf53-test
 dd137-test
 elias-test
+rle-test
 
 /build/
 /build-debug/

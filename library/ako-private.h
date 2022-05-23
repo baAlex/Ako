@@ -23,7 +23,8 @@
 #define AKO_EXPORT __attribute__((visibility("default")))
 
 
-typedef int16_t coeff_t; // For future monomorphization...
+typedef int16_t coeff_t;   // For future monomorphization...
+typedef uint16_t ucoeff_t; // Ditto
 
 
 struct akoLiftHead
@@ -31,6 +32,18 @@ struct akoLiftHead
 	int16_t quantization;
 };
 
+// compression-rle.c:
+
+#define AKO_RLE_BLOCKS_LEN_MAX 65535
+#define AKO_RLE_DEFAULT_TRIGGER_DELAY 0
+
+size_t akoRleEncode(size_t blocks_len, size_t trigger_delay, size_t input_size, size_t output_size, const void* input,
+                    void* output);
+size_t akoRleDecode(size_t blocks_len, size_t input_size, size_t output_size, const void* input, void* output);
+
+size_t akoOldRleEncode(size_t blocks_len, size_t trigger_delay, size_t input_size, size_t output_size,
+                       const void* input, void* output);
+size_t akoOldRleDecode(size_t blocks_len, size_t input_size, size_t output_size, const void* input, void* output);
 
 // compression.c:
 
