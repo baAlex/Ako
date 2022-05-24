@@ -47,9 +47,25 @@ akoenc -q 16 -i "input.png" -o "out.ako"
 
 Examples
 --------
-Note how fine details are discarded while sharp lines and overall shapes remain intact, this without visible blocks. And while all modern codecs do this, here it is remarkable since Ako lacks of quality estimation, rate-distortion optimizations or filters (tasks to improve the codec further).
 
-> **TODO, upss, already outdated**
+### Cafe
+
+| 12:1 (327.74 kB) | 24:1 (163.12 kB) | 48:1 (81.86 kB) |
+| ---------------- | ---------------- | --------------- |
+| [![cafe-thumb-12](https://user-images.githubusercontent.com/6278300/163314607-5b6d2a36-0825-47ed-921c-bea1bf0bea43.png)][5] | [![cafe-thumb-24](https://user-images.githubusercontent.com/6278300/163314614-4f64cc19-5ae1-47e4-877a-dca7b27df758.png)][6] | [![cafe-thumb-48](https://user-images.githubusercontent.com/6278300/163314619-8096aa3b-1ae7-4c96-ab02-1848dff241b9.png)][7] |
+
+- From [Rec. ITU-T T.24](https://www.itu.int/net/itu-t/sigdb/genimage/T24-25.htm), 50% resized.
+- [Uncompressed][4]: 3932.16 kB (3.9 MB), 1024x1280 px.
+
+
+### Tractor
+
+| 12:1 (973.95 kB) | 24:1 (506.31 kB) | 48:1 (252.05 kB) |
+| ---------------- | ---------------- | ---------------- |
+| [![tractor-thumb12](https://user-images.githubusercontent.com/6278300/163320662-eb990d27-3d95-4059-8002-dc6426640bd2.png)][9] | [![tractor-thumb24](https://user-images.githubusercontent.com/6278300/163320676-8c24c9dc-fcad-4834-9ff7-575425dc6ef8.png)][10] | [![tractor-thumb48](https://user-images.githubusercontent.com/6278300/163320856-f88460d1-fdd0-4640-add4-9dc67a3b9bdd.png)][11] |
+
+- From [UNISI & UNIFI Dataset, University of Siena](http://clem.dii.unisi.it/~vipp/datasets.html), 50% resized.
+- [Uncompressed][8]: 12063.74 kB (12 MB), 1632x2464 px.
 
 
 References
@@ -89,3 +105,13 @@ ____
 
 [1]: https://cmake.org/
 [2]: ./LICENSE
+
+[4]: https://user-images.githubusercontent.com/6278300/163313300-3123a313-134c-4d04-8c7d-57f64ce5dcb3.png
+[5]: https://user-images.githubusercontent.com/6278300/163313563-27de4565-a0c1-4b5b-8fcb-565c1de7caf7.png
+[6]: https://user-images.githubusercontent.com/6278300/163313671-b8ff9090-7d1f-4184-ab2f-699d66384c26.png
+[7]: https://user-images.githubusercontent.com/6278300/163313720-99c4ea37-5480-42d2-9803-80aa3f6c6aeb.png
+
+[8]: https://user-images.githubusercontent.com/6278300/163320329-2ca14c0c-d75e-4aa2-b2de-aa96a01908a2.png
+[9]: https://user-images.githubusercontent.com/6278300/163320344-3241f9b7-5b71-4942-b58d-ef78ffed0e1f.png
+[10]: https://user-images.githubusercontent.com/6278300/163320369-2e650566-408a-4999-9a09-2d0d8d7a2ca1.png
+[11]: https://user-images.githubusercontent.com/6278300/163320386-249ca30c-3007-4b12-8b9f-026519dce9d7.png
