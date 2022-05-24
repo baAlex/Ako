@@ -104,4 +104,5 @@ build ./elias-test: Link $
 
 build ./rle-test: Link $
  ./build/library/compression-rle.o $
+ ./build/library/compression.o $
  ./build/tests/rle-test.o

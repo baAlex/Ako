@@ -8,8 +8,8 @@
 #include <time.h>
 
 
-static void sSingleTest(size_t(encode_callback)(size_t, size_t, size_t, size_t, const void*, void*),
-                        size_t(decode_callback)(size_t, size_t, size_t, const void*, void*), size_t blocks_len,
+static void sSingleTest(size_t(encode_callback)(size_t, size_t, size_t, size_t, const ucoeff_t*, void*),
+                        size_t(decode_callback)(size_t, size_t, size_t, const void*, ucoeff_t*), size_t blocks_len,
                         size_t in_len, const ucoeff_t* in)
 {
 	printf("(len: %zu) ", in_len);
@@ -63,8 +63,9 @@ static void sSingleTest(size_t(encode_callback)(size_t, size_t, size_t, size_t, 
 }
 
 
-static int sFileTest(size_t(encode_callback)(size_t, size_t, size_t, size_t, const void*, void*),
-                     size_t(decode_callback)(size_t, size_t, size_t, const void*, void*), int argc, const char* argv[])
+static int sFileTest(size_t(encode_callback)(size_t, size_t, size_t, size_t, const ucoeff_t*, void*),
+                     size_t(decode_callback)(size_t, size_t, size_t, const void*, ucoeff_t*), int argc,
+                     const char* argv[])
 {
 	clock_t start;
 	clock_t end;
@@ -91,6 +92,8 @@ static int sFileTest(size_t(encode_callback)(size_t, size_t, size_t, size_t, con
 		assert(1 == 2);
 
 	// Encode
+	akoZigZagToUnsigned(input_size / sizeof(ucoeff_t), buffer1);
+
 	start = clock();
 	const size_t compressed_size = encode_callback(AKO_RLE_BLOCKS_LEN_MAX, AKO_RLE_DEFAULT_TRIGGER_DELAY, input_size,
 	                                               input_size, buffer1, buffer2);
@@ -108,6 +111,8 @@ static int sFileTest(size_t(encode_callback)(size_t, size_t, size_t, size_t, con
 
 	printf("decoding: %.2f ms\n", (double)(end - start) / (double)(CLOCKS_PER_SEC / 1000.0));
 	assert(decompressed_size != 0);
+
+	akoZigZagToSigned(input_size / sizeof(ucoeff_t), buffer3);
 
 	// Save decoded file
 	if (argc > 3)
@@ -127,8 +132,8 @@ static int sFileTest(size_t(encode_callback)(size_t, size_t, size_t, size_t, con
 }
 
 
-void sGenericTests(size_t(encode_callback)(size_t, size_t, size_t, size_t, const void*, void*),
-                   size_t(decode_callback)(size_t, size_t, size_t, const void*, void*))
+void sGenericTests(size_t(encode_callback)(size_t, size_t, size_t, size_t, const ucoeff_t*, void*),
+                   size_t(decode_callback)(size_t, size_t, size_t, const void*, ucoeff_t*))
 {
 	const ucoeff_t data1[10] = {1, 2, 3, 4, 5, 6, 6, 6, 6, 6};
 	sSingleTest(encode_callback, decode_callback, AKO_RLE_BLOCKS_LEN_MAX, 10, data1);

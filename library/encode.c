@@ -154,10 +154,9 @@ AKO_EXPORT size_t akoEncodeExt(const struct akoCallbacks* c, const struct akoSet
 			// Compress, or not
 			if (checked_s.compression != AKO_COMPRESSION_NONE)
 			{
-				uint8_t* to = (checked_s.wavelet != AKO_WAVELET_NONE) ? ((uint8_t*)workarea_a) : ((uint8_t*)workarea_b);
+				void* to = (checked_s.wavelet != AKO_WAVELET_NONE) ? workarea_a : workarea_b;
 
-				if ((compressed_size = akoCompress(checked_s.compression, tile_data_size,
-				                                   tile_data_size + planes_spacing, from, to)) == 0)
+				if ((compressed_size = akoCompress(&checked_s, channels, tile_w, tile_h, (coeff_t*)from, to)) == 0)
 				{
 					status = AKO_ERROR;
 					goto return_failure;

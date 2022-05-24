@@ -118,7 +118,7 @@ size_t akoTileDataSize(size_t tile_w, size_t tile_h)
 {
 
 	// If 'tile_w' and 'tile_h' equals, are a power-of-two (2, 4, 8, 16, etc), and
-	// function 'log2' operates on integers whitout rounding errors; then:
+	// function 'log2' operates on integers without rounding errors; then:
 
 	// TileDataSize(d) = (d * d * W + log2(d / 2) * L + T)
 
@@ -260,7 +260,7 @@ void* akoIterateLifts(const struct akoSettings* s, size_t channels, size_t tile_
 		const size_t current_h = target_h;
 		sLiftTargetDimensions(target_w, target_h, tile_w, tile_h, &target_w, &target_h);
 
-		// Interate in Yuv order
+		// Iterate in Yuv order
 		for (size_t ch = 0; ch < channels; ch++)
 		{
 			// Lift head

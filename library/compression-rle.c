@@ -132,8 +132,8 @@ static inline int sSwitchToLiteral(size_t blocks_len, struct RleEncoderState* s)
 }
 
 
-size_t akoRleEncode(size_t blocks_len, size_t trigger_delay, size_t input_size, size_t output_size, const void* input,
-                    void* output)
+size_t akoRleEncode(size_t blocks_len, size_t trigger_delay, size_t input_size, size_t output_size,
+                    const ucoeff_t* input, void* output)
 {
 	if ((input_size % (sizeof(ucoeff_t))) != 0 || input_size < sizeof(ucoeff_t) ||
 	    (output_size % (sizeof(ucoeff_t))) != 0 || output_size < sizeof(ucoeff_t))
@@ -142,12 +142,12 @@ size_t akoRleEncode(size_t blocks_len, size_t trigger_delay, size_t input_size, 
 	struct RleEncoderState s = {
 	    .out = output,
 	    .out_end = (ucoeff_t*)output + (output_size / sizeof(ucoeff_t)),
-	    .in_cursor1 = (const ucoeff_t*)input,
-	    .in_cursor2 = (const ucoeff_t*)input,
+	    .in_cursor1 = input,
+	    .in_cursor2 = input,
 	    .mode = MODE_LITERAL,
 	};
 
-	const ucoeff_t* in_end = (const ucoeff_t*)input + (input_size / sizeof(ucoeff_t));
+	const ucoeff_t* in_end = input + (input_size / sizeof(ucoeff_t));
 	ucoeff_t previous_value = 0;
 	size_t consecutives = 0;
 
@@ -199,7 +199,7 @@ size_t akoRleEncode(size_t blocks_len, size_t trigger_delay, size_t input_size, 
 }
 
 
-size_t akoRleDecode(size_t blocks_len, size_t input_size, size_t output_size, const void* input, void* output)
+size_t akoRleDecode(size_t blocks_len, size_t input_size, size_t output_size, const void* input, ucoeff_t* output)
 {
 	if ((input_size % (sizeof(ucoeff_t))) != 0 || input_size < sizeof(ucoeff_t) ||
 	    (output_size % (sizeof(ucoeff_t))) != 0 || output_size < sizeof(ucoeff_t))
@@ -255,7 +255,7 @@ size_t akoRleDecode(size_t blocks_len, size_t input_size, size_t output_size, co
 
 	} while (++in != in_end);
 
-	return (size_t)(out - (ucoeff_t*)output) * sizeof(ucoeff_t);
+	return (size_t)(out - output) * sizeof(ucoeff_t);
 }
 
 
@@ -288,13 +288,13 @@ static inline void sOldRawWriteMultipleValues(ucoeff_t value, ucoeff_t rle_len, 
 
 
 size_t akoOldRleEncode(size_t blocks_len, size_t trigger_delay, size_t input_size, size_t output_size,
-                       const void* input, void* output)
+                       const ucoeff_t* input, void* output)
 {
 	(void)blocks_len;    // Not a thing in this encoder
 	(void)trigger_delay; // Hardcoded as both encoder/decoder use it
 
 	const ucoeff_t* in_end = (const ucoeff_t*)((const uint8_t*)input + input_size);
-	const ucoeff_t* in = (const ucoeff_t*)input;
+	const ucoeff_t* in = input;
 
 	const ucoeff_t* out_end = (const ucoeff_t*)((const uint8_t*)output + output_size);
 	ucoeff_t* out = output;
@@ -355,7 +355,7 @@ size_t akoOldRleEncode(size_t blocks_len, size_t trigger_delay, size_t input_siz
 }
 
 
-size_t akoOldRleDecode(size_t blocks_len, size_t input_size, size_t output_size, const void* input, void* output)
+size_t akoOldRleDecode(size_t blocks_len, size_t input_size, size_t output_size, const void* input, ucoeff_t* output)
 {
 	(void)blocks_len; // No configurable in this encoder
 
