@@ -6,46 +6,17 @@ Lossy image codec using discrete wavelet transform.
 
 It supports/implements:
 - Deslauriers-Dubuc 13/7 and CDF 5/3, wavelets.
-- Configurable quality loss ([examples](#examples) below).
+- Configurable quality loss ([showcase](#showcase) below).
 - 8 bits per component. 4 channels.
 - Reversible YCoCg color transformation.
 - Elias coding + Rle compression. Nonetheless can handle ratios of 1:12 before artifacts became visible.
 - Good performance. There is care on cache and memory usage.
-- Everything is done with integers. Ensure always identical outputs (even in lossy compression) and provides gain in performance.
+- Everything is done with integers, ensuring always identical outputs (even in lossy compression).
 
 And in an experimental state:
 - Lossless compression.
 
-
-Compilation
------------
-Aside from C and C++ compilers (later only needed to build executable tools), the only requirement is [cmake][1]. On Ubuntu you can install it with:
-
-```
-sudo apt install cmake
-```
-
-Then compile with:
-```
-mkdir build
-cd build
-cmake .. -DCMAKE_BUILD_TYPE=Release
-cmake --build . --config Release
-```
-
-
-Usage
------
-Two executables: `akoenc` and `akodec` will let you try the codec. Run them without any argument to read the usage help. But, in most cases is:
-
-```
-akoenc -q 16 -i "input.png" -o "out.ako"
-```
-- Where `-q 16` is the quantization step that controls loss.
-- There is also a noise gate, with `-g 16`, it can be used as a denoiser to help with compression. It is possible to use both, or disable either one with a value of zero.
-
-
-Examples
+Showcase
 --------
 
 ### Cafe
@@ -66,6 +37,34 @@ Examples
 
 - From [UNISI & UNIFI Dataset, University of Siena](http://clem.dii.unisi.it/~vipp/datasets.html), 50% resized.
 - [Uncompressed][8]: 12063.74 kB (12 MB), 1632x2464 px.
+
+
+Compilation
+-----------
+Aside from C and C++ compilers (later only needed to build executable tools), the only requirement is [cmake][1]. On Ubuntu you can install it with:
+
+```
+sudo apt install cmake
+```
+
+Then compile with:
+```
+mkdir build
+cd build
+cmake .. -DCMAKE_BUILD_TYPE=Release
+cmake --build . --config Release
+```
+
+
+Tools usage
+-----------
+Two executables: `akoenc` and `akodec` will let you try the codec. Run them without any argument to read the usage help. But, in most cases is:
+
+```
+akoenc -q 16 -i "input.png" -o "out.ako"
+```
+- Where `-q 16` is the quantization step that controls loss.
+- There is also a noise gate, with `-g 16`, it can be used as a denoiser to help with compression. It is possible to use both, or disable either one with a value of zero.
 
 
 References
