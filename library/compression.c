@@ -33,16 +33,10 @@ struct akoBlockHead
 };
 
 
-static size_t sManbavaranCompress(const struct akoSettings* s, size_t channels, size_t tile_w, size_t tile_h,
-                                  coeff_t* input, void* out);
-
-
-size_t akoCompress(const struct akoSettings* s, size_t channels, size_t tile_w, size_t tile_h, coeff_t* input,
+size_t akoCompress(enum akoCompression method, size_t channels, size_t tile_w, size_t tile_h, coeff_t* input,
                    void* output)
 {
-	if (s->compression == AKO_COMPRESSION_MANBAVARAN)
-		return sManbavaranCompress(s, channels, tile_w, tile_h, input, output);
-
+	(void)method;
 	const size_t input_size = akoTileDataSize(tile_w, tile_h) * channels;
 	const size_t output_size = input_size;
 
@@ -76,79 +70,4 @@ size_t akoDecompress(enum akoCompression method, size_t decompressed_size, size_
 		return 0;
 
 	return compressed_size + sizeof(struct akoBlockHead);
-}
-
-
-//-----------------------------
-
-
-struct akoCompressCallbackData
-{
-	void* out;
-	size_t out_size;
-	size_t out_capacity;
-};
-
-
-static void sCompressLp(const struct akoSettings* s, size_t ch, size_t tile_w, size_t tile_h, size_t target_w,
-                        size_t target_h, coeff_t* input, void* raw_data)
-{
-	struct akoCompressCallbackData* data = raw_data;
-}
-
-static void sCompressHp(const struct akoSettings* s, size_t ch, size_t tile_w, size_t tile_h,
-                        const struct akoLiftHead* head, size_t current_w, size_t current_h, size_t target_w,
-                        size_t target_h, coeff_t* aux, coeff_t* hp_c, coeff_t* hp_b, coeff_t* hp_d, void* raw_data)
-{
-	struct akoCompressCallbackData* data = raw_data;
-}
-
-static size_t sManbavaranCompress(const struct akoSettings* s, size_t channels, size_t tile_w, size_t tile_h,
-                                  coeff_t* input, void* out)
-{
-	struct akoCompressCallbackData data = {0};
-	data.out = out;
-	data.out_capacity = akoTileDataSize(tile_w, tile_h) * channels;
-
-	akoIterateLifts(s, channels, tile_w, tile_h, input, sCompressLp, sCompressHp, &data);
-
-	return data.out_size;
-}
-
-
-static inline ucoeff_t sZigZagEncode(coeff_t in)
-{
-	// https://developers.google.com/protocol-buffers/docs/encoding#signed_integers
-	return (ucoeff_t)((in << 1) ^ (in >> 15));
-}
-
-static inline coeff_t sZigZagDecode(ucoeff_t in)
-{
-	return (coeff_t)((in >> 1) ^ (~(in & 1) + 1));
-}
-
-void akoZigZagToUnsigned(size_t len, void* inout_raw)
-{
-	union
-	{
-		ucoeff_t* u;
-		coeff_t* s;
-	} inout;
-	inout.u = inout_raw;
-
-	for (; len != 0; len--, inout.u++)
-		*inout.u = sZigZagEncode(*inout.s);
-}
-
-void akoZigZagToSigned(size_t len, void* inout_raw)
-{
-	union
-	{
-		ucoeff_t* u;
-		coeff_t* s;
-	} inout;
-	inout.s = inout_raw;
-
-	for (; len != 0; len--, inout.s++)
-		*inout.s = sZigZagDecode(*inout.u);
 }

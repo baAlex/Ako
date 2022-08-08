@@ -83,15 +83,15 @@ struct akoUnliftCallbackData
 	size_t tile_no;
 };
 
-static void s2dUnliftLp(const struct akoSettings* s, size_t ch, size_t tile_w, size_t tile_h, size_t target_w,
-                        size_t target_h, coeff_t* input, void* raw_data)
+static void s2dUnliftLp(const struct akoSettings* s, size_t ch, size_t tile_w, size_t tile_h, size_t lp_w, size_t lp_h,
+                        coeff_t* lp, void* callback_raw_data)
 {
 	(void)s;
-	struct akoUnliftCallbackData* data = raw_data;
-	coeff_t* lp = data->out + (tile_w * tile_h + data->out_planes_space) * ch;
+	struct akoUnliftCallbackData* data = callback_raw_data;
+	coeff_t* out_lp = data->out + (tile_w * tile_h + data->out_planes_space) * ch;
 
-	for (size_t i = 0; i < (target_w * target_h); i++) // Just copy it
-		lp[i] = input[i];
+	for (size_t i = 0; i < (lp_w * lp_h); i++)
+		out_lp[i] = lp[i]; // Just copy it
 
 	// if (data->tile_no == 0 && ch == 0)
 	// {
@@ -102,49 +102,48 @@ static void s2dUnliftLp(const struct akoSettings* s, size_t ch, size_t tile_w, s
 }
 
 static void s2dUnliftHp(const struct akoSettings* s, size_t ch, size_t tile_w, size_t tile_h,
-                        const struct akoLiftHead* head, size_t current_w, size_t current_h, size_t target_w,
-                        size_t target_h, coeff_t* aux, coeff_t* hp_c, coeff_t* hp_b, coeff_t* hp_d, void* raw_data)
+                        const struct akoLiftHead* head, size_t hp_w, size_t hp_h, size_t target_w, size_t target_h,
+                        coeff_t* aux, coeff_t* hp_c, coeff_t* hp_b, coeff_t* hp_d, void* callback_raw_data)
 {
-	struct akoUnliftCallbackData* data = raw_data;
+	struct akoUnliftCallbackData* data = callback_raw_data;
 	coeff_t* lp = data->out + (tile_w * tile_h + data->out_planes_space) * ch;
 
-	const size_t ignore_last_col = (current_w * 2) - target_w;
-	const size_t ignore_last_row = (current_h * 2) - target_h;
+	const size_t ignore_last_col = (hp_w * 2) - target_w;
+	const size_t ignore_last_row = (hp_h * 2) - target_h;
 
-	sInverseQuantization(head->quantization, current_w, current_h, hp_b);
-	sInverseQuantization(head->quantization, current_w, current_h, hp_c);
-	sInverseQuantization(head->quantization, current_w, current_h, hp_d);
+	sInverseQuantization(head->quantization, hp_w, hp_h, hp_b);
+	sInverseQuantization(head->quantization, hp_w, hp_h, hp_c);
+	sInverseQuantization(head->quantization, hp_w, hp_h, hp_d);
 
 	if (s->wavelet == AKO_WAVELET_HAAR)
 	{
-		akoHaarInPlaceishUnliftV(current_w, current_h, lp, hp_c, aux, hp_c);
-		akoHaarInPlaceishUnliftV(current_w, current_h, hp_b, hp_d, hp_b, hp_d);
+		akoHaarInPlaceishUnliftV(hp_w, hp_h, lp, hp_c, aux, hp_c);
+		akoHaarInPlaceishUnliftV(hp_w, hp_h, hp_b, hp_d, hp_b, hp_d);
 
-		akoHaarUnliftH(current_w, current_h, target_w * 2, ignore_last_col, aux, hp_b, lp + 0);
-		akoHaarUnliftH(current_w, current_h - ignore_last_row, target_w * 2, ignore_last_col, hp_c, hp_d,
-		               lp + target_w);
+		akoHaarUnliftH(hp_w, hp_h, target_w * 2, ignore_last_col, aux, hp_b, lp + 0);
+		akoHaarUnliftH(hp_w, hp_h - ignore_last_row, target_w * 2, ignore_last_col, hp_c, hp_d, lp + target_w);
 	}
-	else if (s->wavelet == AKO_WAVELET_CDF53 || current_w < 8 || current_h < 8)
+	else if (s->wavelet == AKO_WAVELET_CDF53 || hp_w < 8 || hp_h < 8)
 	{
-		akoCdf53InPlaceishUnliftV(s->wrap, current_w, current_h, lp, hp_c, aux, hp_c);
-		akoCdf53InPlaceishUnliftV(s->wrap, current_w, current_h, hp_b, hp_d, hp_b, hp_d);
+		akoCdf53InPlaceishUnliftV(s->wrap, hp_w, hp_h, lp, hp_c, aux, hp_c);
+		akoCdf53InPlaceishUnliftV(s->wrap, hp_w, hp_h, hp_b, hp_d, hp_b, hp_d);
 
-		akoCdf53UnliftH(s->wrap, current_w, current_h, target_w * 2, ignore_last_col, aux, hp_b, lp + 0);
-		akoCdf53UnliftH(s->wrap, current_w, current_h - ignore_last_row, target_w * 2, ignore_last_col, hp_c, hp_d,
+		akoCdf53UnliftH(s->wrap, hp_w, hp_h, target_w * 2, ignore_last_col, aux, hp_b, lp + 0);
+		akoCdf53UnliftH(s->wrap, hp_w, hp_h - ignore_last_row, target_w * 2, ignore_last_col, hp_c, hp_d,
 		                lp + target_w);
 	}
 	else
 	{
-		akoDd137InPlaceishUnliftV(s->wrap, current_w, current_h, lp, hp_c, aux, hp_c);
-		akoDd137InPlaceishUnliftV(s->wrap, current_w, current_h, hp_b, hp_d, hp_b, hp_d);
+		akoDd137InPlaceishUnliftV(s->wrap, hp_w, hp_h, lp, hp_c, aux, hp_c);
+		akoDd137InPlaceishUnliftV(s->wrap, hp_w, hp_h, hp_b, hp_d, hp_b, hp_d);
 
-		akoDd137UnliftH(s->wrap, current_w, current_h, target_w * 2, ignore_last_col, aux, hp_b, lp + 0);
-		akoDd137UnliftH(s->wrap, current_w, current_h - ignore_last_row, target_w * 2, ignore_last_col, hp_c, hp_d,
+		akoDd137UnliftH(s->wrap, hp_w, hp_h, target_w * 2, ignore_last_col, aux, hp_b, lp + 0);
+		akoDd137UnliftH(s->wrap, hp_w, hp_h - ignore_last_row, target_w * 2, ignore_last_col, hp_c, hp_d,
 		                lp + target_w);
 	}
 
 	// if (data->tile_no == 0 && ch == 0)
-	// 	printf("D\t%zux%zu <- %zux%zu (%li, %li)\n", target_w, target_h, current_w, current_h, ignore_last_col,
+	// 	printf("D\t%zux%zu <- %zux%zu (%li, %li)\n", target_w, target_h, hp_w, hp_h, ignore_last_col,
 	// 	       ignore_last_row);
 }
 
@@ -268,15 +267,9 @@ void akoLift(size_t tile_no, const struct akoSettings* s, size_t channels, size_
 			((struct akoLiftHead*)out)->quantization = q;
 
 			// Developers, developers, developers
-			if (tile_no == 0)
-			{
-				if (ch == 0)
-					AKO_DEV_PRINTF("E\tLiftHeadCh0 at %zu\n", (size_t)(out - (uint8_t*)output));
-
-				// char filename[64];
-				// snprintf(filename, 64, "LiftV%zux%zuCh%zuE.pgm", target_w * 2, target_h * 2, ch);
-				// akoSavePgmI16(target_w * 2, target_h * 2, target_w * 2, lp, filename);
-			}
+			// if (tile_no == 0)
+			// 	printf("E\tLift HpCh%zu %zux%zu px (to: 0x%zX)\n", ch, target_w, target_h,
+			// 	       (size_t)(out - (uint8_t*)output));
 		}
 	}
 
@@ -292,11 +285,9 @@ void akoLift(size_t tile_no, const struct akoSettings* s, size_t channels, size_
 		s2dMemcpy(1, 0, target_w, target_h, (target_w * 2), lp, (int16_t*)out); // LP
 
 		// Developers, developers, developers
-		if (tile_no == 0 && ch == 0)
-		{
-			for (size_t i = 0; i < (target_w * target_h); i++)
-				AKO_DEV_PRINTF("E\tLPCh0 %i\n", ((int16_t*)out)[i]);
-		}
+		// if (tile_no == 0)
+		//	printf("E\tLift LPCh%zu %zux%zu px (to: 0x%zX)\n", ch, target_w, target_h,
+		//	       (size_t)(out - (uint8_t*)output));
 	}
 }
 

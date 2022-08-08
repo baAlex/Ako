@@ -32,29 +32,11 @@ struct akoLiftHead
 	int16_t quantization;
 };
 
-// compression-rle.c:
-
-#define AKO_RLE_BLOCKS_LEN_MAX 65535
-#define AKO_RLE_DEFAULT_TRIGGER_DELAY 0
-
-size_t akoRleEncode(size_t blocks_len, size_t trigger_delay, size_t input_size, size_t output_size,
-                    const ucoeff_t* input, void* output);
-size_t akoRleDecode(size_t blocks_len, size_t input_size, size_t output_size, const void* input, ucoeff_t* output);
-
-size_t akoOldRleEncode(size_t blocks_len, size_t trigger_delay, size_t input_size, size_t output_size,
-                       const ucoeff_t* input, void* output);
-size_t akoOldRleDecode(size_t blocks_len, size_t input_size, size_t output_size, const void* input, ucoeff_t* output);
-
 // compression.c:
 
-size_t akoCompress(const struct akoSettings* s, size_t channels, size_t tile_w, size_t tile_h, coeff_t* input,
-                   void* output);
-
+size_t akoCompress(enum akoCompression, size_t channels, size_t tile_w, size_t tile_h, coeff_t* input, void* output);
 size_t akoDecompress(enum akoCompression, size_t decompressed_size, size_t output_size, const void* input,
                      void* output);
-
-void akoZigZagToUnsigned(size_t len, void* inout);
-void akoZigZagToSigned(size_t len, void* inout);
 
 // developer.c:
 

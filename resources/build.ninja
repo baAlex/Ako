@@ -26,7 +26,6 @@ rule Link
  command = $link $in $lflags -o $out
 
 
-build ./build/library/compression-rle.o: CompileC ./library/compression-rle.c
 build ./build/library/compression.o:     CompileC ./library/compression.c
 build ./build/library/decode.o:          CompileC ./library/decode.c
 build ./build/library/developer.o:       CompileC ./library/developer.c
@@ -49,11 +48,9 @@ build ./build/tools/akoenc.o:             CompileCpp ./tools/akoenc.cpp
 build ./build/tests/cdf53-test.o: CompileC ./tests/cdf53-test.c
 build ./build/tests/dd137-test.o: CompileC ./tests/dd137-test.c
 build ./build/tests/elias-test.o: CompileC ./tests/elias-test.c
-build ./build/tests/rle-test.o:   CompileC ./tests/rle-test.c
 
 
 build ./akodec: Link $
- ./build/library/compression-rle.o  $
  ./build/library/compression.o      $
  ./build/library/decode.o           $
  ./build/library/developer.o        $
@@ -72,7 +69,6 @@ build ./akodec: Link $
  ./build/tools/akodec.o
 
 build ./akoenc: Link $
- ./build/library/compression-rle.o  $
  ./build/library/compression.o      $
  ./build/library/decode.o           $
  ./build/library/developer.o        $
@@ -101,8 +97,3 @@ build ./cdf53-test: Link $
 build ./elias-test: Link $
  ./build/library/kagari.o $
  ./build/tests/elias-test.o
-
-build ./rle-test: Link $
- ./build/library/compression-rle.o $
- ./build/library/compression.o $
- ./build/tests/rle-test.o

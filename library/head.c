@@ -56,7 +56,8 @@ static inline enum akoStatus sValidate(size_t channels, size_t width, size_t hei
 	    color != AKO_COLOR_NONE)
 		return AKO_INVALID_COLOR_TRANSFORMATION;
 
-	if (compression != AKO_COMPRESSION_KAGARI && compression != AKO_COMPRESSION_NONE)
+	if (compression != AKO_COMPRESSION_KAGARI && compression != AKO_COMPRESSION_MANBAVARAN &&
+	    compression != AKO_COMPRESSION_NONE)
 		return AKO_INVALID_COMPRESSION_METHOD;
 
 	return AKO_OK;

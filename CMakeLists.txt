@@ -21,7 +21,6 @@ endif ()
 
 
 set(AKO_SOURCES
-	"./library/compression-rle.c"
 	"./library/compression.c"
 	"./library/decode.c"
 	"./library/developer.c"
@@ -99,8 +98,4 @@ if (AKO_TESTS)
 	add_executable("cdf53-test" "./tests/cdf53-test.c")
 	target_include_directories("cdf53-test" PRIVATE "./library/")
 	target_link_libraries("cdf53-test" PRIVATE "ako-static")
-
-	add_executable("rle-test" "./tests/rle-test.c")
-	target_include_directories("rle-test" PRIVATE "./library/")
-	target_link_libraries("rle-test" PRIVATE "ako-static")
 endif ()
