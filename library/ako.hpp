@@ -80,7 +80,6 @@ struct Settings
 	unsigned gate;
 };
 
-
 AKO_EXPORT size_t Encode(const Callbacks&, const Settings&, size_t width, size_t height, size_t channels,
                          const void* input, void** output, Status& out_status);
 

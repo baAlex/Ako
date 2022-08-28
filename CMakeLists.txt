@@ -3,9 +3,11 @@ cmake_minimum_required(VERSION 3.12)
 project("Ako" CXX)
 
 
-option(AKO_SHARED "Build shared library"   ON)
-option(AKO_STATIC "Build static library"   ON)
-option(AKO_TESTS  "Build tests"            ON)
+option(AKO_SHARED "Build shared library" ON)
+option(AKO_STATIC "Build static library" ON)
+option(AKO_ENC    "Build encoding tool"  ON)
+option(AKO_DEC    "Build decoding tool"  ON)
+option(AKO_TESTS  "Build tests"          ON)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS True) # For Clangd
 set(CMAKE_CXX_STANDARD 11)
@@ -13,8 +15,6 @@ set(CMAKE_CXX_STANDARD 11)
 
 if (MSVC)
 	add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
-else ()
-	add_compile_options(-Werror -Wall -Wextra -Wconversion -pedantic -Wold-style-cast)
 endif ()
 
 
@@ -31,6 +31,10 @@ if (AKO_SHARED)
 	set_property(TARGET "ako" PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
 	set_property(TARGET "ako" PROPERTY CXX_VISIBILITY_PRESET hidden)
 	target_include_directories("ako" PRIVATE "./library/")
+
+	if (NOT MSVC)
+		target_compile_options("ako" PRIVATE -Werror -Wall -Wextra -Wconversion -pedantic -Wold-style-cast)
+	endif ()
 endif ()
 
 
@@ -39,6 +43,39 @@ if (AKO_STATIC)
 	set_property(TARGET "ako-static" PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
 	set_property(TARGET "ako-static" PROPERTY CXX_VISIBILITY_PRESET hidden)
 	target_include_directories("ako-static" PRIVATE "./library/")
+
+	if (NOT MSVC)
+		target_compile_options("ako-static" PRIVATE -Werror -Wall -Wextra -Wconversion -pedantic -Wold-style-cast)
+	endif ()
+endif ()
+
+
+if (AKO_ENC OR AKODEC)
+	add_library("lodepng-static" STATIC "./tools/thirdparty/lodepng.cpp")
+endif ()
+
+
+if (AKO_ENC)
+	add_executable("akoenc" "./tools/akoenc.cpp")
+	target_include_directories("akoenc" PRIVATE "./library/")
+	target_link_libraries("akoenc" PRIVATE "ako-static")
+	target_link_libraries("akoenc" PRIVATE "lodepng-static")
+
+	if (NOT MSVC)
+		target_compile_options("akoenc" PRIVATE -Werror -Wall -Wextra -Wconversion -pedantic -Wold-style-cast)
+	endif ()
+endif ()
+
+
+if (AKO_DEC)
+	add_executable("akodec" "./tools/akodec.cpp")
+	target_include_directories("akodec" PRIVATE "./library/")
+	target_link_libraries("akodec" PRIVATE "ako-static")
+	target_link_libraries("akodec" PRIVATE "lodepng-static")
+
+	if (NOT MSVC)
+		target_compile_options("akodec" PRIVATE -Werror -Wall -Wextra -Wconversion -pedantic -Wold-style-cast)
+	endif ()
 endif ()
 
 

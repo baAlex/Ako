@@ -94,5 +94,5 @@ int main()
 	// sTest(1920, 1080, 4);
 	// sTest(2048, 1024, 8);
 
-	return 0;
+	return EXIT_SUCCESS;
 }
