@@ -23,21 +23,41 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-#include "ako.hpp"
+#include "ako-private.hpp"
 
-
-size_t ako::Encode(const ako::Callbacks* callbacks, const ako::Settings* settings, size_t channels, size_t width,
-                   size_t height, const void* input, ako::Status* out_status)
+namespace ako
 {
-	(void)callbacks;
-	(void)settings;
-	(void)channels;
-	(void)width;
-	(void)height;
-	(void)input;
 
-	if (out_status != NULL)
-		*out_status = ako::Status::NotImplemented;
+size_t Encode(const Callbacks& callbacks, const Settings& settings, size_t width, size_t height, size_t channels,
+              const void* input, void** output, Status& out_status)
+{
+	auto s = Status::Ok;
 
-	return 0;
+	// Checks
+	if ((s = ValidateCallbacks(callbacks)) != Status::Ok || (s = ValidateSettings(settings)) != Status::Ok)
+	{
+		out_status = s;
+		return 0;
+	}
+
+	if (input == NULL || width == 0 || height == 0 || channels == 0)
+	{
+		out_status = Status::InvalidInput;
+		return 0;
+	}
+
+	// Do something
+	const size_t blob_size = 123;
+	auto blob = callbacks.malloc(blob_size);
+
+	// Bye!
+	if (output != NULL)
+		*output = blob;
+	else
+		callbacks.free(blob);
+
+	out_status = s;
+	return blob_size;
 }
+
+} // namespace ako

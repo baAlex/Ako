@@ -25,38 +25,42 @@ SOFTWARE.
 
 #include "ako-private.hpp"
 
+#ifndef AKO_FREESTANDING
+#include <cstdlib>
+#endif
+
 namespace ako
 {
 
-uint8_t* Decode(const Callbacks& callbacks, size_t input_size, const void* input, Settings& out_settings,
-                size_t& out_width, size_t& out_height, size_t& out_channels, Status& out_status)
+Settings DefaultSettings()
 {
-	(void)out_settings;
-	(void)out_channels;
-	(void)out_width;
-	(void)out_height;
+	Settings settings = {};
 
-	auto s = Status::Ok;
+	settings.color = Color::YCoCg;
+	settings.wavelet = Wavelet::Dd137;
+	settings.wrap = Wrap::Clamp;
+	settings.compression = Compression::Kagari;
 
-	// Checks
-	if ((s = ValidateCallbacks(callbacks)) != Status::Ok)
-	{
-		out_status = s;
-		return NULL;
-	}
+	settings.tiles_size = 0;
 
-	if (input == NULL || input_size == 0)
-	{
-		out_status = Status::InvalidInput;
-		return NULL;
-	}
+	settings.quantization = 0;
+	settings.gate = 0;
 
-	// Do something
-	auto image = static_cast<uint8_t*>(callbacks.malloc(123));
-
-	// Bye!
-	out_status = s;
-	return image;
+	return settings;
 }
+
+
+#ifndef AKO_FREESTANDING
+Callbacks DefaultCallbacks()
+{
+	Callbacks callbacks = {};
+
+	callbacks.malloc = std::malloc;
+	callbacks.realloc = std::realloc;
+	callbacks.free = std::free;
+
+	return callbacks;
+}
+#endif
 
 } // namespace ako

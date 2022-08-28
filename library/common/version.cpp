@@ -23,57 +23,29 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-#include "ako.hpp"
+#include "ako-private.hpp"
 
-
-ako::Settings ako::DefaultSettings()
+namespace ako
 {
-	Settings settings = {};
-	return settings;
+
+int VersionMajor()
+{
+	return VERSION_MAJOR;
 }
 
-
-#ifndef AKO_FREESTANDING
-#include <stdlib.h>
-ako::Callbacks ako::DefaultCallbacks()
+int VersionMinor()
 {
-	Callbacks callbacks = {};
-	callbacks.malloc = malloc;
-	callbacks.realloc = realloc;
-	callbacks.free = free;
-
-	return callbacks;
-}
-#endif
-
-
-const char* ako::StatusString(ako::Status s)
-{
-	switch (s)
-	{
-	case ako::Status::Error: return "Non specified error";
-	case ako::Status::NotImplemented: return "Not implemented";
-	default: return "Ok";
-	}
+	return VERSION_MINOR;
 }
 
-
-int ako::VersionMajor()
+int VersionPatch()
 {
-	return ako::VERSION_MAJOR;
+	return VERSION_PATCH;
 }
 
-int ako::VersionMinor()
+int FormatVersion()
 {
-	return ako::VERSION_MINOR;
+	return FORMAT_VERSION;
 }
 
-int ako::VersionPatch()
-{
-	return ako::VERSION_PATCH;
-}
-
-int ako::FormatVersion()
-{
-	return ako::FORMAT_VERSION;
-}
+} // namespace ako

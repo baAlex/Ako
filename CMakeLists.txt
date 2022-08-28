@@ -5,6 +5,7 @@ project("Ako" CXX)
 
 option(AKO_SHARED "Build shared library"   ON)
 option(AKO_STATIC "Build static library"   ON)
+option(AKO_TESTS  "Build tests"            ON)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS True) # For Clangd
 set(CMAKE_CXX_STANDARD 11)
@@ -18,7 +19,9 @@ endif ()
 
 
 set(AKO_SOURCES
-	"./library/common/misc.cpp"
+	"./library/common/defaults.cpp"
+	"./library/common/utilities.cpp"
+	"./library/common/version.cpp"
 	"./library/decode/decode.cpp"
 	"./library/encode/encode.cpp")
 
@@ -36,4 +39,15 @@ if (AKO_STATIC)
 	set_property(TARGET "ako-static" PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
 	set_property(TARGET "ako-static" PROPERTY CXX_VISIBILITY_PRESET hidden)
 	target_include_directories("ako-static" PRIVATE "./library/")
+endif ()
+
+
+if (AKO_TESTS)
+	add_executable("forward-and-backward" "./tests/forward-and-backward.cpp")
+	target_include_directories("forward-and-backward" PRIVATE "./library/")
+	target_link_libraries("forward-and-backward" PRIVATE "ako-static")
+
+	add_test(NAME "ForwardAndBackward" COMMAND "forward-and-backward")
+
+	include(CTest)
 endif ()

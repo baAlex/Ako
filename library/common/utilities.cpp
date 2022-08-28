@@ -28,35 +28,48 @@ SOFTWARE.
 namespace ako
 {
 
-uint8_t* Decode(const Callbacks& callbacks, size_t input_size, const void* input, Settings& out_settings,
-                size_t& out_width, size_t& out_height, size_t& out_channels, Status& out_status)
+size_t NearPowerOfTwo(size_t v)
 {
-	(void)out_settings;
-	(void)out_channels;
-	(void)out_width;
-	(void)out_height;
+	size_t x = 2;
+	while (x < v)
+		x <<= 1;
 
-	auto s = Status::Ok;
+	return x;
+}
 
-	// Checks
-	if ((s = ValidateCallbacks(callbacks)) != Status::Ok)
+
+Status ValidateCallbacks(const Callbacks& callbacks)
+{
+	if (callbacks.malloc == NULL || callbacks.realloc == NULL || callbacks.free == NULL)
+		return Status::InvalidCallbacks;
+
+	return Status::Ok;
+}
+
+
+Status ValidateSettings(const Settings& settings)
+{
+	if (settings.tiles_size != 0)
 	{
-		out_status = s;
-		return NULL;
+		if (settings.tiles_size != NearPowerOfTwo(settings.tiles_size))
+			return Status::InvalidSettings;
 	}
 
-	if (input == NULL || input_size == 0)
+	return Status::Ok;
+}
+
+
+const char* StatusString(Status s)
+{
+	switch (s)
 	{
-		out_status = Status::InvalidInput;
-		return NULL;
+	case Status::Ok: return "Ok";
+	case Status::NotImplemented: return "Not implemented";
+	case Status::InvalidCallbacks: return "Invalid callbacks";
+	case Status::InvalidSettings: return "Invalid settings";
+	case Status::InvalidInput: return "Invalid input";
+	default: return "Unspecified error";
 	}
-
-	// Do something
-	auto image = static_cast<uint8_t*>(callbacks.malloc(123));
-
-	// Bye!
-	out_status = s;
-	return image;
 }
 
 } // namespace ako

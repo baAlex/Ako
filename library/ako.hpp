@@ -20,11 +20,44 @@ const int VERSION_MINOR = 3;
 const int VERSION_PATCH = 0;
 const int FORMAT_VERSION = 3;
 
-enum Status
+enum class Status
 {
 	Ok,
 	Error,
 	NotImplemented,
+	InvalidCallbacks,
+	InvalidSettings,
+	InvalidInput,
+};
+
+enum class Color
+{
+	YCoCg,
+	SubtractGreen,
+	None,
+};
+
+enum class Wavelet
+{
+	Dd137,
+	Cdf53,
+	Haar,
+	None,
+};
+
+enum class Wrap
+{
+	Clamp,
+	Mirror,
+	Repeat,
+	Zero,
+};
+
+enum class Compression
+{
+	Manbavaran,
+	Kagari,
+	None,
 };
 
 struct Callbacks
@@ -36,15 +69,23 @@ struct Callbacks
 
 struct Settings
 {
-	int empty; // For now
+	Color color;
+	Wavelet wavelet;
+	Wrap wrap;
+	Compression compression;
+
+	size_t tiles_size;
+
+	unsigned quantization;
+	unsigned gate;
 };
 
 
-AKO_EXPORT size_t Encode(const Callbacks*, const Settings*, size_t channels, size_t width, size_t height,
-                         const void* input, Status* out_status);
+AKO_EXPORT size_t Encode(const Callbacks&, const Settings&, size_t width, size_t height, size_t channels,
+                         const void* input, void** output, Status& out_status);
 
-AKO_EXPORT void* Decode(const Callbacks*, size_t input_size, const void* input, Settings* out_settings,
-                        size_t* out_channels, size_t* out_width, size_t* out_height, Status* out_status);
+AKO_EXPORT uint8_t* Decode(const Callbacks&, size_t input_size, const void* input, Settings& out_settings,
+                           size_t& out_width, size_t& out_height, size_t& out_channels, Status& out_status);
 
 AKO_EXPORT Settings DefaultSettings();
 AKO_EXPORT Callbacks DefaultCallbacks();
