@@ -1,22 +1,14 @@
 
-akodec
-akoenc
-akodecx
-akoencx
-cdf53-test
-dd137-test
-elias-test
-rle-test
-
 /build/
 /build-debug/
 /build-release/
 
 /dev/
+
 /.vscode/
-
 /.clangd/
-compile_commands.json
+/.cache/
 
+compile_commands.json
 .ninja_deps
 .ninja_log
