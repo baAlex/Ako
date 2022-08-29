@@ -40,8 +40,6 @@ endif ()
 
 if (AKO_STATIC)
 	add_library("ako-static" STATIC ${AKO_SOURCES})
-	set_property(TARGET "ako-static" PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
-	set_property(TARGET "ako-static" PROPERTY CXX_VISIBILITY_PRESET hidden)
 	target_include_directories("ako-static" PRIVATE "./library/")
 
 	if (NOT MSVC)
@@ -62,7 +60,7 @@ if (AKO_ENC)
 	target_link_libraries("akoenc" PRIVATE "lodepng-static")
 
 	if (NOT MSVC)
-		target_compile_options("akoenc" PRIVATE -Werror -Wall -Wextra -Wconversion -pedantic -Wold-style-cast)
+		target_compile_options("akoenc" PRIVATE -Wall -Wextra -Wconversion -pedantic -Wold-style-cast)
 	endif ()
 endif ()
 
@@ -74,7 +72,7 @@ if (AKO_DEC)
 	target_link_libraries("akodec" PRIVATE "lodepng-static")
 
 	if (NOT MSVC)
-		target_compile_options("akodec" PRIVATE -Werror -Wall -Wextra -Wconversion -pedantic -Wold-style-cast)
+		target_compile_options("akodec" PRIVATE -Wall -Wextra -Wconversion -pedantic -Wold-style-cast)
 	endif ()
 endif ()
 

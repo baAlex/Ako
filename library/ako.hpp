@@ -1,5 +1,8 @@
 
 
+#ifndef AKO_HPP
+#define AKO_HPP
+
 #include <stddef.h>
 #include <stdint.h>
 
@@ -33,7 +36,7 @@ enum class Status
 enum class Color
 {
 	YCoCg,
-	SubtractGreen,
+	SubtractG,
 	None,
 };
 
@@ -55,8 +58,8 @@ enum class Wrap
 
 enum class Compression
 {
-	Manbavaran,
 	Kagari,
+	Manbavaran,
 	None,
 };
 
@@ -78,6 +81,9 @@ struct Settings
 
 	unsigned quantization;
 	unsigned gate;
+
+	unsigned chroma_loss;
+	bool discard;
 };
 
 AKO_EXPORT size_t Encode(const Callbacks&, const Settings&, size_t width, size_t height, size_t channels,
@@ -89,7 +95,11 @@ AKO_EXPORT uint8_t* Decode(const Callbacks&, size_t input_size, const void* inpu
 AKO_EXPORT Settings DefaultSettings();
 AKO_EXPORT Callbacks DefaultCallbacks();
 
-AKO_EXPORT const char* StatusString(Status);
+AKO_EXPORT const char* ToString(Status);
+AKO_EXPORT const char* ToString(Color c);
+AKO_EXPORT const char* ToString(Wavelet w);
+AKO_EXPORT const char* ToString(Wrap w);
+AKO_EXPORT const char* ToString(Compression c);
 
 AKO_EXPORT int VersionMajor();
 AKO_EXPORT int VersionMinor();
@@ -97,3 +107,5 @@ AKO_EXPORT int VersionPatch();
 AKO_EXPORT int FormatVersion();
 
 } // namespace ako
+
+#endif

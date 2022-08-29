@@ -43,7 +43,7 @@ Settings DefaultSettings()
 
 	settings.tiles_size = 0;
 
-	settings.quantization = 0;
+	settings.quantization = 4;
 	settings.gate = 0;
 
 	return settings;

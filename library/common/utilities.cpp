@@ -59,17 +59,69 @@ Status ValidateSettings(const Settings& settings)
 }
 
 
-const char* StatusString(Status s)
+const char* ToString(Status s)
 {
 	switch (s)
 	{
 	case Status::Ok: return "Ok";
+	case Status::Error: return "Unspecified error";
 	case Status::NotImplemented: return "Not implemented";
 	case Status::InvalidCallbacks: return "Invalid callbacks";
 	case Status::InvalidSettings: return "Invalid settings";
 	case Status::InvalidInput: return "Invalid input";
-	default: return "Unspecified error";
 	}
+
+	return "Invalid status";
+}
+
+const char* ToString(Color c)
+{
+	switch (c)
+	{
+	case Color::YCoCg: return "YCOCG";
+	case Color::SubtractG: return "SUBTRACTG";
+	case Color::None: return "NONE";
+	}
+
+	return "INVALID";
+}
+
+const char* ToString(Wavelet w)
+{
+	switch (w)
+	{
+	case Wavelet::Dd137: return "DD137";
+	case Wavelet::Cdf53: return "CDF53";
+	case Wavelet::Haar: return "HAAR";
+	case Wavelet::None: return "NONE";
+	}
+
+	return "INVALID";
+}
+
+const char* ToString(Wrap w)
+{
+	switch (w)
+	{
+	case Wrap::Clamp: return "CLAMP";
+	case Wrap::Mirror: return "MIRROR";
+	case Wrap::Repeat: return "REPEAT";
+	case Wrap::Zero: return "ZERO";
+	}
+
+	return "INVALID";
+}
+
+const char* ToString(Compression c)
+{
+	switch (c)
+	{
+	case Compression::Kagari: return "KAGARI";
+	case Compression::Manbavaran: return "MANBAVARAN";
+	case Compression::None: return "NONE";
+	}
+
+	return "INVALID";
 }
 
 } // namespace ako

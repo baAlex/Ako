@@ -49,7 +49,7 @@ static void sTest(size_t width, size_t height, size_t channels, uint32_t seed = 
 		    Encode(DefaultCallbacks(), DefaultSettings(), width, height, channels, image.data(), &encoded_blob, status);
 
 		if (status != Status::Ok || encoded_blob == NULL)
-			std::cout << StatusString(status) << "\n";
+			std::cout << ToString(status) << "\n";
 
 		assert(status == Status::Ok);
 		assert(encoded_blob_size != 0);
@@ -71,7 +71,7 @@ static void sTest(size_t width, size_t height, size_t channels, uint32_t seed = 
 		    Decode(DefaultCallbacks(), encoded_blob_size, encoded_blob, settings, width, height, channels, status);
 
 		if (status != Status::Ok || decoded_image == NULL)
-			std::cout << StatusString(status) << "\n";
+			std::cout << ToString(status) << "\n";
 
 		assert(status == Status::Ok);
 		assert(decoded_image != NULL);
