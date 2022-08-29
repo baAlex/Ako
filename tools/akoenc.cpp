@@ -33,8 +33,8 @@ SOFTWARE.
 #include "shared.hpp"
 
 #include "thirdparty/CLI11.hpp"
+#include "thirdparty/Crc32.h"
 #include "thirdparty/lodepng.h"
-#include "thirdparty/picosha2.h"
 
 
 const static auto s_color_transformer = // NOLINT(cert-err58-cpp)
@@ -148,11 +148,14 @@ int main(int argc, const char* argv[])
 		CLI11_PARSE(app, argc, argv);
 	}
 
+	if (quiet == false && verbose == true)
+		std::cout << "\n";
+
 	// Read input file
 	auto input_blob = std::vector<uint8_t>();
 	{
 		if (quiet == false && verbose == true)
-			std::cout << "Input file name: " << input_filename << "'\n";
+			std::cout << "Input file name: '" << input_filename << "'\n";
 
 		if (ReadFile(input_filename, input_blob) != 0)
 			return EXIT_FAILURE;
@@ -207,13 +210,13 @@ int main(int argc, const char* argv[])
 	}
 
 	// Checksum image
-	std::string hash = "";
+	uint32_t hash = 0;
 	if (checksum == true)
 	{
-		picosha2::hash256_hex_string(input_image.begin(), input_image.end(), hash);
+		hash = crc32_fast(input_image.data(), input_image.size());
 
 		if (quiet == false && verbose == true)
-			std::cout << "Input image hash:\n    " << hash << "\n";
+			std::cout << "Input image hash: " << std::hex << hash << std::dec << " (CRC32)\n";
 	}
 
 	// Encode
@@ -221,7 +224,7 @@ int main(int argc, const char* argv[])
 	size_t encoded_blob_size = 0;
 	{
 		if (quiet == false && verbose == true)
-			PrintSettings(s);
+			PrintSettings(s, "encoder-side");
 
 		auto status = ako::Status::Error;
 		encoded_blob_size =
@@ -257,8 +260,8 @@ int main(int argc, const char* argv[])
 		const auto bpp = (static_cast<float>(encoded_blob_size) / static_cast<float>(width * height * channels)) * 8.0F;
 
 		if (checksum == true)
-			std::printf("(%s) %.2f kB -> %.2f kB, ratio: %.2f:1, %.4f bpp\n", hash.substr(0, 8).c_str(),
-			            uncompressed_size, compressed_size, uncompressed_size / compressed_size, bpp);
+			std::printf("(%x) %.2f kB -> %.2f kB, ratio: %.2f:1, %.4f bpp\n", hash, uncompressed_size, compressed_size,
+			            uncompressed_size / compressed_size, bpp);
 		else
 			std::printf("%.2f kB -> %.2f kB, ratio: %.2f:1, %.4f bpp\n", uncompressed_size, compressed_size,
 			            uncompressed_size / compressed_size, bpp);

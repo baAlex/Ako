@@ -32,9 +32,6 @@ uint8_t* Decode(const Callbacks& callbacks, size_t input_size, const void* input
                 size_t& out_width, size_t& out_height, size_t& out_channels, Status& out_status)
 {
 	(void)out_settings;
-	(void)out_channels;
-	(void)out_width;
-	(void)out_height;
 
 	auto s = Status::Ok;
 
@@ -52,7 +49,14 @@ uint8_t* Decode(const Callbacks& callbacks, size_t input_size, const void* input
 	}
 
 	// Do something
-	auto image = static_cast<uint8_t*>(callbacks.malloc(123));
+	const size_t width = 123;
+	const size_t height = 123;
+	const size_t channels = 3;
+	out_width = width;
+	out_height = height;
+	out_channels = channels;
+
+	auto image = static_cast<uint8_t*>(callbacks.malloc(width * height * channels));
 
 	// Bye!
 	out_status = s;

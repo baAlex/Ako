@@ -49,7 +49,9 @@ endif ()
 
 
 if (AKO_ENC OR AKODEC)
-	add_library("lodepng-static" STATIC "./tools/thirdparty/lodepng.cpp")
+	add_library("thirdparty-static" STATIC
+		"./tools/thirdparty/Crc32.cpp"
+		"./tools/thirdparty/lodepng.cpp")
 endif ()
 
 
@@ -57,10 +59,10 @@ if (AKO_ENC)
 	add_executable("akoenc" "./tools/akoenc.cpp")
 	target_include_directories("akoenc" PRIVATE "./library/")
 	target_link_libraries("akoenc" PRIVATE "ako-static")
-	target_link_libraries("akoenc" PRIVATE "lodepng-static")
+	target_link_libraries("akoenc" PRIVATE "thirdparty-static")
 
 	if (NOT MSVC)
-		target_compile_options("akoenc" PRIVATE -Wall -Wextra -Wconversion -pedantic -Wold-style-cast)
+		target_compile_options("akoenc" PRIVATE -Werror -Wall -Wextra -Wconversion -pedantic -Wold-style-cast)
 	endif ()
 endif ()
 
@@ -69,10 +71,10 @@ if (AKO_DEC)
 	add_executable("akodec" "./tools/akodec.cpp")
 	target_include_directories("akodec" PRIVATE "./library/")
 	target_link_libraries("akodec" PRIVATE "ako-static")
-	target_link_libraries("akodec" PRIVATE "lodepng-static")
+	target_link_libraries("akodec" PRIVATE "thirdparty-static")
 
 	if (NOT MSVC)
-		target_compile_options("akodec" PRIVATE -Wall -Wextra -Wconversion -pedantic -Wold-style-cast)
+		target_compile_options("akodec" PRIVATE -Werror -Wall -Wextra -Wconversion -pedantic -Wold-style-cast)
 	endif ()
 endif ()
 

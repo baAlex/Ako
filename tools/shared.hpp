@@ -81,7 +81,7 @@ inline int WriteFile(const std::string& output_filename, size_t size, const void
 }
 
 
-inline void PrintSettings(const ako::Settings& s)
+inline void PrintSettings(const ako::Settings& s, const std::string& side = "encoder-side")
 {
 	std::cout << "[" << ako::ToString(s.color);
 	std::cout << ", " << ako::ToString(s.wavelet);
@@ -89,7 +89,13 @@ inline void PrintSettings(const ako::Settings& s)
 	std::cout << ", " << ako::ToString(s.compression);
 	std::cout << ", t:" << std::to_string(s.tiles_size);
 	std::cout << ", q:" << std::to_string(s.quantization);
-	std::cout << ", g:" << std::to_string(s.gate);
-	std::cout << ", l:" << std::to_string(s.chroma_loss);
-	std::cout << ", d:" << ((s.discard) ? "true" : "false") << "]\n";
+
+	if (side == "encoder-side")
+	{
+		std::cout << ", g:" << std::to_string(s.gate);
+		std::cout << ", l:" << std::to_string(s.chroma_loss);
+		std::cout << ", d:" << ((s.discard) ? "true" : "false");
+	}
+
+	std::cout << "]\n";
 }
