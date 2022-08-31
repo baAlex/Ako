@@ -88,10 +88,10 @@ inline void PrintSettings(const ako::Settings& s, const std::string& side = "enc
 	std::cout << ", " << ako::ToString(s.wrap);
 	std::cout << ", " << ako::ToString(s.compression);
 	std::cout << ", t:" << std::to_string(s.tiles_dimension);
-	std::cout << ", q:" << std::to_string(s.quantization);
 
 	if (side == "encoder-side")
 	{
+		std::cout << ", q:" << std::to_string(s.quantization);
 		std::cout << ", g:" << std::to_string(s.gate);
 		std::cout << ", l:" << std::to_string(s.chroma_loss);
 		std::cout << ", d:" << ((s.discard) ? "true" : "false");

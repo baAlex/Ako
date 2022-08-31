@@ -57,8 +57,20 @@ size_t TilesNo(size_t tiles_dimension, size_t image_w, size_t image_h)
 void TileMeasures(size_t tile_no, size_t tiles_dimension, size_t image_w, size_t image_h, //
                   size_t& out_w, size_t& out_h, size_t& out_x, size_t& out_y)
 {
-	out_x = ((tiles_dimension * tile_no) % image_w);
-	out_y = ((tiles_dimension * tile_no) / image_w) * tiles_dimension;
+	if (tiles_dimension == 0)
+	{
+		out_x = 0;
+		out_y = 0;
+		out_w = image_w;
+		out_h = image_h;
+		return;
+	}
+
+	const size_t horizontal_tiles = image_w / tiles_dimension + ((image_w % tiles_dimension == 0) ? 0 : 1);
+
+	out_x = (tile_no % horizontal_tiles) * tiles_dimension;
+	out_y = (tile_no / horizontal_tiles) * tiles_dimension;
+
 	out_w = (out_x + tiles_dimension <= image_w) ? (tiles_dimension) : (image_w % tiles_dimension);
 	out_h = (out_y + tiles_dimension <= image_h) ? (tiles_dimension) : (image_h % tiles_dimension);
 }
@@ -98,13 +110,11 @@ Status ValidateSettings(const Settings& settings)
 }
 
 
-Status ValidateProperties(const void* input, size_t image_w, size_t image_h, size_t channels, size_t depth)
+Status ValidateProperties(size_t image_w, size_t image_h, size_t channels, size_t depth)
 {
 	// clang-format off
-	if (input == NULL)                { return Status::InvalidInput;      }
 	if (image_w == 0 || image_h == 0) { return Status::InvalidDimensions; }
 	if (channels == 0)                { return Status::InvalidChannelsNo; }
-
 	if (image_w > MAXIMUM_WIDTH)     { return Status::InvalidDimensions; }
 	if (image_h > MAXIMUM_HEIGHT)    { return Status::InvalidDimensions; }
 	if (channels > MAXIMUM_CHANNELS) { return Status::InvalidChannelsNo; }
@@ -116,73 +126,12 @@ Status ValidateProperties(const void* input, size_t image_w, size_t image_h, siz
 }
 
 
-const char* ToString(Status s)
+Status ValidateInput(const void* ptr, size_t input_size)
 {
-	switch (s)
-	{
-	case Status::Ok: return "Ok";
-	case Status::Error: return "Unspecified error";
-	case Status::NotImplemented: return "Not implemented";
-	case Status::InvalidCallbacks: return "Invalid callbacks";
-	case Status::InvalidTilesDimension: return "Invalid tiles dimension";
-	case Status::InvalidInput: return "Invalid input";
-	case Status::InvalidDimensions: return "Invalid dimensions";
-	case Status::InvalidChannelsNo: return "Invalid number of channels";
-	case Status::InvalidDepth: return "Invalid depth";
-	case Status::NoEnoughMemory: return "No enough memory";
-	}
+	if (ptr == NULL || input_size == 0)
+		return Status::InvalidInput;
 
-	return "Invalid status";
-}
-
-const char* ToString(Color c)
-{
-	switch (c)
-	{
-	case Color::YCoCg: return "YCOCG";
-	case Color::SubtractG: return "SUBTRACTG";
-	case Color::None: return "NONE";
-	}
-
-	return "INVALID";
-}
-
-const char* ToString(Wavelet w)
-{
-	switch (w)
-	{
-	case Wavelet::Dd137: return "DD137";
-	case Wavelet::Cdf53: return "CDF53";
-	case Wavelet::Haar: return "HAAR";
-	case Wavelet::None: return "NONE";
-	}
-
-	return "INVALID";
-}
-
-const char* ToString(Wrap w)
-{
-	switch (w)
-	{
-	case Wrap::Clamp: return "CLAMP";
-	case Wrap::Mirror: return "MIRROR";
-	case Wrap::Repeat: return "REPEAT";
-	case Wrap::Zero: return "ZERO";
-	}
-
-	return "INVALID";
-}
-
-const char* ToString(Compression c)
-{
-	switch (c)
-	{
-	case Compression::Kagari: return "KAGARI";
-	case Compression::Manbavaran: return "MANBAVARAN";
-	case Compression::None: return "NONE";
-	}
-
-	return "INVALID";
+	return Status::Ok;
 }
 
 } // namespace ako

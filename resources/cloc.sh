@@ -1,13 +1,16 @@
 #!/bin/bash
 
-flags="-std=c++11 -Wall -Wextra -Wconversion -pedantic -Wold-style-cast -I./library"
+flags=""
 
-files="./library/common/conversions.cpp
+files="./library/ako.hpp
+       ./library/ako-private.hpp
        ./library/common/defaults.cpp
        ./library/common/utilities.cpp
-       ./library/common/version.cpp
        ./library/decode/decode.cpp
        ./library/encode/encode.cpp
        ./tests/encoding-cases.cpp"
 
-clang-tidy-12 $files -- $flags
+# './library/common/conversions.cpp', doesn't count
+# './library/common/version.cpp'
+
+cloc $flags $files

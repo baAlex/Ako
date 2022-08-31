@@ -19,6 +19,7 @@ endif ()
 
 
 set(AKO_SOURCES
+	"./library/common/conversions.cpp"
 	"./library/common/defaults.cpp"
 	"./library/common/utilities.cpp"
 	"./library/common/version.cpp"

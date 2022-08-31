@@ -21,24 +21,34 @@ const int VERSION_MINOR = 3;
 const int VERSION_PATCH = 0;
 const int FORMAT_VERSION = 3;
 
-const size_t MAXIMUM_WIDTH = UINT32_MAX;
-const size_t MAXIMUM_HEIGHT = UINT32_MAX;
-const size_t MAXIMUM_CHANNELS = UINT32_MAX;
+const size_t MAXIMUM_WIDTH = (1 << 25);
+const size_t MAXIMUM_HEIGHT = (1 << 25);
+const size_t MAXIMUM_CHANNELS = (1 << 4);
+const size_t MAXIMUM_DEPTH = (1 << 5);
+
 const size_t MAXIMUM_TILES_SIZE = UINT32_MAX;
-const size_t MAXIMUM_DEPTH = 16;
 
 enum class Status
 {
 	Ok,
 	Error,
 	NotImplemented,
+
+	NoEnoughMemory,
+
 	InvalidCallbacks,
-	InvalidTilesDimension,
 	InvalidInput,
+	InvalidTilesDimension,
 	InvalidDimensions,
 	InvalidChannelsNo,
 	InvalidDepth,
-	NoEnoughMemory,
+
+	TruncatedImageHead,
+	NotAnAkoFile,
+	InvalidColor,
+	InvalidWavelet,
+	InvalidWrap,
+	InvalidCompression,
 };
 
 enum class Color
@@ -87,9 +97,9 @@ struct Settings
 
 	size_t tiles_dimension;
 
+	// Non recoverable when decoding:
 	unsigned quantization;
 	unsigned gate;
-
 	unsigned chroma_loss;
 	bool discard;
 };

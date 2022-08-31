@@ -46,7 +46,13 @@ struct ImageHead
 	uint32_t height;
 	uint32_t channels;
 	uint32_t depth;
+
 	uint32_t tiles_dimension;
+
+	uint8_t color;
+	uint8_t wavelet;
+	uint8_t wrap;
+	uint8_t compression;
 };
 
 struct TileHead
@@ -56,6 +62,19 @@ struct TileHead
 };
 
 
+// common/conversions.cpp:
+
+uint8_t ToNumber(Color c);
+uint8_t ToNumber(Wavelet w);
+uint8_t ToNumber(Wrap w);
+uint8_t ToNumber(Compression c);
+
+Color ToColor(uint8_t number, Status& out_status);
+Wavelet ToWavelet(uint8_t number, Status& out_status);
+Wrap ToWrap(uint8_t number, Status& out_status);
+Compression ToCompression(uint8_t number, Status& out_status);
+
+
 // common/utilities.cpp:
 
 size_t NearPowerOfTwo(size_t v);
@@ -63,6 +82,16 @@ size_t NearPowerOfTwo(size_t v);
 size_t TilesNo(size_t tiles_dimension, size_t image_w, size_t image_h);
 void TileMeasures(size_t tile_no, size_t tiles_dimension, size_t image_w, size_t image_h, //
                   size_t& out_w, size_t& out_h, size_t& out_x, size_t& out_y);
+
+void* BetterRealloc(const Callbacks& callbacks, void* ptr, size_t new_size);
+
+Status ValidateCallbacks(const Callbacks& callbacks);
+Status ValidateSettings(const Settings& settings);
+Status ValidateProperties(size_t image_w, size_t image_h, size_t channels, size_t depth);
+Status ValidateInput(const void* ptr, size_t input_size = 1); // TODO?
+
+
+// Templates:
 
 template <typename T> size_t TileSize(size_t tile_w, size_t tile_h, size_t channels)
 {
@@ -77,12 +106,6 @@ template <typename T> size_t WorkareaSize(size_t tiles_dimension, size_t image_w
 
 	return (image_w * image_h * channels) * sizeof(T) + sizeof(ImageHead) + sizeof(TileHead);
 }
-
-void* BetterRealloc(const Callbacks& callbacks, void* ptr, size_t new_size);
-
-Status ValidateCallbacks(const Callbacks& callbacks);
-Status ValidateSettings(const Settings& settings);
-Status ValidateProperties(const void* input, size_t image_w, size_t image_h, size_t channels, size_t depth);
 
 } // namespace ako
 

@@ -56,6 +56,8 @@ static size_t sEncodeInternal(const Callbacks& callbacks, const Settings& settin
 	size_t blob_size =
 	    (tiles_no == 1) ? workarea_size : 0; // With only one tile (the whole image) we can recycle memory
 
+	size_t data_size_sum = 0;
+
 	// Allocate memory
 	{
 		for (size_t i = 0; i < workareas_no; i += 1)
@@ -71,7 +73,7 @@ static size_t sEncodeInternal(const Callbacks& callbacks, const Settings& settin
 			blob = workarea[0];
 	}
 
-	// Write image head
+	// Write image head (the most inefficient head ever)
 	{
 		if ((blob = sGrownBlob(callbacks, blob_cursor + sizeof(ImageHead), blob, blob_size)) == NULL)
 		{
@@ -81,11 +83,17 @@ static size_t sEncodeInternal(const Callbacks& callbacks, const Settings& settin
 
 		auto head = reinterpret_cast<ImageHead*>(reinterpret_cast<uint8_t*>(blob) + blob_cursor);
 		head->magic = IMAGE_HEAD_MAGIC;
-		head->width = static_cast<uint32_t>(image_w);
-		head->height = static_cast<uint32_t>(image_h);
-		head->channels = static_cast<uint32_t>(channels);
-		head->depth = static_cast<uint32_t>(depth);
+		head->width = static_cast<uint32_t>(image_w - 1);
+		head->height = static_cast<uint32_t>(image_h - 1);
+		head->channels = static_cast<uint32_t>(channels - 1);
+		head->depth = static_cast<uint32_t>(depth - 1);
+
 		head->tiles_dimension = static_cast<uint32_t>(settings.tiles_dimension);
+
+		head->color = ToNumber(settings.color);
+		head->wavelet = ToNumber(settings.wavelet);
+		head->wrap = ToNumber(settings.wrap);
+		head->compression = ToNumber(settings.compression);
 
 		blob_cursor += sizeof(ImageHead);
 	}
@@ -101,9 +109,10 @@ static size_t sEncodeInternal(const Callbacks& callbacks, const Settings& settin
 
 		TileMeasures(t, settings.tiles_dimension, image_w, image_h, tile_w, tile_h, tile_x, tile_y);
 		tile_size = TileSize<T>(tile_w, tile_h, channels);
+		data_size_sum += tile_size;
 
-		std::printf("Tile %2zu, %zux%zu px, at: %4zu, %4zu, size: %zu bytes\n", t, tile_w, tile_h, tile_x, tile_y,
-		            tile_size);
+		std::printf(" - Tile %2zu of %zu, %zux%zu px, at: %4zu, %4zu, size: %zu bytes\n", t + 1, tiles_no, tile_w,
+		            tile_h, tile_x, tile_y, tile_size);
 
 		// Write tile head
 		{
@@ -135,6 +144,8 @@ static size_t sEncodeInternal(const Callbacks& callbacks, const Settings& settin
 			blob_cursor += tile_size;
 		}
 	}
+
+	std::printf(" - Data size: %zu\n", data_size_sum);
 
 	// Bye!
 	for (size_t i = 0; i < workareas_no; i += 1)
@@ -178,7 +189,8 @@ size_t EncodeEx(const Callbacks& callbacks, const Settings& settings, size_t wid
 
 		if ((status = ValidateCallbacks(callbacks)) != Status::Ok ||
 		    (status = ValidateSettings(settings)) != Status::Ok ||
-		    (status = ValidateProperties(input, width, height, channels, depth)) != Status::Ok)
+		    (status = ValidateProperties(width, height, channels, depth)) != Status::Ok ||
+		    (status = ValidateInput(input)) != Status::Ok)
 		{
 			out_status = status;
 			return 0;
