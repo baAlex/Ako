@@ -64,7 +64,7 @@ void TileMeasures(size_t tile_no, size_t tiles_dimension, size_t image_w, size_t
 }
 
 
-void* FixedRealloc(const Callbacks& callbacks, void* ptr, size_t new_size)
+void* BetterRealloc(const Callbacks& callbacks, void* ptr, size_t new_size)
 {
 	void* prev_ptr = ptr;
 	if ((ptr = callbacks.realloc(ptr, new_size)) == NULL)

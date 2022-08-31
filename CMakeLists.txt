@@ -80,11 +80,11 @@ endif ()
 
 
 if (AKO_TESTS)
-	add_executable("forward-and-backward" "./tests/forward-and-backward.cpp")
-	target_include_directories("forward-and-backward" PRIVATE "./library/")
-	target_link_libraries("forward-and-backward" PRIVATE "ako-static")
+	add_executable("encoding-cases" "./tests/encoding-cases.cpp")
+	target_include_directories("encoding-cases" PRIVATE "./library/")
+	target_link_libraries("encoding-cases" PRIVATE "ako-static")
 
-	add_test(NAME "ForwardAndBackward" COMMAND "forward-and-backward")
+	add_test(NAME "EncodingCases" COMMAND "encoding-cases")
 
 	include(CTest)
 endif ()

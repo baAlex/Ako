@@ -78,7 +78,7 @@ template <typename T> size_t WorkareaSize(size_t tiles_dimension, size_t image_w
 	return (image_w * image_h * channels) * sizeof(T) + sizeof(ImageHead) + sizeof(TileHead);
 }
 
-void* FixedRealloc(const Callbacks& callbacks, void* ptr, size_t new_size);
+void* BetterRealloc(const Callbacks& callbacks, void* ptr, size_t new_size);
 
 Status ValidateCallbacks(const Callbacks& callbacks);
 Status ValidateSettings(const Settings& settings);

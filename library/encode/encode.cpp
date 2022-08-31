@@ -34,7 +34,7 @@ static void* sGrownBlob(const Callbacks& callbacks, size_t new_size, void* blob,
 		return blob;
 
 	out_current_size = new_size;
-	return FixedRealloc(callbacks, blob, new_size);
+	return BetterRealloc(callbacks, blob, new_size);
 }
 
 

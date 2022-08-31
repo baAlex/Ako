@@ -5,8 +5,8 @@ flags="-std=c++11 -Wall -Wextra -Wconversion -pedantic -Wold-style-cast -I./libr
 files="./library/common/defaults.cpp
         ./library/common/utilities.cpp
         ./library/common/version.cpp
-        ./library/encode/encode.cpp
         ./library/decode/decode.cpp
-        ./tests/forward-and-backward.cpp"
+        ./library/encode/encode.cpp
+        ./tests/encoding-cases.cpp"
 
 clang-tidy-12 $files -- $flags
