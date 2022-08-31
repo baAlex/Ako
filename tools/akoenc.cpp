@@ -140,9 +140,9 @@ int main(int argc, const char* argv[])
 		                                        "output will be lossy.\n"
 		                                        "[" + ((s.discard) ? string("Set") : string("No set")) + " by default]");
 
-		app.add_option("-t,--tiles-size", s.tiles_size, "Tiles size, must be a power of two. Zero traits image\nas a whole.\n"
-		                                                "[Default is " + to_string(s.tiles_size) +"]")
-		                                                ->option_text("NUMBER");
+		app.add_option("-t,--tiles-size", s.tiles_dimension, "Tiles size, must be a power of two. Zero traits image\nas a whole.\n"
+		                                                     "[Default is " + to_string(s.tiles_dimension) +"]")
+		                                                     ->option_text("NUMBER");
 		// clang-format on
 
 		CLI11_PARSE(app, argc, argv);
@@ -227,14 +227,17 @@ int main(int argc, const char* argv[])
 			PrintSettings(s, "encoder-side");
 
 		auto status = ako::Status::Error;
-		encoded_blob_size =
-		    ako::Encode(ako::DefaultCallbacks(), s, width, height, channels, input_image.data(), &encoded_blob, status);
+		encoded_blob_size = ako::EncodeEx(ako::DefaultCallbacks(), s, width, height, channels, 8, input_image.data(),
+		                                  &encoded_blob, status);
 
 		if (status != ako::Status::Ok)
 		{
 			std::cout << "Ako error: '" << ako::ToString(status) << "'\n";
 			return EXIT_FAILURE;
 		}
+
+		if (quiet == false && verbose == true)
+			std::cout << "Encoded blob size: " << encoded_blob_size << " bytes\n";
 	}
 
 	// Write output file
@@ -245,9 +248,6 @@ int main(int argc, const char* argv[])
 
 		if (WriteFile(output_filename, encoded_blob_size, encoded_blob) != 0)
 			return EXIT_FAILURE;
-
-		if (quiet == false && verbose == true)
-			std::cout << "Output file size: " << encoded_blob_size << " bytes\n";
 	}
 
 	ako::DefaultCallbacks().free(encoded_blob);

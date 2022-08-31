@@ -25,10 +25,6 @@ SOFTWARE.
 
 #include "ako-private.hpp"
 
-#ifndef AKO_FREESTANDING
-#include <cstdlib>
-#endif
-
 namespace ako
 {
 
@@ -41,7 +37,7 @@ Settings DefaultSettings()
 	settings.wrap = Wrap::Clamp;
 	settings.compression = Compression::Kagari;
 
-	settings.tiles_size = 0;
+	settings.tiles_dimension = 0;
 
 	settings.quantization = 4;
 	settings.gate = 0;

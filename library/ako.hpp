@@ -1,5 +1,4 @@
 
-
 #ifndef AKO_HPP
 #define AKO_HPP
 
@@ -14,7 +13,6 @@
 #define AKO_EXPORT // Empty
 #endif
 
-
 namespace ako
 {
 
@@ -23,14 +21,24 @@ const int VERSION_MINOR = 3;
 const int VERSION_PATCH = 0;
 const int FORMAT_VERSION = 3;
 
+const size_t MAXIMUM_WIDTH = UINT32_MAX;
+const size_t MAXIMUM_HEIGHT = UINT32_MAX;
+const size_t MAXIMUM_CHANNELS = UINT32_MAX;
+const size_t MAXIMUM_TILES_SIZE = UINT32_MAX;
+const size_t MAXIMUM_DEPTH = 16;
+
 enum class Status
 {
 	Ok,
 	Error,
 	NotImplemented,
 	InvalidCallbacks,
-	InvalidSettings,
+	InvalidTilesDimension,
 	InvalidInput,
+	InvalidDimensions,
+	InvalidChannelsNo,
+	InvalidDepth,
+	NoEnoughMemory,
 };
 
 enum class Color
@@ -77,7 +85,7 @@ struct Settings
 	Wrap wrap;
 	Compression compression;
 
-	size_t tiles_size;
+	size_t tiles_dimension;
 
 	unsigned quantization;
 	unsigned gate;
@@ -86,11 +94,12 @@ struct Settings
 	bool discard;
 };
 
-AKO_EXPORT size_t Encode(const Callbacks&, const Settings&, size_t width, size_t height, size_t channels,
-                         const void* input, void** output, Status& out_status);
+AKO_EXPORT size_t EncodeEx(const Callbacks&, const Settings&, size_t width, size_t height, size_t channels,
+                           size_t depth, const void* input, void** output, Status& out_status);
 
-AKO_EXPORT uint8_t* Decode(const Callbacks&, size_t input_size, const void* input, Settings& out_settings,
-                           size_t& out_width, size_t& out_height, size_t& out_channels, Status& out_status);
+AKO_EXPORT uint8_t* DecodeEx(const Callbacks&, size_t input_size, const void* input, Settings& out_settings,
+                             size_t& out_width, size_t& out_height, size_t& out_channels, size_t& out_depth,
+                             Status& out_status);
 
 AKO_EXPORT Settings DefaultSettings();
 AKO_EXPORT Callbacks DefaultCallbacks();

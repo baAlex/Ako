@@ -28,8 +28,8 @@ SOFTWARE.
 namespace ako
 {
 
-uint8_t* Decode(const Callbacks& callbacks, size_t input_size, const void* input, Settings& out_settings,
-                size_t& out_width, size_t& out_height, size_t& out_channels, Status& out_status)
+uint8_t* DecodeEx(const Callbacks& callbacks, size_t input_size, const void* input, Settings& out_settings,
+                  size_t& out_width, size_t& out_height, size_t& out_channels, size_t& out_depth, Status& out_status)
 {
 	(void)out_settings;
 
@@ -55,6 +55,7 @@ uint8_t* Decode(const Callbacks& callbacks, size_t input_size, const void* input
 	out_width = width;
 	out_height = height;
 	out_channels = channels;
+	out_depth = 8;
 
 	auto image = static_cast<uint8_t*>(callbacks.malloc(width * height * channels));
 

@@ -45,8 +45,8 @@ static void sTest(size_t width, size_t height, size_t channels, uint32_t seed = 
 	{
 		auto status = Status::Error;
 
-		encoded_blob_size =
-		    Encode(DefaultCallbacks(), DefaultSettings(), width, height, channels, image.data(), &encoded_blob, status);
+		encoded_blob_size = EncodeEx(DefaultCallbacks(), DefaultSettings(), width, height, channels, 8, image.data(),
+		                             &encoded_blob, status);
 
 		if (status != Status::Ok || encoded_blob == NULL)
 			std::cout << ToString(status) << "\n";
@@ -66,9 +66,10 @@ static void sTest(size_t width, size_t height, size_t channels, uint32_t seed = 
 		size_t width = 0;
 		size_t height = 0;
 		size_t channels = 0;
+		size_t depth = 0;
 
-		decoded_image =
-		    Decode(DefaultCallbacks(), encoded_blob_size, encoded_blob, settings, width, height, channels, status);
+		decoded_image = DecodeEx(DefaultCallbacks(), encoded_blob_size, encoded_blob, settings, width, height, channels,
+		                         depth, status);
 
 		if (status != Status::Ok || decoded_image == NULL)
 			std::cout << ToString(status) << "\n";
@@ -85,11 +86,11 @@ static void sTest(size_t width, size_t height, size_t channels, uint32_t seed = 
 
 int main()
 {
-	sTest(300, 300, 1);
-	sTest(500, 500, 4);
+	// sTest(300, 300, 1);
+	// sTest(500, 500, 4);
 
-	sTest(640, 480, 3);
-	sTest(1280, 720, 3);
+	// sTest(640, 480, 3);
+	// sTest(1280, 720, 3);
 
 	// sTest(1920, 1080, 4);
 	// sTest(2048, 1024, 8);

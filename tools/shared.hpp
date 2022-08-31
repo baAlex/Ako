@@ -87,7 +87,7 @@ inline void PrintSettings(const ako::Settings& s, const std::string& side = "enc
 	std::cout << ", " << ako::ToString(s.wavelet);
 	std::cout << ", " << ako::ToString(s.wrap);
 	std::cout << ", " << ako::ToString(s.compression);
-	std::cout << ", t:" << std::to_string(s.tiles_size);
+	std::cout << ", t:" << std::to_string(s.tiles_dimension);
 	std::cout << ", q:" << std::to_string(s.quantization);
 
 	if (side == "encoder-side")

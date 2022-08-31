@@ -97,12 +97,13 @@ int main(int argc, const char* argv[])
 	size_t width = 0;
 	size_t height = 0;
 	size_t channels = 0;
+	size_t depth = 0;
 	{
 		ako::Settings s = {};
 
 		auto status = ako::Status::Error;
-		input_image = ako::Decode(ako::DefaultCallbacks(), input_blob.size(), input_blob.data(), s, width, height,
-		                          channels, status);
+		input_image = ako::DecodeEx(ako::DefaultCallbacks(), input_blob.size(), input_blob.data(), s, width, height,
+		                            channels, depth, status);
 
 		if (status != ako::Status::Ok)
 		{
