@@ -59,6 +59,7 @@ struct TileHead
 {
 	uint32_t magic;
 	uint32_t no;
+	uint32_t size; // In compressed form
 };
 
 
@@ -93,6 +94,11 @@ Status ValidateInput(const void* ptr, size_t input_size = 1); // TODO?
 
 // Templates:
 
+template <typename T> T Min(T a, T b)
+{
+	return (a < b) ? a : b;
+}
+
 template <typename T> size_t TileSize(size_t tile_w, size_t tile_h, size_t channels)
 {
 	// Silly formula, but the idea is to abstract it to make it future-proof
@@ -102,7 +108,8 @@ template <typename T> size_t TileSize(size_t tile_w, size_t tile_h, size_t chann
 template <typename T> size_t WorkareaSize(size_t tiles_dimension, size_t image_w, size_t image_h, size_t channels)
 {
 	if (tiles_dimension != 0)
-		return (tiles_dimension * tiles_dimension * channels) * sizeof(T);
+		return (Min(tiles_dimension, image_w) * Min(tiles_dimension, image_h) * channels) * sizeof(T) +
+		       sizeof(ImageHead) + sizeof(TileHead);
 
 	return (image_w * image_h * channels) * sizeof(T) + sizeof(ImageHead) + sizeof(TileHead);
 }

@@ -46,11 +46,13 @@ const char* ToString(Status s)
 	case Status::InvalidDepth: return "Invalid depth";
 
 	case Status::TruncatedImageHead: return "Truncated data, near image head";
+	case Status::TruncatedTileHead: return "Truncated data, near a tile head";
 	case Status::NotAnAkoFile: return "Not an Ako file";
 	case Status::InvalidColor: return "Invalid color";
 	case Status::InvalidWavelet: return "Invalid wavelet";
 	case Status::InvalidWrap: return "Invalid wrap";
 	case Status::InvalidCompression: return "Invalid compression";
+	case Status::InvalidTileHead: return "Invalid tile head";
 	}
 
 	// This case should never happen, but... since we are a dynamic library,
@@ -117,6 +119,9 @@ uint8_t ToNumber(Color c)
 	case Color::SubtractG: return 1;
 	case Color::None: return 2;
 	}
+
+	return UINT8_MAX; // This never will happen, but it seems that
+	                  // Clang is the only compiler aware of it
 }
 
 uint8_t ToNumber(Wavelet w)
@@ -128,6 +133,8 @@ uint8_t ToNumber(Wavelet w)
 	case Wavelet::Haar: return 2;
 	case Wavelet::None: return 3;
 	}
+
+	return UINT8_MAX;
 }
 
 uint8_t ToNumber(Wrap w)
@@ -139,6 +146,8 @@ uint8_t ToNumber(Wrap w)
 	case Wrap::Repeat: return 2;
 	case Wrap::Zero: return 3;
 	}
+
+	return UINT8_MAX;
 }
 
 uint8_t ToNumber(Compression c)
@@ -149,6 +158,8 @@ uint8_t ToNumber(Compression c)
 	case Compression::Manbavaran: return 1;
 	case Compression::None: return 2;
 	}
+
+	return UINT8_MAX;
 }
 
 

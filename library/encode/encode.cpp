@@ -58,6 +58,8 @@ static size_t sEncodeInternal(const Callbacks& callbacks, const Settings& settin
 
 	size_t data_size_sum = 0;
 
+	std::printf(" - D | Workarea size: %zu bytes\n", workarea_size);
+
 	// Allocate memory
 	{
 		for (size_t i = 0; i < workareas_no; i += 1)
@@ -111,7 +113,7 @@ static size_t sEncodeInternal(const Callbacks& callbacks, const Settings& settin
 		tile_size = TileSize<T>(tile_w, tile_h, channels);
 		data_size_sum += tile_size;
 
-		std::printf(" - Tile %2zu of %zu, %zux%zu px, at: %4zu, %4zu, size: %zu bytes\n", t + 1, tiles_no, tile_w,
+		std::printf(" - E | Tile %zu of %zu,\t%zux%zu px,\tat: %zu, %zu,\tsize: %zu bytes\n", t + 1, tiles_no, tile_w,
 		            tile_h, tile_x, tile_y, tile_size);
 
 		// Write tile head
@@ -125,6 +127,7 @@ static size_t sEncodeInternal(const Callbacks& callbacks, const Settings& settin
 			auto head = reinterpret_cast<TileHead*>(reinterpret_cast<uint8_t*>(blob) + blob_cursor);
 			head->magic = TILE_HEAD_MAGIC;
 			head->no = static_cast<uint32_t>(t);
+			head->size = static_cast<uint32_t>(tile_size); // TODO, check
 
 			blob_cursor += sizeof(TileHead);
 		}
@@ -145,7 +148,7 @@ static size_t sEncodeInternal(const Callbacks& callbacks, const Settings& settin
 		}
 	}
 
-	std::printf(" - Data size: %zu\n", data_size_sum);
+	std::printf(" - E | Data size: %zu\n", data_size_sum);
 
 	// Bye!
 	for (size_t i = 0; i < workareas_no; i += 1)

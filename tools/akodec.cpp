@@ -93,7 +93,7 @@ int main(int argc, const char* argv[])
 	}
 
 	// Decode
-	uint8_t* input_image = NULL;
+	void* input_image = NULL;
 	size_t width = 0;
 	size_t height = 0;
 	size_t channels = 0;
@@ -113,10 +113,10 @@ int main(int argc, const char* argv[])
 
 		if (quiet == false && verbose == true)
 		{
-			PrintSettings(s, "decoder-side");
-
 			std::cout << "Input image: " << width << "x" << height << " px, " << channels << " channels";
 			std::cout << " (" << (width * height * channels) << " bytes)\n";
+
+			PrintSettings(s, "decoder-side");
 		}
 
 		input_blob.resize(1);

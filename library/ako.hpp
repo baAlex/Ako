@@ -44,11 +44,13 @@ enum class Status
 	InvalidDepth,
 
 	TruncatedImageHead,
+	TruncatedTileHead,
 	NotAnAkoFile,
 	InvalidColor,
 	InvalidWavelet,
 	InvalidWrap,
 	InvalidCompression,
+	InvalidTileHead,
 };
 
 enum class Color
@@ -107,9 +109,9 @@ struct Settings
 AKO_EXPORT size_t EncodeEx(const Callbacks&, const Settings&, size_t width, size_t height, size_t channels,
                            size_t depth, const void* input, void** output, Status& out_status);
 
-AKO_EXPORT uint8_t* DecodeEx(const Callbacks&, size_t input_size, const void* input, Settings& out_settings,
-                             size_t& out_width, size_t& out_height, size_t& out_channels, size_t& out_depth,
-                             Status& out_status);
+AKO_EXPORT void* DecodeEx(const Callbacks&, size_t input_size, const void* input, Settings& out_settings,
+                          size_t& out_width, size_t& out_height, size_t& out_channels, size_t& out_depth,
+                          Status& out_status);
 
 AKO_EXPORT Settings DefaultSettings();
 AKO_EXPORT Callbacks DefaultCallbacks();
