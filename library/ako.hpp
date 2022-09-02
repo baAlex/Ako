@@ -25,8 +25,7 @@ const size_t MAXIMUM_WIDTH = (1 << 25);
 const size_t MAXIMUM_HEIGHT = (1 << 25);
 const size_t MAXIMUM_CHANNELS = (1 << 4);
 const size_t MAXIMUM_DEPTH = (1 << 5);
-
-const size_t MAXIMUM_TILES_SIZE = UINT32_MAX;
+const size_t MAXIMUM_TILES_SIZE = (1 << 25);
 
 enum class Status
 {

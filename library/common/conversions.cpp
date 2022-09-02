@@ -111,7 +111,7 @@ const char* ToString(Compression c)
 }
 
 
-uint8_t ToNumber(Color c)
+uint32_t ToNumber(Color c)
 {
 	switch (c)
 	{
@@ -124,7 +124,7 @@ uint8_t ToNumber(Color c)
 	                  // Clang is the only compiler aware of it
 }
 
-uint8_t ToNumber(Wavelet w)
+uint32_t ToNumber(Wavelet w)
 {
 	switch (w)
 	{
@@ -137,7 +137,7 @@ uint8_t ToNumber(Wavelet w)
 	return UINT8_MAX;
 }
 
-uint8_t ToNumber(Wrap w)
+uint32_t ToNumber(Wrap w)
 {
 	switch (w)
 	{
@@ -150,7 +150,7 @@ uint8_t ToNumber(Wrap w)
 	return UINT8_MAX;
 }
 
-uint8_t ToNumber(Compression c)
+uint32_t ToNumber(Compression c)
 {
 	switch (c)
 	{
@@ -163,7 +163,7 @@ uint8_t ToNumber(Compression c)
 }
 
 
-Color ToColor(uint8_t number, Status& out_status)
+Color ToColor(uint32_t number, Status& out_status)
 {
 	out_status = Status::Ok;
 	switch (number)
@@ -177,7 +177,7 @@ Color ToColor(uint8_t number, Status& out_status)
 	return Color::None;
 }
 
-Wavelet ToWavelet(uint8_t number, Status& out_status)
+Wavelet ToWavelet(uint32_t number, Status& out_status)
 {
 	out_status = Status::Ok;
 	switch (number)
@@ -192,7 +192,7 @@ Wavelet ToWavelet(uint8_t number, Status& out_status)
 	return Wavelet::None;
 }
 
-Wrap ToWrap(uint8_t number, Status& out_status)
+Wrap ToWrap(uint32_t number, Status& out_status)
 {
 	out_status = Status::Ok;
 	switch (number)
@@ -207,7 +207,7 @@ Wrap ToWrap(uint8_t number, Status& out_status)
 	return Wrap::Zero;
 }
 
-Compression ToCompression(uint8_t number, Status& out_status)
+Compression ToCompression(uint32_t number, Status& out_status)
 {
 	out_status = Status::Ok;
 	switch (number)

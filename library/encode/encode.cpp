@@ -38,6 +38,54 @@ static void* sGrownBlob(const Callbacks& callbacks, size_t new_size, void* blob,
 }
 
 
+static void sWriteImageHead(const Settings& settings, size_t image_w, size_t image_h, size_t channels, size_t depth,
+                            ImageHead& out)
+{
+	int tsize = 0;
+	while ((1 << (tsize)) < static_cast<int>(settings.tiles_dimension))
+		tsize += 1;
+
+	out.magic = IMAGE_HEAD_MAGIC;
+
+	out.a = static_cast<uint32_t>((image_w - 1) & 0x3FFFFFF) << 6; // 26 bits
+	out.a |= static_cast<uint32_t>((depth - 1) & 0x3F);            // 6 bits
+	out.b = static_cast<uint32_t>((image_h - 1) & 0x3FFFFFF) << 6; // 26 bits
+	out.b |= static_cast<uint32_t>(tsize & 0x3F);                  // 6 bits
+
+	out.c = 0;
+	out.c |= static_cast<uint32_t>(((channels - 1) & 0x1F) << 12); // 5 bits
+	out.c |= ((ToNumber(settings.color) & 0x07) << 9);             // 3 bits
+	out.c |= ((ToNumber(settings.wavelet) & 0x07) << 6);           // 3 bits
+	out.c |= ((ToNumber(settings.wrap) & 0x07) << 3);              // 3 bits
+	out.c |= ((ToNumber(settings.compression) & 0x07) << 0);       // 3 bits
+
+	if (SystemEndianness() != Endianness::Little)
+	{
+		EndiannessReverseU32(out.magic);
+		EndiannessReverseU32(out.a);
+		EndiannessReverseU32(out.b);
+		EndiannessReverseU32(out.c);
+	}
+}
+
+
+static void sWriteTileHead(size_t no, size_t size, TileHead& out)
+{
+	out.magic = TILE_HEAD_MAGIC;
+
+	out.no = static_cast<uint32_t>(no);
+	out.size = static_cast<uint32_t>(size); // TODO, check
+	out.unused = 0;
+
+	if (SystemEndianness() != Endianness::Little)
+	{
+		EndiannessReverseU32(out.magic);
+		EndiannessReverseU32(out.no);
+		EndiannessReverseU32(out.size);
+	}
+}
+
+
 template <typename T>
 static size_t sEncodeInternal(const Callbacks& callbacks, const Settings& settings, size_t image_w, size_t image_h,
                               size_t channels, size_t depth, const void* input, void** output, Status& out_status)
@@ -75,7 +123,7 @@ static size_t sEncodeInternal(const Callbacks& callbacks, const Settings& settin
 			blob = workarea[0];
 	}
 
-	// Write image head (the most inefficient head ever)
+	// Write image head
 	{
 		if ((blob = sGrownBlob(callbacks, blob_cursor + sizeof(ImageHead), blob, blob_size)) == NULL)
 		{
@@ -84,19 +132,7 @@ static size_t sEncodeInternal(const Callbacks& callbacks, const Settings& settin
 		}
 
 		auto head = reinterpret_cast<ImageHead*>(reinterpret_cast<uint8_t*>(blob) + blob_cursor);
-		head->magic = IMAGE_HEAD_MAGIC;
-		head->width = static_cast<uint32_t>(image_w - 1);
-		head->height = static_cast<uint32_t>(image_h - 1);
-		head->channels = static_cast<uint32_t>(channels - 1);
-		head->depth = static_cast<uint32_t>(depth - 1);
-
-		head->tiles_dimension = static_cast<uint32_t>(settings.tiles_dimension);
-
-		head->color = ToNumber(settings.color);
-		head->wavelet = ToNumber(settings.wavelet);
-		head->wrap = ToNumber(settings.wrap);
-		head->compression = ToNumber(settings.compression);
-
+		sWriteImageHead(settings, image_w, image_h, channels, depth, *head);
 		blob_cursor += sizeof(ImageHead);
 	}
 
@@ -125,10 +161,7 @@ static size_t sEncodeInternal(const Callbacks& callbacks, const Settings& settin
 			}
 
 			auto head = reinterpret_cast<TileHead*>(reinterpret_cast<uint8_t*>(blob) + blob_cursor);
-			head->magic = TILE_HEAD_MAGIC;
-			head->no = static_cast<uint32_t>(t);
-			head->size = static_cast<uint32_t>(tile_size); // TODO, check
-
+			sWriteTileHead(t, tile_size, *head);
 			blob_cursor += sizeof(TileHead);
 		}
 

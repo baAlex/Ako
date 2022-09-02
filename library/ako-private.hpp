@@ -37,22 +37,16 @@ namespace ako
 {
 
 const size_t IMAGE_HEAD_MAGIC = 0x036F6B41; // "Ako-0x03"
-const size_t TILE_HEAD_MAGIC = 0x656C6954;  // "Tile"
+const size_t TILE_HEAD_MAGIC = 0x03546B41;  // "AkT-0x03"
 
 struct ImageHead
 {
 	uint32_t magic;
-	uint32_t width;
-	uint32_t height;
-	uint32_t channels;
-	uint32_t depth;
 
-	uint32_t tiles_dimension;
-
-	uint8_t color;
-	uint8_t wavelet;
-	uint8_t wrap;
-	uint8_t compression;
+	// Little endian, fields from most to least significant bits:
+	uint32_t a; // Width (26), Depth (6)
+	uint32_t b; // Height (26), Tiles size (6)
+	uint32_t c; // Channels (5), Color (3), Wavelet (3), Wrap (3), Compression (3)
 };
 
 struct TileHead
@@ -60,20 +54,27 @@ struct TileHead
 	uint32_t magic;
 	uint32_t no;
 	uint32_t size; // In compressed form
+	uint32_t unused;
+};
+
+enum class Endianness
+{
+	Little,
+	Big
 };
 
 
 // common/conversions.cpp:
 
-uint8_t ToNumber(Color c);
-uint8_t ToNumber(Wavelet w);
-uint8_t ToNumber(Wrap w);
-uint8_t ToNumber(Compression c);
+uint32_t ToNumber(Color c);
+uint32_t ToNumber(Wavelet w);
+uint32_t ToNumber(Wrap w);
+uint32_t ToNumber(Compression c);
 
-Color ToColor(uint8_t number, Status& out_status);
-Wavelet ToWavelet(uint8_t number, Status& out_status);
-Wrap ToWrap(uint8_t number, Status& out_status);
-Compression ToCompression(uint8_t number, Status& out_status);
+Color ToColor(uint32_t number, Status& out_status);
+Wavelet ToWavelet(uint32_t number, Status& out_status);
+Wrap ToWrap(uint32_t number, Status& out_status);
+Compression ToCompression(uint32_t number, Status& out_status);
 
 
 // common/utilities.cpp:
@@ -85,6 +86,9 @@ void TileMeasures(size_t tile_no, size_t tiles_dimension, size_t image_w, size_t
                   size_t& out_w, size_t& out_h, size_t& out_x, size_t& out_y);
 
 void* BetterRealloc(const Callbacks& callbacks, void* ptr, size_t new_size);
+
+Endianness SystemEndianness();
+uint32_t EndiannessReverseU32(uint32_t value);
 
 Status ValidateCallbacks(const Callbacks& callbacks);
 Status ValidateSettings(const Settings& settings);

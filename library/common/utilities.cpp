@@ -89,6 +89,29 @@ void* BetterRealloc(const Callbacks& callbacks, void* ptr, size_t new_size)
 }
 
 
+Endianness SystemEndianness()
+{
+	const int16_t i = 1;
+	auto p = reinterpret_cast<const int8_t*>(&i);
+
+	if (p[0] != 1)
+		return Endianness::Big;
+
+	return Endianness::Little;
+}
+
+
+uint32_t EndiannessReverseU32(uint32_t value)
+{
+	const auto b1 = static_cast<uint32_t>(value & 0xFF);
+	const auto b2 = static_cast<uint32_t>((value >> 8) & 0xFF);
+	const auto b3 = static_cast<uint32_t>((value >> 16) & 0xFF);
+	const auto b4 = static_cast<uint32_t>((value >> 24) & 0xFF);
+
+	return (b1 << 24) | (b2 << 16) | (b3 << 8) | b4;
+}
+
+
 Status ValidateCallbacks(const Callbacks& callbacks)
 {
 	if (callbacks.malloc == NULL || callbacks.realloc == NULL || callbacks.free == NULL)

@@ -28,6 +28,80 @@ SOFTWARE.
 namespace ako
 {
 
+static Status sReadImageHead(const ImageHead& head_raw, Settings& out_settings, size_t& out_width, size_t& out_height,
+                             size_t& out_channels, size_t& out_depth)
+{
+	auto settings = DefaultSettings();
+	auto status = Status::Ok;
+
+	ImageHead head = head_raw;
+	if (SystemEndianness() != Endianness::Little)
+	{
+		EndiannessReverseU32(head.magic);
+		EndiannessReverseU32(head.a);
+		EndiannessReverseU32(head.b);
+		EndiannessReverseU32(head.c);
+	}
+
+	if (head.magic != IMAGE_HEAD_MAGIC)
+		return Status::NotAnAkoFile;
+
+	const size_t width = static_cast<size_t>((head.a >> 6) & 0x3FFFFFF) + 1;  // 26 bits
+	const size_t depth = static_cast<size_t>((head.a >> 0) & 0x3F) + 1;       // 6 bits
+	const size_t height = static_cast<size_t>((head.b >> 6) & 0x3FFFFFF) + 1; // 26 bits
+	const size_t channels = static_cast<size_t>((head.c >> 12) & 0x1F) + 1;   // 5 bits
+	const size_t tsize = static_cast<size_t>((head.b >> 0) & 0x3F);           // 6 bits
+
+	settings.tiles_dimension = 0;
+	if (tsize != 0)
+		settings.tiles_dimension = 1 << tsize;
+
+	settings.color = ToColor(static_cast<uint32_t>(head.c >> 9) & 0x07, status); // 3 bits
+	if (status != Status::Ok)
+		return status;
+	settings.wavelet = ToWavelet(static_cast<uint32_t>(head.c >> 6) & 0x07, status); // 3 bits
+	if (status != Status::Ok)
+		return status;
+	settings.wrap = ToWrap(static_cast<uint32_t>(head.c >> 3) & 0x07, status); // 3 bits
+	if (status != Status::Ok)
+		return status;
+	settings.compression = ToCompression(static_cast<uint32_t>(head.c >> 0) & 0x07, status); // 3 bits
+	if (status != Status::Ok)
+		return status;
+
+	if ((status = ValidateProperties(width, height, channels, depth)) != Status::Ok ||
+	    (status = ValidateSettings(settings)) != Status::Ok)
+		return status;
+
+	// All validated, return what we have
+	out_settings = settings;
+	out_width = width;
+	out_height = height;
+	out_channels = channels;
+	out_depth = depth;
+
+	return status;
+}
+
+
+static Status sReadTileHead(const TileHead& head_raw, size_t& out_size)
+{
+	TileHead head = head_raw;
+	if (SystemEndianness() != Endianness::Little)
+	{
+		EndiannessReverseU32(head.magic);
+		EndiannessReverseU32(head.no);
+		EndiannessReverseU32(head.size);
+	}
+
+	if (head.magic != TILE_HEAD_MAGIC || head.size == 0)
+		return Status::InvalidTileHead;
+
+	out_size = head.size;
+	return Status::Ok;
+}
+
+
 template <typename T, typename TO>
 static void* sDecodeInternal(const Callbacks& callbacks, const Settings& settings, size_t image_w, size_t image_h,
                              size_t channels, size_t depth, const void* input, const void* input_end,
@@ -72,6 +146,8 @@ static void* sDecodeInternal(const Callbacks& callbacks, const Settings& setting
 	// Iterate tiles
 	for (size_t t = 0; t < tiles_no; t += 1)
 	{
+		size_t compressed_size = 0;
+
 		size_t tile_w = 0;
 		size_t tile_h = 0;
 		size_t tile_x = 0;
@@ -93,15 +169,11 @@ static void* sDecodeInternal(const Callbacks& callbacks, const Settings& setting
 			}
 
 			auto head = reinterpret_cast<const TileHead*>(input);
-
-			if (head->magic != TILE_HEAD_MAGIC || head->size == 0)
-			{
-				status = Status::InvalidTileHead;
+			if ((status = sReadTileHead(*head, compressed_size)) != Status::Ok)
 				goto return_failure;
-			}
 
 			input = reinterpret_cast<const uint8_t*>(input) + sizeof(TileHead);
-			input = reinterpret_cast<const uint8_t*>(input) + head->size;
+			input = reinterpret_cast<const uint8_t*>(input) + compressed_size;
 		}
 
 		// Write ones
@@ -152,7 +224,7 @@ void* DecodeEx(const Callbacks& callbacks, size_t input_size, const void* input,
 	    (status = ValidateInput(input, input_size)) != Status::Ok)
 		goto return_failure;
 
-	// Read image head (the most inefficient head ever)
+	// Read image head
 	{
 		if (input_size < sizeof(ImageHead))
 		{
@@ -160,54 +232,10 @@ void* DecodeEx(const Callbacks& callbacks, size_t input_size, const void* input,
 			goto return_failure;
 		}
 
-		// Properties
 		auto head = reinterpret_cast<const ImageHead*>(input);
-
-		if (head->magic != IMAGE_HEAD_MAGIC)
-		{
-			status = Status::NotAnAkoFile;
+		if ((status = sReadImageHead(*head, out_settings, out_width, out_height, out_channels, out_depth)) !=
+		    Status::Ok)
 			goto return_failure;
-		}
-
-		const size_t width = static_cast<size_t>(head->width) + 1;
-		const size_t height = static_cast<size_t>(head->height) + 1;
-		const size_t channels = static_cast<size_t>(head->channels) + 1;
-		const size_t depth = static_cast<size_t>(head->depth) + 1;
-
-		if ((status = ValidateProperties(width, height, channels, depth)) != Status::Ok)
-			goto return_failure;
-
-		// Settings
-		auto temp_settings = DefaultSettings();
-
-		temp_settings.tiles_dimension = static_cast<size_t>(head->tiles_dimension);
-
-		temp_settings.color = ToColor(head->color, status);
-		if (status != Status::Ok)
-			goto return_failure;
-
-		temp_settings.wavelet = ToWavelet(head->wavelet, status);
-		if (status != Status::Ok)
-			goto return_failure;
-
-		temp_settings.wrap = ToWrap(head->wrap, status);
-		if (status != Status::Ok)
-			goto return_failure;
-
-		temp_settings.compression = ToCompression(head->compression, status);
-		if (status != Status::Ok)
-			goto return_failure;
-
-		if ((status = ValidateSettings(temp_settings)) != Status::Ok)
-			goto return_failure;
-
-		// All validated, return what we have (done here, at the end,
-		// to avoid return invalid values in case of failure)
-		out_width = width;
-		out_height = height;
-		out_channels = channels;
-		out_depth = depth;
-		out_settings = temp_settings;
 	}
 
 	// Decode!
