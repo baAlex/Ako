@@ -28,9 +28,9 @@ SOFTWARE.
 namespace ako
 {
 
-size_t NearPowerOfTwo(size_t v)
+unsigned NearPowerOfTwo(unsigned v)
 {
-	size_t x = 2;
+	unsigned x = 2;
 	while (x < v)
 	{
 		x <<= 1;
@@ -42,20 +42,20 @@ size_t NearPowerOfTwo(size_t v)
 }
 
 
-size_t TilesNo(size_t tiles_dimension, size_t image_w, size_t image_h)
+unsigned TilesNo(unsigned tiles_dimension, unsigned image_w, unsigned image_h)
 {
 	if (tiles_dimension == 0)
 		return 1;
 
-	const size_t horizontal = image_w / tiles_dimension + ((image_w % tiles_dimension == 0) ? 0 : 1);
-	const size_t vertical = image_h / tiles_dimension + ((image_h % tiles_dimension == 0) ? 0 : 1);
+	const auto horizontal = image_w / tiles_dimension + ((image_w % tiles_dimension == 0) ? 0 : 1);
+	const auto vertical = image_h / tiles_dimension + ((image_h % tiles_dimension == 0) ? 0 : 1);
 
 	return horizontal * vertical;
 }
 
 
-void TileMeasures(size_t tile_no, size_t tiles_dimension, size_t image_w, size_t image_h, //
-                  size_t& out_w, size_t& out_h, size_t& out_x, size_t& out_y)
+void TileMeasures(unsigned tile_no, unsigned tiles_dimension, unsigned image_w, unsigned image_h, //
+                  unsigned& out_w, unsigned& out_h, unsigned& out_x, unsigned& out_y)
 {
 	if (tiles_dimension == 0)
 	{
@@ -66,7 +66,7 @@ void TileMeasures(size_t tile_no, size_t tiles_dimension, size_t image_w, size_t
 		return;
 	}
 
-	const size_t horizontal_tiles = image_w / tiles_dimension + ((image_w % tiles_dimension == 0) ? 0 : 1);
+	const auto horizontal_tiles = image_w / tiles_dimension + ((image_w % tiles_dimension == 0) ? 0 : 1);
 
 	out_x = (tile_no % horizontal_tiles) * tiles_dimension;
 	out_y = (tile_no / horizontal_tiles) * tiles_dimension;
@@ -125,7 +125,8 @@ Status ValidateSettings(const Settings& settings)
 {
 	if (settings.tiles_dimension != 0)
 	{
-		if (settings.tiles_dimension != NearPowerOfTwo(settings.tiles_dimension))
+		if (settings.tiles_dimension != NearPowerOfTwo(settings.tiles_dimension) ||
+		    settings.tiles_dimension > MAXIMUM_TILES_DIMENSION)
 			return Status::InvalidTilesDimension;
 	}
 
@@ -133,7 +134,7 @@ Status ValidateSettings(const Settings& settings)
 }
 
 
-Status ValidateProperties(size_t image_w, size_t image_h, size_t channels, size_t depth)
+Status ValidateProperties(unsigned image_w, unsigned image_h, unsigned channels, unsigned depth)
 {
 	// clang-format off
 	if (image_w == 0 || image_h == 0) { return Status::InvalidDimensions; }

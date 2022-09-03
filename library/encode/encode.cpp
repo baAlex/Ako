@@ -38,19 +38,19 @@ static void* sGrownBlob(const Callbacks& callbacks, size_t new_size, void* blob,
 }
 
 
-static void sWriteImageHead(const Settings& settings, size_t image_w, size_t image_h, size_t channels, size_t depth,
-                            ImageHead& out)
+static void sWriteImageHead(const Settings& settings, unsigned image_w, unsigned image_h, unsigned channels,
+                            unsigned depth, ImageHead& out)
 {
-	int tsize = 0;
-	while ((1 << (tsize)) < static_cast<int>(settings.tiles_dimension))
-		tsize += 1;
+	int td = 0;
+	while ((1 << (td)) < static_cast<int>(settings.tiles_dimension))
+		td += 1;
 
 	out.magic = IMAGE_HEAD_MAGIC;
 
 	out.a = static_cast<uint32_t>((image_w - 1) & 0x3FFFFFF) << 6; // 26 bits
 	out.a |= static_cast<uint32_t>((depth - 1) & 0x3F);            // 6 bits
 	out.b = static_cast<uint32_t>((image_h - 1) & 0x3FFFFFF) << 6; // 26 bits
-	out.b |= static_cast<uint32_t>(tsize & 0x3F);                  // 6 bits
+	out.b |= static_cast<uint32_t>(td & 0x3F);                     // 6 bits
 
 	out.c = 0;
 	out.c |= static_cast<uint32_t>(((channels - 1) & 0x1F) << 12); // 5 bits
@@ -69,7 +69,7 @@ static void sWriteImageHead(const Settings& settings, size_t image_w, size_t ima
 }
 
 
-static void sWriteTileHead(size_t no, size_t size, TileHead& out)
+static void sWriteTileHead(unsigned no, size_t size, TileHead& out)
 {
 	out.magic = TILE_HEAD_MAGIC;
 
@@ -87,13 +87,13 @@ static void sWriteTileHead(size_t no, size_t size, TileHead& out)
 
 
 template <typename T>
-static size_t sEncodeInternal(const Callbacks& callbacks, const Settings& settings, size_t image_w, size_t image_h,
-                              size_t channels, size_t depth, const void* input, void** output, Status& out_status)
+static size_t sEncodeInternal(const Callbacks& callbacks, const Settings& settings, unsigned image_w, unsigned image_h,
+                              unsigned channels, unsigned depth, const void* input, void** output, Status& out_status)
 {
 	(void)input;
 	auto status = Status::Ok;
 
-	const size_t tiles_no = TilesNo(settings.tiles_dimension, image_w, image_h);
+	const unsigned tiles_no = TilesNo(settings.tiles_dimension, image_w, image_h);
 	const size_t workarea_size = WorkareaSize<T>(settings.tiles_dimension, image_w, image_h, channels);
 	const size_t workareas_no = 2;
 
@@ -106,7 +106,18 @@ static size_t sEncodeInternal(const Callbacks& callbacks, const Settings& settin
 
 	size_t data_size_sum = 0;
 
-	std::printf(" - D | Workarea size: %zu bytes\n", workarea_size);
+	if (callbacks.generic_event != NULL)
+	{
+		callbacks.generic_event(GenericEvent::ImageDimensions, image_w, image_h, 0, callbacks.user_data);
+		callbacks.generic_event(GenericEvent::ImageChannels, channels, 0, 0, callbacks.user_data);
+		callbacks.generic_event(GenericEvent::ImageDepth, depth, 0, 0, callbacks.user_data);
+
+		callbacks.generic_event(GenericEvent::TilesNo, tiles_no, 0, 0, callbacks.user_data);
+		callbacks.generic_event(GenericEvent::TilesDimension, settings.tiles_dimension, 0, 0, callbacks.user_data);
+
+		callbacks.generic_event(GenericEvent::WorkareaSize, static_cast<unsigned>(workarea_size), 0, 0,
+		                        callbacks.user_data); // TODO
+	}
 
 	// Allocate memory
 	{
@@ -137,20 +148,31 @@ static size_t sEncodeInternal(const Callbacks& callbacks, const Settings& settin
 	}
 
 	// Iterate tiles
-	for (size_t t = 0; t < tiles_no; t += 1)
+	for (unsigned t = 0; t < tiles_no; t += 1)
 	{
-		size_t tile_w = 0;
-		size_t tile_h = 0;
-		size_t tile_x = 0;
-		size_t tile_y = 0;
+		unsigned tile_w = 0;
+		unsigned tile_h = 0;
+		unsigned tile_x = 0;
+		unsigned tile_y = 0;
 		size_t tile_size;
 
 		TileMeasures(t, settings.tiles_dimension, image_w, image_h, tile_w, tile_h, tile_x, tile_y);
 		tile_size = TileSize<T>(tile_w, tile_h, channels);
 		data_size_sum += tile_size;
 
-		std::printf(" - E | Tile %zu of %zu,\t%zux%zu px,\tat: %zu, %zu,\tsize: %zu bytes\n", t + 1, tiles_no, tile_w,
-		            tile_h, tile_x, tile_y, tile_size);
+		if (callbacks.generic_event != NULL)
+		{
+			callbacks.generic_event(GenericEvent::TileDimensions, t + 1, tile_w, tile_h, callbacks.user_data);
+			callbacks.generic_event(GenericEvent::TilePosition, t + 1, tile_x, tile_y, callbacks.user_data);
+			callbacks.generic_event(GenericEvent::TileSize, t + 1, static_cast<unsigned>(tile_size), 0,
+			                        callbacks.user_data); // TODO
+		}
+
+		// Format
+		{
+			if (callbacks.format_event != NULL)
+				callbacks.format_event(settings.color, t + 1, 0, callbacks.user_data);
+		}
 
 		// Write tile head
 		{
@@ -180,8 +202,6 @@ static size_t sEncodeInternal(const Callbacks& callbacks, const Settings& settin
 			blob_cursor += tile_size;
 		}
 	}
-
-	std::printf(" - E | Data size: %zu\n", data_size_sum);
 
 	// Bye!
 	for (size_t i = 0; i < workareas_no; i += 1)
@@ -216,8 +236,8 @@ return_failure:
 }
 
 
-size_t EncodeEx(const Callbacks& callbacks, const Settings& settings, size_t width, size_t height, size_t channels,
-                size_t depth, const void* input, void** output, Status& out_status)
+size_t EncodeEx(const Callbacks& callbacks, const Settings& settings, unsigned width, unsigned height,
+                unsigned channels, unsigned depth, const void* input, void** output, Status& out_status)
 {
 	// Checks
 	{

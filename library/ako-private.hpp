@@ -29,6 +29,7 @@ SOFTWARE.
 #include "ako.hpp"
 
 #ifndef AKO_FREESTANDING
+#include <climits>
 #include <cstdio>
 #include <cstdlib>
 #endif
@@ -36,8 +37,8 @@ SOFTWARE.
 namespace ako
 {
 
-const size_t IMAGE_HEAD_MAGIC = 0x036F6B41; // "Ako-0x03"
-const size_t TILE_HEAD_MAGIC = 0x03546B41;  // "AkT-0x03"
+const uint32_t IMAGE_HEAD_MAGIC = 0x036F6B41; // "Ako-0x03"
+const uint32_t TILE_HEAD_MAGIC = 0x03546B41;  // "AkT-0x03"
 
 struct ImageHead
 {
@@ -45,7 +46,7 @@ struct ImageHead
 
 	// Little endian, fields from most to least significant bits:
 	uint32_t a; // Width (26), Depth (6)
-	uint32_t b; // Height (26), Tiles size (6)
+	uint32_t b; // Height (26), Tiles dimension (6)
 	uint32_t c; // Channels (5), Color (3), Wavelet (3), Wrap (3), Compression (3)
 };
 
@@ -79,11 +80,11 @@ Compression ToCompression(uint32_t number, Status& out_status);
 
 // common/utilities.cpp:
 
-size_t NearPowerOfTwo(size_t v);
+unsigned NearPowerOfTwo(unsigned v);
 
-size_t TilesNo(size_t tiles_dimension, size_t image_w, size_t image_h);
-void TileMeasures(size_t tile_no, size_t tiles_dimension, size_t image_w, size_t image_h, //
-                  size_t& out_w, size_t& out_h, size_t& out_x, size_t& out_y);
+unsigned TilesNo(unsigned tiles_dimension, unsigned image_w, unsigned image_h);
+void TileMeasures(unsigned tile_no, unsigned tiles_dimension, unsigned image_w, unsigned image_h, //
+                  unsigned& out_w, unsigned& out_h, unsigned& out_x, unsigned& out_y);
 
 void* BetterRealloc(const Callbacks& callbacks, void* ptr, size_t new_size);
 
@@ -92,7 +93,7 @@ uint32_t EndiannessReverseU32(uint32_t value);
 
 Status ValidateCallbacks(const Callbacks& callbacks);
 Status ValidateSettings(const Settings& settings);
-Status ValidateProperties(size_t image_w, size_t image_h, size_t channels, size_t depth);
+Status ValidateProperties(unsigned image_w, unsigned image_h, unsigned channels, unsigned depth);
 Status ValidateInput(const void* ptr, size_t input_size = 1); // TODO?
 
 
@@ -103,13 +104,14 @@ template <typename T> T Min(T a, T b)
 	return (a < b) ? a : b;
 }
 
-template <typename T> size_t TileSize(size_t tile_w, size_t tile_h, size_t channels)
+template <typename T> size_t TileSize(unsigned tile_w, unsigned tile_h, unsigned channels)
 {
 	// Silly formula, but the idea is to abstract it to make it future-proof
 	return tile_w * tile_h * channels * sizeof(T);
 }
 
-template <typename T> size_t WorkareaSize(size_t tiles_dimension, size_t image_w, size_t image_h, size_t channels)
+template <typename T>
+size_t WorkareaSize(unsigned tiles_dimension, unsigned image_w, unsigned image_h, unsigned channels)
 {
 	if (tiles_dimension != 0)
 		return (Min(tiles_dimension, image_w) * Min(tiles_dimension, image_h) * channels) * sizeof(T) +

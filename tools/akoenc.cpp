@@ -161,7 +161,7 @@ int main(int argc, const char* argv[])
 			return EXIT_FAILURE;
 
 		if (quiet == false && verbose == true)
-			std::cout << "Input file size: " << input_blob.size() << " bytes\n";
+			std::cout << "Input file size: " << input_blob.size() << " byte(s)\n";
 	}
 
 	// Decode
@@ -200,12 +200,6 @@ int main(int argc, const char* argv[])
 		}
 		}
 
-		if (quiet == false && verbose == true)
-		{
-			std::cout << "Input image: " << width << "x" << height << " px, " << channels << " channels";
-			std::cout << " (" << (width * height * channels) << " bytes)\n";
-		}
-
 		input_blob.resize(1);
 	}
 
@@ -226,9 +220,21 @@ int main(int argc, const char* argv[])
 		if (quiet == false && verbose == true)
 			PrintSettings(s, "encoder-side");
 
+		auto callbacks = ako::DefaultCallbacks();
+		EventsData events_data = {};
+
+		if (quiet == false && verbose == true)
+		{
+			callbacks.generic_event = sGenericEventCallback;
+			callbacks.format_event = sFormatEventCallback;
+			callbacks.compression_event = sCompressionEventCallback;
+			callbacks.user_data = &events_data;
+			events_data.prefix = "E |";
+		}
+
 		auto status = ako::Status::Error;
-		encoded_blob_size = ako::EncodeEx(ako::DefaultCallbacks(), s, width, height, channels, 8, input_image.data(),
-		                                  &encoded_blob, status);
+		encoded_blob_size =
+		    ako::EncodeEx(callbacks, s, width, height, channels, 8, input_image.data(), &encoded_blob, status);
 
 		if (status != ako::Status::Ok)
 		{
@@ -237,7 +243,7 @@ int main(int argc, const char* argv[])
 		}
 
 		if (quiet == false && verbose == true)
-			std::cout << "Encoded blob size: " << encoded_blob_size << " bytes\n";
+			std::cout << "Encoded blob size: " << encoded_blob_size << " byte(s)\n";
 	}
 
 	// Write output file

@@ -28,8 +28,8 @@ SOFTWARE.
 namespace ako
 {
 
-static Status sReadImageHead(const ImageHead& head_raw, Settings& out_settings, size_t& out_width, size_t& out_height,
-                             size_t& out_channels, size_t& out_depth)
+static Status sReadImageHead(const ImageHead& head_raw, Settings& out_settings, unsigned& out_width,
+                             unsigned& out_height, unsigned& out_channels, unsigned& out_depth)
 {
 	auto settings = DefaultSettings();
 	auto status = Status::Ok;
@@ -46,15 +46,15 @@ static Status sReadImageHead(const ImageHead& head_raw, Settings& out_settings, 
 	if (head.magic != IMAGE_HEAD_MAGIC)
 		return Status::NotAnAkoFile;
 
-	const size_t width = static_cast<size_t>((head.a >> 6) & 0x3FFFFFF) + 1;  // 26 bits
-	const size_t depth = static_cast<size_t>((head.a >> 0) & 0x3F) + 1;       // 6 bits
-	const size_t height = static_cast<size_t>((head.b >> 6) & 0x3FFFFFF) + 1; // 26 bits
-	const size_t channels = static_cast<size_t>((head.c >> 12) & 0x1F) + 1;   // 5 bits
-	const size_t tsize = static_cast<size_t>((head.b >> 0) & 0x3F);           // 6 bits
+	const auto width = static_cast<unsigned>((head.a >> 6) & 0x3FFFFFF) + 1;  // 26 bits
+	const auto depth = static_cast<unsigned>((head.a >> 0) & 0x3F) + 1;       // 6 bits
+	const auto height = static_cast<unsigned>((head.b >> 6) & 0x3FFFFFF) + 1; // 26 bits
+	const auto channels = static_cast<unsigned>((head.c >> 12) & 0x1F) + 1;   // 5 bits
+	const auto td = static_cast<unsigned>((head.b >> 0) & 0x3F);              // 6 bits
 
 	settings.tiles_dimension = 0;
-	if (tsize != 0)
-		settings.tiles_dimension = 1 << tsize;
+	if (td != 0)
+		settings.tiles_dimension = 1 << td;
 
 	settings.color = ToColor(static_cast<uint32_t>(head.c >> 9) & 0x07, status); // 3 bits
 	if (status != Status::Ok)
@@ -103,22 +103,33 @@ static Status sReadTileHead(const TileHead& head_raw, size_t& out_size)
 
 
 template <typename T, typename TO>
-static void* sDecodeInternal(const Callbacks& callbacks, const Settings& settings, size_t image_w, size_t image_h,
-                             size_t channels, size_t depth, const void* input, const void* input_end,
+static void* sDecodeInternal(const Callbacks& callbacks, const Settings& settings, unsigned image_w, unsigned image_h,
+                             unsigned channels, unsigned depth, const void* input, const void* input_end,
                              Status& out_status)
 {
 	(void)depth;
 
 	auto status = Status::Ok;
 
-	const size_t tiles_no = TilesNo(settings.tiles_dimension, image_w, image_h);
+	const unsigned tiles_no = TilesNo(settings.tiles_dimension, image_w, image_h);
 	const size_t workarea_size = WorkareaSize<T>(settings.tiles_dimension, image_w, image_h, channels);
 	const size_t workareas_no = 2;
 
 	void* workarea[workareas_no] = {NULL, NULL}; // Where work
 	void* image = NULL;                          // Where output our work
 
-	std::printf(" - D | Workarea size: %zu bytes\n", workarea_size);
+	if (callbacks.generic_event != NULL)
+	{
+		callbacks.generic_event(GenericEvent::ImageDimensions, image_w, image_h, 0, callbacks.user_data);
+		callbacks.generic_event(GenericEvent::ImageChannels, channels, 0, 0, callbacks.user_data);
+		callbacks.generic_event(GenericEvent::ImageDepth, depth, 0, 0, callbacks.user_data);
+
+		callbacks.generic_event(GenericEvent::TilesNo, tiles_no, 0, 0, callbacks.user_data);
+		callbacks.generic_event(GenericEvent::TilesDimension, settings.tiles_dimension, 0, 0, callbacks.user_data);
+
+		callbacks.generic_event(GenericEvent::WorkareaSize, static_cast<unsigned>(workarea_size), 0, 0,
+		                        callbacks.user_data); // TODO
+	}
 
 	// Allocate memory
 	{
@@ -144,21 +155,32 @@ static void* sDecodeInternal(const Callbacks& callbacks, const Settings& setting
 	}
 
 	// Iterate tiles
-	for (size_t t = 0; t < tiles_no; t += 1)
+	for (unsigned t = 0; t < tiles_no; t += 1)
 	{
 		size_t compressed_size = 0;
 
-		size_t tile_w = 0;
-		size_t tile_h = 0;
-		size_t tile_x = 0;
-		size_t tile_y = 0;
+		unsigned tile_w = 0;
+		unsigned tile_h = 0;
+		unsigned tile_x = 0;
+		unsigned tile_y = 0;
 		size_t tile_size;
 
 		TileMeasures(t, settings.tiles_dimension, image_w, image_h, tile_w, tile_h, tile_x, tile_y);
 		tile_size = TileSize<T>(tile_w, tile_h, channels);
 
-		std::printf(" - D | Tile %zu of %zu,\t%zux%zu px,\tat: %zu, %zu,\tsize: %zu bytes\n", t + 1, tiles_no, tile_w,
-		            tile_h, tile_x, tile_y, tile_size);
+		if (callbacks.generic_event != NULL)
+		{
+			callbacks.generic_event(GenericEvent::TileDimensions, t + 1, tile_w, tile_h, callbacks.user_data);
+			callbacks.generic_event(GenericEvent::TilePosition, t + 1, tile_x, tile_y, callbacks.user_data);
+			callbacks.generic_event(GenericEvent::TileSize, t + 1, static_cast<unsigned>(tile_size), 0,
+			                        callbacks.user_data); // TODO
+		}
+
+		// Compression
+		{
+			if (callbacks.compression_event != NULL)
+				callbacks.compression_event(settings.compression, t + 1, 0, callbacks.user_data);
+		}
 
 		// Read tile head
 		{
@@ -215,7 +237,8 @@ return_failure:
 
 
 void* DecodeEx(const Callbacks& callbacks, size_t input_size, const void* input, Settings& out_settings,
-               size_t& out_width, size_t& out_height, size_t& out_channels, size_t& out_depth, Status& out_status)
+               unsigned& out_width, unsigned& out_height, unsigned& out_channels, unsigned& out_depth,
+               Status& out_status)
 {
 	auto status = Status::Ok;
 

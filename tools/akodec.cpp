@@ -87,23 +87,35 @@ int main(int argc, const char* argv[])
 			return EXIT_FAILURE;
 
 		if (quiet == false && verbose == true)
-			std::cout << "Input file size: " << input_blob.size() << " bytes\n";
+			std::cout << "Input file size: " << input_blob.size() << " byte(s)\n";
 
 		input_blob_size = input_blob.size();
 	}
 
 	// Decode
 	void* input_image = NULL;
-	size_t width = 0;
-	size_t height = 0;
-	size_t channels = 0;
-	size_t depth = 0;
+	unsigned width = 0;
+	unsigned height = 0;
+	unsigned channels = 0;
+	unsigned depth = 0;
 	{
 		ako::Settings s = {};
 
+		auto callbacks = ako::DefaultCallbacks();
+		EventsData events_data = {};
+
+		if (quiet == false && verbose == true)
+		{
+			callbacks.generic_event = sGenericEventCallback;
+			callbacks.format_event = sFormatEventCallback;
+			callbacks.compression_event = sCompressionEventCallback;
+			callbacks.user_data = &events_data;
+			events_data.prefix = "D |";
+		}
+
 		auto status = ako::Status::Error;
-		input_image = ako::DecodeEx(ako::DefaultCallbacks(), input_blob.size(), input_blob.data(), s, width, height,
-		                            channels, depth, status);
+		input_image =
+		    ako::DecodeEx(callbacks, input_blob.size(), input_blob.data(), s, width, height, channels, depth, status);
 
 		if (status != ako::Status::Ok)
 		{
@@ -112,12 +124,7 @@ int main(int argc, const char* argv[])
 		}
 
 		if (quiet == false && verbose == true)
-		{
-			std::cout << "Input image: " << width << "x" << height << " px, " << channels << " channels";
-			std::cout << " (" << (width * height * channels) << " bytes)\n";
-
 			PrintSettings(s, "decoder-side");
-		}
 
 		input_blob.resize(1);
 	}

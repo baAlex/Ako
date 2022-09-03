@@ -55,6 +55,11 @@ Callbacks DefaultCallbacks()
 	callbacks.realloc = std::realloc;
 	callbacks.free = std::free;
 
+	callbacks.generic_event = NULL;
+	callbacks.format_event = NULL;
+	callbacks.compression_event = NULL;
+	callbacks.user_data = NULL;
+
 	return callbacks;
 }
 #endif
