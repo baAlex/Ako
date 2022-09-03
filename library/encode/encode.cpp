@@ -108,15 +108,14 @@ static size_t sEncodeInternal(const Callbacks& callbacks, const Settings& settin
 
 	if (callbacks.generic_event != NULL)
 	{
-		callbacks.generic_event(GenericEvent::ImageDimensions, image_w, image_h, 0, callbacks.user_data);
-		callbacks.generic_event(GenericEvent::ImageChannels, channels, 0, 0, callbacks.user_data);
-		callbacks.generic_event(GenericEvent::ImageDepth, depth, 0, 0, callbacks.user_data);
+		callbacks.generic_event(GenericEvent::ImageDimensions, image_w, image_h, 0, 0, callbacks.user_data);
+		callbacks.generic_event(GenericEvent::ImageChannels, channels, 0, 0, 0, callbacks.user_data);
+		callbacks.generic_event(GenericEvent::ImageDepth, depth, 0, 0, 0, callbacks.user_data);
 
-		callbacks.generic_event(GenericEvent::TilesNo, tiles_no, 0, 0, callbacks.user_data);
-		callbacks.generic_event(GenericEvent::TilesDimension, settings.tiles_dimension, 0, 0, callbacks.user_data);
+		callbacks.generic_event(GenericEvent::TilesNo, tiles_no, 0, 0, 0, callbacks.user_data);
+		callbacks.generic_event(GenericEvent::TilesDimension, settings.tiles_dimension, 0, 0, 0, callbacks.user_data);
 
-		callbacks.generic_event(GenericEvent::WorkareaSize, static_cast<unsigned>(workarea_size), 0, 0,
-		                        callbacks.user_data); // TODO
+		callbacks.generic_event(GenericEvent::WorkareaSize, 0, 0, 0, workarea_size, callbacks.user_data);
 	}
 
 	// Allocate memory
@@ -162,10 +161,9 @@ static size_t sEncodeInternal(const Callbacks& callbacks, const Settings& settin
 
 		if (callbacks.generic_event != NULL)
 		{
-			callbacks.generic_event(GenericEvent::TileDimensions, t + 1, tile_w, tile_h, callbacks.user_data);
-			callbacks.generic_event(GenericEvent::TilePosition, t + 1, tile_x, tile_y, callbacks.user_data);
-			callbacks.generic_event(GenericEvent::TileSize, t + 1, static_cast<unsigned>(tile_size), 0,
-			                        callbacks.user_data); // TODO
+			callbacks.generic_event(GenericEvent::TileDimensions, t + 1, tile_w, tile_h, 0, callbacks.user_data);
+			callbacks.generic_event(GenericEvent::TilePosition, t + 1, tile_x, tile_y, 0, callbacks.user_data);
+			callbacks.generic_event(GenericEvent::TileSize, t + 1, 0, 0, tile_size, callbacks.user_data);
 		}
 
 		// Format

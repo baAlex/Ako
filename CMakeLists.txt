@@ -5,8 +5,8 @@ project("Ako" CXX)
 
 option(AKO_SHARED "Build shared library" ON)
 option(AKO_STATIC "Build static library" ON)
-option(AKO_ENC    "Build encoding tool"  ON)
 option(AKO_DEC    "Build decoding tool"  ON)
+option(AKO_ENC    "Build encoding tool"  ON)
 option(AKO_TESTS  "Build tests"          ON)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS True) # For Clangd
@@ -56,26 +56,32 @@ if (AKO_ENC OR AKODEC)
 endif ()
 
 
+if (AKO_DEC)
+	add_executable("akodec"
+		"./tools/akodec.cpp"
+		"./tools/callbacks.cpp")
+
+		target_include_directories("akodec" PRIVATE "./library/")
+	target_link_libraries("akodec" PRIVATE "ako-static")
+	target_link_libraries("akodec" PRIVATE "thirdparty-static")
+
+	if (NOT MSVC)
+		target_compile_options("akodec" PRIVATE -Werror -Wall -Wextra -Wconversion -pedantic -Wold-style-cast)
+	endif ()
+endif ()
+
+
 if (AKO_ENC)
-	add_executable("akoenc" "./tools/akoenc.cpp")
+	add_executable("akoenc"
+		"./tools/akoenc.cpp"
+		"./tools/callbacks.cpp")
+
 	target_include_directories("akoenc" PRIVATE "./library/")
 	target_link_libraries("akoenc" PRIVATE "ako-static")
 	target_link_libraries("akoenc" PRIVATE "thirdparty-static")
 
 	if (NOT MSVC)
 		target_compile_options("akoenc" PRIVATE -Werror -Wall -Wextra -Wconversion -pedantic -Wold-style-cast)
-	endif ()
-endif ()
-
-
-if (AKO_DEC)
-	add_executable("akodec" "./tools/akodec.cpp")
-	target_include_directories("akodec" PRIVATE "./library/")
-	target_link_libraries("akodec" PRIVATE "ako-static")
-	target_link_libraries("akodec" PRIVATE "thirdparty-static")
-
-	if (NOT MSVC)
-		target_compile_options("akodec" PRIVATE -Werror -Wall -Wextra -Wconversion -pedantic -Wold-style-cast)
 	endif ()
 endif ()
 

@@ -220,18 +220,20 @@ int main(int argc, const char* argv[])
 		if (quiet == false && verbose == true)
 			PrintSettings(s, "encoder-side");
 
+		// Configure callbacks
 		auto callbacks = ako::DefaultCallbacks();
-		EventsData events_data = {};
+		CallbacksData callbacks_data = {};
 
 		if (quiet == false && verbose == true)
 		{
-			callbacks.generic_event = sGenericEventCallback;
-			callbacks.format_event = sFormatEventCallback;
-			callbacks.compression_event = sCompressionEventCallback;
-			callbacks.user_data = &events_data;
-			events_data.prefix = "E |";
+			callbacks.generic_event = CallbackGenericEvent;
+			callbacks.format_event = CallbackFormatEvent;
+			callbacks.compression_event = CallbackCompressionEvent;
+			callbacks.user_data = &callbacks_data;
+			callbacks_data.prefix = "E |";
 		}
 
+		// Encode
 		auto status = ako::Status::Error;
 		encoded_blob_size =
 		    ako::EncodeEx(callbacks, s, width, height, channels, 8, input_image.data(), &encoded_blob, status);
