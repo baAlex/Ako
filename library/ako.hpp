@@ -25,6 +25,12 @@ const unsigned MAXIMUM_WIDTH = (1 << 25);
 const unsigned MAXIMUM_HEIGHT = (1 << 25);
 const unsigned MAXIMUM_CHANNELS = (1 << 4);
 const unsigned MAXIMUM_DEPTH = (1 << 5);
+
+const unsigned MINIMUM_WIDTH = 1;
+const unsigned MINIMUM_HEIGHT = 1;
+const unsigned MINIMUM_CHANNELS = 1;
+const unsigned MINIMUM_DEPTH = 1;
+
 const unsigned MAXIMUM_TILES_DIMENSION = (1 << 25);
 
 enum class Status

@@ -137,12 +137,15 @@ Status ValidateSettings(const Settings& settings)
 Status ValidateProperties(unsigned image_w, unsigned image_h, unsigned channels, unsigned depth)
 {
 	// clang-format off
-	if (image_w == 0 || image_h == 0) { return Status::InvalidDimensions; }
-	if (channels == 0)                { return Status::InvalidChannelsNo; }
 	if (image_w > MAXIMUM_WIDTH)     { return Status::InvalidDimensions; }
 	if (image_h > MAXIMUM_HEIGHT)    { return Status::InvalidDimensions; }
+	if (image_w < MINIMUM_WIDTH)     { return Status::InvalidDimensions; }
+	if (image_h < MINIMUM_HEIGHT)    { return Status::InvalidDimensions; }
+
+	if (channels < MINIMUM_CHANNELS) { return Status::InvalidChannelsNo; }
 	if (channels > MAXIMUM_CHANNELS) { return Status::InvalidChannelsNo; }
-	if (depth == 0)                  { return Status::InvalidDepth; }
+
+	if (depth < MINIMUM_DEPTH)       { return Status::InvalidDepth; }
 	if (depth > MAXIMUM_DEPTH)       { return Status::InvalidDepth; }
 	// clang-format on
 

@@ -31,19 +31,19 @@ SOFTWARE.
 
 static void sEventPrintPrefix(const char* str, unsigned indent)
 {
-	std::printf("%s", str);
+	printf("%s", str);
 
 	for (unsigned i = 0; i < indent; i += 1)
-		std::printf("    ");
+		printf("    ");
 
-	std::printf("- ");
+	printf("- ");
 }
 
 static void sEventPrintTile(const CallbacksData& data)
 {
 	sEventPrintPrefix(data.prefix.c_str(), 1);
-	std::printf("Tile %u of %u, [%u, %u], %ux%u px (%zu byte(s))\n", data.current_tile, data.tiles_no, data.tile_x,
-	            data.tile_y, data.tile_width, data.tile_height, data.tile_size);
+	printf("Tile %u of %u, [%u, %u], %ux%u px (%zu byte(s))\n", data.current_tile, data.tiles_no, data.tile_x,
+	       data.tile_y, data.tile_width, data.tile_height, data.tile_size);
 }
 
 
@@ -61,7 +61,7 @@ void CallbackCompressionEvent(ako::Compression method, unsigned tile_no, unsigne
 	if (tile_no == 1)
 	{
 		sEventPrintPrefix(data.prefix.c_str(), 2);
-		std::printf("Compression: %s\n", ako::ToString(method));
+		printf("Compression: %s\n", ako::ToString(method));
 	}
 }
 
@@ -80,7 +80,7 @@ void CallbackFormatEvent(ako::Color color, unsigned tile_no, unsigned a, void* u
 	if (tile_no == 1)
 	{
 		sEventPrintPrefix(data.prefix.c_str(), 2);
-		std::printf("Format: %s\n", ako::ToString(color));
+		printf("Format: %s\n", ako::ToString(color));
 	}
 }
 
@@ -146,22 +146,22 @@ void CallbackGenericEvent(ako::GenericEvent e, unsigned a, unsigned b, unsigned 
 	if (data.image_events == 3) // Image info
 	{
 		sEventPrintPrefix(data.prefix.c_str(), 1);
-		std::printf("Image: %ux%u px, %u channel(s), %u bpp depth\n", data.image_width, data.image_height,
-		            data.channels, data.depth);
+		printf("Image: %ux%u px, %u channel(s), %u bpp depth\n", data.image_width, data.image_height, data.channels,
+		       data.depth);
 		data.image_events = 0;
 	}
 
 	if (data.tiles_events == 2) // Tiles info
 	{
 		sEventPrintPrefix(data.prefix.c_str(), 1);
-		std::printf("%u Tiles, %ux%u px\n", data.tiles_no, data.tiles_dimension, data.tiles_dimension);
+		printf("%u Tiles, %ux%u px\n", data.tiles_no, data.tiles_dimension, data.tiles_dimension);
 		data.tiles_events = 0;
 	}
 
 	if (data.memory_events == 1) // Memory info
 	{
 		sEventPrintPrefix(data.prefix.c_str(), 1);
-		std::printf("Workarea size: %zu byte(s)\n", data.workarea_size);
+		printf("Workarea size: %zu byte(s)\n", data.workarea_size);
 		data.memory_events = 0;
 	}
 }

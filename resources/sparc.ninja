@@ -1,0 +1,36 @@
+
+
+# sudo apt install g++-sparc64-linux-gnu qemu-user-static
+# ninja -f ./resources/sparc.ninja
+# qemu-sparc64 -L /usr/sparc64-linux-gnu/ ./build/sparc64-forward-backward
+
+
+cpp = sparc64-linux-gnu-g++
+ld = sparc64-linux-gnu-ld
+cflags = -c -I ./library/ -Werror -Wall -Wextra -Wconversion -pedantic -Wold-style-cast
+
+
+rule CompileCpp
+ command = $cpp $cflags $in -o $out
+rule Link
+ command = $cpp $in -o $out
+
+
+build ./build/sparc64/library/common/conversions.o: CompileCpp ./library/common/conversions.cpp
+build ./build/sparc64/library/common/defaults.o:    CompileCpp ./library/common/defaults.cpp
+build ./build/sparc64/library/common/utilities.o:   CompileCpp ./library/common/utilities.cpp
+build ./build/sparc64/library/common/version.o:     CompileCpp ./library/common/version.cpp
+build ./build/sparc64/library/decode/decode.o:      CompileCpp ./library/decode/decode.cpp
+build ./build/sparc64/library/encode.o:             CompileCpp ./library/encode/encode.cpp
+
+build ./build/sparc64/tests/forward-backward.o: CompileCpp ./tests/forward-backward.cpp
+
+
+build ./build/sparc64-forward-backward: Link $
+ ./build/sparc64/tests/forward-backward.o $
+ ./build/sparc64/library/common/conversions.o $
+ ./build/sparc64/library/common/defaults.o $
+ ./build/sparc64/library/common/utilities.o $
+ ./build/sparc64/library/common/version.o $
+ ./build/sparc64/library/decode/decode.o $
+ ./build/sparc64/library/encode.o

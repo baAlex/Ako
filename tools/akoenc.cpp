@@ -268,11 +268,11 @@ int main(int argc, const char* argv[])
 		const auto bpp = (static_cast<float>(encoded_blob_size) / static_cast<float>(width * height * channels)) * 8.0F;
 
 		if (checksum == true)
-			std::printf("(%x) %.2f kB -> %.2f kB, ratio: %.2f:1, %.4f bpp\n", hash, uncompressed_size, compressed_size,
-			            uncompressed_size / compressed_size, bpp);
+			printf("(%x) %.2f kB -> %.2f kB, ratio: %.2f:1, %.4f bpp\n", hash, uncompressed_size, compressed_size,
+			       uncompressed_size / compressed_size, bpp);
 		else
-			std::printf("%.2f kB -> %.2f kB, ratio: %.2f:1, %.4f bpp\n", uncompressed_size, compressed_size,
-			            uncompressed_size / compressed_size, bpp);
+			printf("%.2f kB -> %.2f kB, ratio: %.2f:1, %.4f bpp\n", uncompressed_size, compressed_size,
+			       uncompressed_size / compressed_size, bpp);
 	}
 
 	return EXIT_SUCCESS;
