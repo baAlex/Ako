@@ -24,7 +24,7 @@ const int FORMAT_VERSION = 3;
 const unsigned MAXIMUM_WIDTH = (1 << 25);
 const unsigned MAXIMUM_HEIGHT = (1 << 25);
 const unsigned MAXIMUM_CHANNELS = (1 << 4);
-const unsigned MAXIMUM_DEPTH = (1 << 5);
+const unsigned MAXIMUM_DEPTH = (1 << 4);
 
 const unsigned MINIMUM_WIDTH = 1;
 const unsigned MINIMUM_HEIGHT = 1;
@@ -101,7 +101,7 @@ enum class GenericEvent
 
 	TileDimensions,
 	TilePosition,
-	TileSize,
+	TileDataSize,
 };
 
 struct Callbacks
@@ -133,11 +133,11 @@ struct Settings
 };
 
 AKO_EXPORT size_t EncodeEx(const Callbacks&, const Settings&, unsigned width, unsigned height, unsigned channels,
-                           unsigned depth, const void* input, void** output, Status& out_status);
+                           unsigned depth, const void* input, void** output = nullptr, Status* out_status = nullptr);
 
-AKO_EXPORT void* DecodeEx(const Callbacks&, size_t input_size, const void* input, Settings& out_settings,
-                          unsigned& out_width, unsigned& out_height, unsigned& out_channels, unsigned& out_depth,
-                          Status& out_status);
+AKO_EXPORT void* DecodeEx(const Callbacks&, size_t input_size, const void* input, unsigned& out_width,
+                          unsigned& out_height, unsigned& out_channels, unsigned& out_depth,
+                          Settings* out_settings = nullptr, Status* out_status = nullptr);
 
 AKO_EXPORT Settings DefaultSettings();
 AKO_EXPORT Callbacks DefaultCallbacks();

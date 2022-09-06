@@ -214,7 +214,7 @@ int main(int argc, const char* argv[])
 	}
 
 	// Encode
-	void* encoded_blob = NULL;
+	void* encoded_blob = nullptr;
 	size_t encoded_blob_size = 0;
 	{
 		if (quiet == false && verbose == true)
@@ -236,7 +236,7 @@ int main(int argc, const char* argv[])
 		// Encode
 		auto status = ako::Status::Error;
 		encoded_blob_size =
-		    ako::EncodeEx(callbacks, s, width, height, channels, 8, input_image.data(), &encoded_blob, status);
+		    ako::EncodeEx(callbacks, s, width, height, channels, 8, input_image.data(), &encoded_blob, &status);
 
 		if (status != ako::Status::Ok)
 		{

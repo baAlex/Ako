@@ -54,7 +54,7 @@ struct TileHead
 {
 	uint32_t magic;
 	uint32_t no;
-	uint32_t size; // In compressed form
+	uint32_t compressed_size;
 	uint32_t unused;
 };
 
@@ -104,7 +104,7 @@ template <typename T> T Min(T a, T b)
 	return (a < b) ? a : b;
 }
 
-template <typename T> size_t TileSize(unsigned tile_w, unsigned tile_h, unsigned channels)
+template <typename T> size_t TileDataSize(unsigned tile_w, unsigned tile_h, unsigned channels)
 {
 	// Silly formula, but the idea is to abstract it to make it future-proof
 	return tile_w * tile_h * channels * sizeof(T);

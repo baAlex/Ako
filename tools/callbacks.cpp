@@ -43,7 +43,7 @@ static void sEventPrintTile(const CallbacksData& data)
 {
 	sEventPrintPrefix(data.prefix.c_str(), 1);
 	printf("Tile %u of %u, [%u, %u], %ux%u px (%zu byte(s))\n", data.current_tile, data.tiles_no, data.tile_x,
-	       data.tile_y, data.tile_width, data.tile_height, data.tile_size);
+	       data.tile_y, data.tile_width, data.tile_height, data.tile_data_size);
 }
 
 
@@ -135,9 +135,9 @@ void CallbackGenericEvent(ako::GenericEvent e, unsigned a, unsigned b, unsigned 
 			data.tile_x = b;
 			data.tile_y = c;
 			break;
-		case ako::GenericEvent::TileSize:
+		case ako::GenericEvent::TileDataSize:
 			data.current_tile = a;
-			data.tile_size = d;
+			data.tile_data_size = d;
 			break;
 		}
 	}

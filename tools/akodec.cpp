@@ -93,14 +93,12 @@ int main(int argc, const char* argv[])
 	}
 
 	// Decode
-	void* input_image = NULL;
+	void* input_image = nullptr;
 	unsigned width = 0;
 	unsigned height = 0;
 	unsigned channels = 0;
 	unsigned depth = 0;
 	{
-		ako::Settings s = {};
-
 		// Configure callbacks
 		auto callbacks = ako::DefaultCallbacks();
 		CallbacksData callbacks_data = {};
@@ -115,9 +113,11 @@ int main(int argc, const char* argv[])
 		}
 
 		// Decode
+		ako::Settings s = {};
 		auto status = ako::Status::Error;
+
 		input_image =
-		    ako::DecodeEx(callbacks, input_blob.size(), input_blob.data(), s, width, height, channels, depth, status);
+		    ako::DecodeEx(callbacks, input_blob.size(), input_blob.data(), width, height, channels, depth, &s, &status);
 
 		if (status != ako::Status::Ok)
 		{

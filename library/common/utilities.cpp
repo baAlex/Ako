@@ -79,10 +79,10 @@ void TileMeasures(unsigned tile_no, unsigned tiles_dimension, unsigned image_w, 
 void* BetterRealloc(const Callbacks& callbacks, void* ptr, size_t new_size)
 {
 	void* prev_ptr = ptr;
-	if ((ptr = callbacks.realloc(ptr, new_size)) == NULL)
+	if ((ptr = callbacks.realloc(ptr, new_size)) == nullptr)
 	{
 		callbacks.free(prev_ptr);
-		return NULL;
+		return nullptr;
 	}
 
 	return ptr;
@@ -114,7 +114,7 @@ uint32_t EndiannessReverseU32(uint32_t value)
 
 Status ValidateCallbacks(const Callbacks& callbacks)
 {
-	if (callbacks.malloc == NULL || callbacks.realloc == NULL || callbacks.free == NULL)
+	if (callbacks.malloc == nullptr || callbacks.realloc == nullptr || callbacks.free == nullptr)
 		return Status::InvalidCallbacks;
 
 	return Status::Ok;
@@ -155,7 +155,7 @@ Status ValidateProperties(unsigned image_w, unsigned image_h, unsigned channels,
 
 Status ValidateInput(const void* ptr, size_t input_size)
 {
-	if (ptr == NULL || input_size == 0)
+	if (ptr == nullptr || input_size == 0)
 		return Status::InvalidInput;
 
 	return Status::Ok;

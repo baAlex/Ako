@@ -38,7 +38,7 @@ inline int ReadFile(const std::string& input_filename, std::vector<uint8_t>& out
 {
 	// Open file
 	FILE* fp = fopen(input_filename.c_str(), "rb"); // Only C let me use the seek/tell hack, in C++ is unspecified
-	if (fp == NULL)
+	if (fp == nullptr)
 	{
 		std::cout << "Failed to open '" << input_filename << "'\n";
 		return 1;
@@ -67,7 +67,7 @@ inline int ReadFile(const std::string& input_filename, std::vector<uint8_t>& out
 inline int WriteFile(const std::string& output_filename, size_t size, const void* data)
 {
 	FILE* fp = fopen(output_filename.c_str(), "wb");
-	if (fp == NULL)
+	if (fp == nullptr)
 	{
 		std::cout << "Failed to create '" << output_filename << "'\n";
 		return 1;
@@ -126,7 +126,7 @@ struct CallbacksData
 	unsigned tile_height;
 	unsigned tile_x;
 	unsigned tile_y;
-	size_t tile_size;
+	size_t tile_data_size;
 };
 
 void CallbackCompressionEvent(ako::Compression method, unsigned tile_no, unsigned a, void* user_data);

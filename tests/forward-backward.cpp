@@ -22,7 +22,7 @@ struct GatheredTileInfo
 	unsigned x;
 	unsigned y;
 
-	size_t size;
+	size_t data_size;
 };
 
 struct GatheredInfo
@@ -82,10 +82,10 @@ static void sCallbackGenericEvent(ako::GenericEvent e, unsigned a, unsigned b, u
 		data.tile[a].x = b;
 		data.tile[a].y = c;
 		break;
-	case ako::GenericEvent::TileSize:
+	case ako::GenericEvent::TileDataSize:
 		assert(a < MAX_TILE_INFO);
 		data.max_tile_index = sMax(data.max_tile_index, a);
-		data.tile[a].size = d;
+		data.tile[a].data_size = d;
 		break;
 	}
 }
@@ -104,7 +104,7 @@ static void sCallbackGenericEvent(ako::GenericEvent e, unsigned a, unsigned b, u
 }*/
 
 
-static uint32_t sAdler32(const void* input, size_t size)
+static uint32_t sAdler32(const void* input, size_t data_size)
 {
 	// Function borrowed from LodePNG, modified.
 
@@ -135,10 +135,10 @@ static uint32_t sAdler32(const void* input, size_t size)
 	uint32_t s1 = 1;
 	uint32_t s2 = 0;
 
-	while (size != 0)
+	while (data_size != 0)
 	{
-		const auto amount = (size > 5552) ? 5552 : size;
-		size -= amount;
+		const auto amount = (data_size > 5552) ? 5552 : data_size;
+		data_size -= amount;
 
 		for (size_t i = 0; i != amount; ++i)
 		{
@@ -164,11 +164,11 @@ static void sTest(const char* out_filename, const Settings& settings, unsigned w
 	                       ((depth <= 8) ? 1 : 2);
 
 	auto data = static_cast<uint8_t*>(malloc(data_size));
-	assert(data != NULL);
+	assert(data != nullptr);
 	memset(data, 0, data_size);
 
 	// Encode
-	void* encoded_blob = NULL;
+	void* encoded_blob = nullptr;
 	size_t encoded_blob_size = 0;
 	{
 		auto callbacks = DefaultCallbacks();
@@ -176,7 +176,7 @@ static void sTest(const char* out_filename, const Settings& settings, unsigned w
 		callbacks.user_data = &g_encoded_info;
 
 		auto status = Status::Error; // Assume error
-		encoded_blob_size = EncodeEx(callbacks, settings, width, height, channels, depth, data, &encoded_blob, status);
+		encoded_blob_size = EncodeEx(callbacks, settings, width, height, channels, depth, data, &encoded_blob, &status);
 
 		if (encoded_blob_size == 0)
 			printf("Ako encode error: '%s'\n", ToString(status));
@@ -190,7 +190,7 @@ static void sTest(const char* out_filename, const Settings& settings, unsigned w
 	// Save
 	{
 		auto fp = fopen(out_filename, "wb");
-		assert(fp != NULL);
+		assert(fp != nullptr);
 
 		const auto n = fwrite(encoded_blob, encoded_blob_size, 1, fp);
 		assert(n == 1);
@@ -203,7 +203,7 @@ static void sTest(const char* out_filename, const Settings& settings, unsigned w
 #endif
 
 	// Decode
-	void* decoded_data = NULL;
+	void* decoded_data = nullptr;
 	{
 		auto callbacks = DefaultCallbacks();
 		callbacks.generic_event = sCallbackGenericEvent;
@@ -216,14 +216,14 @@ static void sTest(const char* out_filename, const Settings& settings, unsigned w
 		unsigned decoded_channels = 0;
 		unsigned decoded_depth = 0;
 
-		decoded_data = DecodeEx(callbacks, encoded_blob_size, encoded_blob, decoded_settings, decoded_width,
-		                        decoded_height, decoded_channels, decoded_depth, status);
+		decoded_data = DecodeEx(callbacks, encoded_blob_size, encoded_blob, decoded_width, decoded_height,
+		                        decoded_channels, decoded_depth, &decoded_settings, &status);
 
 		if (decoded_data == 0)
 			printf("Ako decode error: '%s'\n", ToString(status));
 
 		// Checks
-		assert(decoded_data != NULL);
+		assert(decoded_data != nullptr);
 		assert(status != Status::Error);
 
 		assert(decoded_width == width);
@@ -261,11 +261,11 @@ static void sTest(const char* out_filename, const Settings& settings, unsigned w
 			assert(g_encoded_info.tile[i].height == g_decoded_info.tile[i].height);
 			assert(g_encoded_info.tile[i].x == g_decoded_info.tile[i].x);
 			assert(g_encoded_info.tile[i].y == g_decoded_info.tile[i].y);
-			assert(g_encoded_info.tile[i].size == g_decoded_info.tile[i].size);
+			assert(g_encoded_info.tile[i].data_size == g_decoded_info.tile[i].data_size);
 
 			// Tile data size should fit inside a workarea (Valgrind also detects this one)
-			assert(g_encoded_info.tile[i].size <= g_decoded_info.workarea_size);
-			assert(g_encoded_info.tile[i].size <= g_decoded_info.workarea_size);
+			assert(g_encoded_info.tile[i].data_size <= g_decoded_info.workarea_size);
+			assert(g_encoded_info.tile[i].data_size <= g_decoded_info.workarea_size);
 		}
 	}
 
