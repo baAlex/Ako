@@ -1,7 +1,7 @@
 
 
 # sudo apt install g++-sparc64-linux-gnu qemu-user-static
-# ninja -f ./resources/sparc.ninja
+# ninja -f ./resources/sparc64.ninja
 # qemu-sparc64 -L /usr/sparc64-linux-gnu/ ./build/sparc64-forward-backward
 
 
