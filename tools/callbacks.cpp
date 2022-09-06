@@ -89,7 +89,7 @@ void CallbackGenericEvent(ako::GenericEvent e, unsigned a, unsigned b, unsigned 
 {
 	auto& data = *reinterpret_cast<CallbacksData*>(user_data);
 
-	// Recollect events
+	// Gather information
 	{
 		switch (e)
 		{
