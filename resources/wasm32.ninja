@@ -21,7 +21,9 @@ build ./build/wasm32/library/common/defaults.o:    CompileCpp ./library/common/d
 build ./build/wasm32/library/common/utilities.o:   CompileCpp ./library/common/utilities.cpp
 build ./build/wasm32/library/common/version.o:     CompileCpp ./library/common/version.cpp
 build ./build/wasm32/library/decode/decode.o:      CompileCpp ./library/decode/decode.cpp
-build ./build/wasm32/library/encode.o:             CompileCpp ./library/encode/encode.cpp
+build ./build/wasm32/library/decode/format.o:      CompileCpp ./library/decode/format.cpp
+build ./build/wasm32/library/encode/encode.o:      CompileCpp ./library/encode/encode.cpp
+build ./build/wasm32/library/encode/format.o:      CompileCpp ./library/encode/format.cpp
 
 build ./build/wasm32-libako-static.a: Pack $
  ./build/wasm32/library/common/conversions.o $
@@ -29,4 +31,6 @@ build ./build/wasm32-libako-static.a: Pack $
  ./build/wasm32/library/common/utilities.o $
  ./build/wasm32/library/common/version.o $
  ./build/wasm32/library/decode/decode.o $
- ./build/wasm32/library/encode.o
+ ./build/wasm32/library/decode/format.o $
+ ./build/wasm32/library/encode/encode.o $
+ ./build/wasm32/library/encode/format.o

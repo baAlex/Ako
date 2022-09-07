@@ -86,15 +86,14 @@ static void sWriteTileHead(unsigned no, size_t compressed_size, TileHead& out)
 }
 
 
-template <typename T>
+template <typename TIn, typename TOut>
 static size_t sEncodeInternal(const Callbacks& callbacks, const Settings& settings, unsigned image_w, unsigned image_h,
-                              unsigned channels, unsigned depth, const void* input, void** output, Status& out_status)
+                              unsigned channels, unsigned depth, const TIn* input, void** output, Status& out_status)
 {
-	(void)input;
 	auto status = Status::Ok;
 
 	const unsigned tiles_no = TilesNo(settings.tiles_dimension, image_w, image_h);
-	const size_t workarea_size = WorkareaSize<T>(settings.tiles_dimension, image_w, image_h, channels);
+	const size_t workarea_size = WorkareaSize<TOut>(settings.tiles_dimension, image_w, image_h, channels);
 	const size_t workareas_no = 2;
 
 	void* workarea[workareas_no] = {nullptr, nullptr}; // Where work
@@ -128,7 +127,10 @@ static size_t sEncodeInternal(const Callbacks& callbacks, const Settings& settin
 		}
 
 		if (tiles_no == 1)
+		{
 			blob = workarea[0];
+			workarea[0] = (reinterpret_cast<uint8_t*>(workarea[0]) + sizeof(ImageHead) + sizeof(TileHead)); // HACK
+		}
 	}
 
 	// Write image head
@@ -154,7 +156,7 @@ static size_t sEncodeInternal(const Callbacks& callbacks, const Settings& settin
 		size_t tile_data_size;
 
 		TileMeasures(t, settings.tiles_dimension, image_w, image_h, tile_w, tile_h, tile_x, tile_y);
-		tile_data_size = TileDataSize<T>(tile_w, tile_h, channels);
+		tile_data_size = TileDataSize<TOut>(tile_w, tile_h, channels);
 
 		if (callbacks.generic_event != nullptr)
 		{
@@ -163,13 +165,25 @@ static size_t sEncodeInternal(const Callbacks& callbacks, const Settings& settin
 			callbacks.generic_event(GenericEvent::TileDataSize, t + 1, 0, 0, tile_data_size, callbacks.user_data);
 		}
 
-		// Format
+		// 1. Format
 		{
 			if (callbacks.format_event != nullptr)
-				callbacks.format_event(settings.color, t + 1, 0, callbacks.user_data);
+				callbacks.format_event(settings.color, t + 1, nullptr, callbacks.user_data);
+
+			FormatToInternal(settings.color, settings.discard, tile_w, tile_h, channels, image_w, input,
+			                 reinterpret_cast<TOut*>(workarea[0]));
+
+			if (callbacks.format_event != nullptr)
+				callbacks.format_event(settings.color, t + 1, workarea[0], callbacks.user_data);
 		}
 
-		// Write tile head
+		// 2. Wavelet transform
+		{}
+
+		// 3. Compression
+		{}
+
+		// 4. Write tile head
 		{
 			if ((blob = sGrownBlob(callbacks, blob_cursor + sizeof(TileHead), blob, blob_size)) == nullptr)
 			{
@@ -182,7 +196,7 @@ static size_t sEncodeInternal(const Callbacks& callbacks, const Settings& settin
 			blob_cursor += sizeof(TileHead);
 		}
 
-		// Write raw data, just zeros
+		// 5. Write data
 		{
 			if ((blob = sGrownBlob(callbacks, blob_cursor + tile_data_size, blob, blob_size)) == nullptr)
 			{
@@ -190,15 +204,21 @@ static size_t sEncodeInternal(const Callbacks& callbacks, const Settings& settin
 				goto return_failure;
 			}
 
-			auto data = reinterpret_cast<T*>(reinterpret_cast<uint8_t*>(blob) + blob_cursor);
-			for (size_t i = 0; i < (tile_w * tile_h * channels); i += 1)
-				data[i] = 0;
+			if (tiles_no != 1) // HACK
+			{
+				auto out = reinterpret_cast<TOut*>(reinterpret_cast<uint8_t*>(blob) + blob_cursor);
+				for (size_t i = 0; i < (tile_w * tile_h * channels); i += 1)
+					out[i] = reinterpret_cast<TOut*>(workarea[0])[i];
+			}
 
 			blob_cursor += tile_data_size;
 		}
 	}
 
 	// Bye!
+	if (tiles_no == 1)
+		workarea[0] = (reinterpret_cast<uint8_t*>(workarea[0]) - sizeof(ImageHead) - sizeof(TileHead)); // HACK
+
 	for (size_t i = 0; i < workareas_no; i += 1)
 	{
 		if (workarea[i] != blob)         // Do not free recycled memory,
@@ -217,6 +237,9 @@ static size_t sEncodeInternal(const Callbacks& callbacks, const Settings& settin
 	return blob_cursor;
 
 return_failure:
+	if (tiles_no == 1)
+		workarea[0] = (reinterpret_cast<uint8_t*>(workarea[0]) - sizeof(ImageHead) - sizeof(TileHead)); // HACK
+
 	for (size_t i = 0; i < workareas_no; i += 1)
 	{
 		if (workarea[i] != nullptr && workarea[i] != blob)
@@ -251,13 +274,13 @@ size_t EncodeEx(const Callbacks& callbacks, const Settings& settings, unsigned w
 	// Encode!
 	if (depth <= 8)
 	{
-		blob_size =
-		    sEncodeInternal<uint16_t>(callbacks, settings, width, height, channels, depth, input, output, status);
+		blob_size = sEncodeInternal<uint8_t, uint16_t>(callbacks, settings, width, height, channels, depth,
+		                                               reinterpret_cast<const uint8_t*>(input), output, status);
 	}
 	else
 	{
-		blob_size =
-		    sEncodeInternal<uint32_t>(callbacks, settings, width, height, channels, depth, input, output, status);
+		blob_size = sEncodeInternal<uint16_t, uint32_t>(callbacks, settings, width, height, channels, depth,
+		                                                reinterpret_cast<const uint16_t*>(input), output, status);
 	}
 
 	// Bye!

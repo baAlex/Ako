@@ -24,7 +24,9 @@ set(AKO_SOURCES
 	"./library/common/utilities.cpp"
 	"./library/common/version.cpp"
 	"./library/decode/decode.cpp"
-	"./library/encode/encode.cpp")
+	"./library/decode/format.cpp"
+	"./library/encode/encode.cpp"
+	"./library/encode/format.cpp")
 
 
 if (AKO_SHARED)
@@ -61,7 +63,7 @@ if (AKO_DEC)
 		"./tools/akodec.cpp"
 		"./tools/callbacks.cpp")
 
-		target_include_directories("akodec" PRIVATE "./library/")
+	target_include_directories("akodec" PRIVATE "./library/")
 	target_link_libraries("akodec" PRIVATE "ako-static")
 	target_link_libraries("akodec" PRIVATE "thirdparty-static")
 

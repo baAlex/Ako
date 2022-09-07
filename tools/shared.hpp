@@ -130,7 +130,7 @@ struct CallbacksData
 };
 
 void CallbackCompressionEvent(ako::Compression method, unsigned tile_no, unsigned a, void* user_data);
-void CallbackFormatEvent(ako::Color color, unsigned tile_no, unsigned a, void* user_data);
+void CallbackFormatEvent(ako::Color color, unsigned tile_no, const void* image_data, void* user_data);
 void CallbackGenericEvent(ako::GenericEvent e, unsigned a, unsigned b, unsigned c, size_t d, void* user_data);
 
 #endif

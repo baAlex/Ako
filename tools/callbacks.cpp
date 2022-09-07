@@ -66,10 +66,10 @@ void CallbackCompressionEvent(ako::Compression method, unsigned tile_no, unsigne
 }
 
 
-void CallbackFormatEvent(ako::Color color, unsigned tile_no, unsigned a, void* user_data)
+void CallbackFormatEvent(ako::Color color, unsigned tile_no, const void* image_data, void* user_data)
 {
 	auto& data = *reinterpret_cast<CallbacksData*>(user_data);
-	(void)a;
+	(void)image_data;
 
 	if (data.current_tile == tile_no)
 	{

@@ -7,7 +7,9 @@ files="./library/common/conversions.cpp
        ./library/common/utilities.cpp
        ./library/common/version.cpp
        ./library/decode/decode.cpp
+       ./library/decode/format.cpp
        ./library/encode/encode.cpp
+       ./library/encode/format.cpp
        ./tests/forward-backward.cpp
        ./tools/akodec.cpp
        ./tools/akoenc.cpp

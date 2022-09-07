@@ -97,6 +97,13 @@ Status ValidateProperties(unsigned image_w, unsigned image_h, unsigned channels,
 Status ValidateInput(const void* ptr, size_t input_size = 1); // TODO?
 
 
+// encode/format.cpp:
+
+template <typename TIn, typename TOut>
+void FormatToInternal(const Color& color_transform, bool discard, unsigned width, unsigned height, unsigned channels,
+                      size_t input_stride, const TIn* input, TOut* output);
+
+
 // Templates:
 
 template <typename T> T Min(T a, T b)
