@@ -29,11 +29,9 @@ namespace ako
 {
 
 template <typename TIn, typename TOut>
-static void sFormatToInternal(const Color& color_transform, bool discard, unsigned width, unsigned height,
+static void sFormatToInternal(const Color& color_transformation, bool discard, unsigned width, unsigned height,
                               unsigned channels, size_t input_stride, const TIn* input, TOut* output)
 {
-	(void)color_transform;
-
 	input_stride = input_stride * channels;
 	const auto plane_offset = width * height;
 
@@ -71,21 +69,60 @@ static void sFormatToInternal(const Color& color_transform, bool discard, unsign
 				}
 		}
 	}
+
+	// Format
+	if (channels >= 3)
+	{
+		auto data = output;
+
+		switch (color_transformation)
+		{
+		case Color::YCoCg:
+			for (unsigned i = 0; i < (width * height); i += 1)
+			{
+				const auto r = data[plane_offset * 0 + i];
+				const auto g = data[plane_offset * 1 + i];
+				const auto b = data[plane_offset * 2 + i];
+
+				const auto temp = static_cast<TOut>(b + (r - b) / 2);
+
+				data[plane_offset * 1 + i] = static_cast<TOut>(r - b);
+				data[plane_offset * 2 + i] = static_cast<TOut>(g - temp);
+				data[plane_offset * 0 + i] = static_cast<TOut>(temp + (g - temp) / 2);
+			}
+			break;
+
+		case Color::SubtractG:
+			for (unsigned i = 0; i < (width * height); i += 1)
+			{
+				const auto r = data[plane_offset * 0 + i];
+				const auto g = data[plane_offset * 1 + i];
+				const auto b = data[plane_offset * 2 + i];
+
+				data[plane_offset * 0 + i] = static_cast<TOut>(g);
+				data[plane_offset * 1 + i] = static_cast<TOut>(r - g);
+				data[plane_offset * 2 + i] = static_cast<TOut>(b - g);
+			}
+			break;
+
+		default: break;
+		}
+	}
 }
 
 
 template <>
-void FormatToInternal(const Color& color_transform, bool discard, unsigned width, unsigned height, unsigned channels,
-                      size_t input_stride, const uint8_t* input, uint16_t* output)
+void FormatToInternal(const Color& color_transformation, bool discard, unsigned width, unsigned height,
+                      unsigned channels, size_t input_stride, const uint8_t* input, int16_t* output)
 {
-	sFormatToInternal(color_transform, discard, width, height, channels, input_stride, input, output);
+	sFormatToInternal(color_transformation, discard, width, height, channels, input_stride, input, output);
 }
 
 template <>
-void FormatToInternal(const Color& color_transform, bool discard, unsigned width, unsigned height, unsigned channels,
-                      size_t input_stride, const uint16_t* input, uint32_t* output)
+void FormatToInternal(const Color& color_transformation, bool discard, unsigned width, unsigned height,
+                      unsigned channels, size_t input_stride, const uint16_t* input, int32_t* output)
 {
-	sFormatToInternal(color_transform, discard, width, height, channels, input_stride, input, output);
+	sFormatToInternal(color_transformation, discard, width, height, channels, input_stride, input, output);
 }
 
 } // namespace ako

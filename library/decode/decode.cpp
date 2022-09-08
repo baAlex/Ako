@@ -47,17 +47,17 @@ static Status sReadTileHead(const TileHead& head_raw, size_t& out_compressed_siz
 }
 
 
-template <typename T, typename TO>
+template <typename TIn, typename TOut>
 static void* sDecodeInternal(const Callbacks& callbacks, const Settings& settings, unsigned image_w, unsigned image_h,
                              unsigned channels, unsigned depth, const void* input, const void* input_end,
                              Status& out_status)
 {
-	(void)depth; // Implicit in T and TO
+	(void)depth; // Implicit in TIn and TOut
 
 	auto status = Status::Ok;
 
 	const unsigned tiles_no = TilesNo(settings.tiles_dimension, image_w, image_h);
-	const size_t workarea_size = WorkareaSize<T>(settings.tiles_dimension, image_w, image_h, channels);
+	const size_t workarea_size = WorkareaSize<TIn>(settings.tiles_dimension, image_w, image_h, channels);
 	const size_t workareas_no = 2;
 
 	void* workarea[workareas_no] = {nullptr, nullptr}; // Where work
@@ -90,7 +90,7 @@ static void* sDecodeInternal(const Callbacks& callbacks, const Settings& setting
 			image = workarea[0];
 		else
 		{
-			if ((image = callbacks.malloc((image_w * image_h * channels) * sizeof(TO))) == nullptr)
+			if ((image = callbacks.malloc((image_w * image_h * channels) * sizeof(TOut))) == nullptr)
 			{
 				status = Status::NoEnoughMemory;
 				goto return_failure;
@@ -110,7 +110,7 @@ static void* sDecodeInternal(const Callbacks& callbacks, const Settings& setting
 		size_t tile_data_size;
 
 		TileMeasures(t, settings.tiles_dimension, image_w, image_h, tile_w, tile_h, tile_x, tile_y);
-		tile_data_size = TileDataSize<T>(tile_w, tile_h, channels);
+		tile_data_size = TileDataSize<TIn>(tile_w, tile_h, channels);
 
 		if (callbacks.generic_event != nullptr)
 		{
@@ -119,13 +119,7 @@ static void* sDecodeInternal(const Callbacks& callbacks, const Settings& setting
 			callbacks.generic_event(GenericEvent::TileDataSize, t + 1, 0, 0, tile_data_size, callbacks.user_data);
 		}
 
-		// Compression
-		{
-			if (callbacks.compression_event != nullptr)
-				callbacks.compression_event(settings.compression, t + 1, 0, callbacks.user_data);
-		}
-
-		// Read and validate tile head
+		// 1. Read and validate tile head
 		{
 			if ((reinterpret_cast<const uint8_t*>(input) + sizeof(TileHead)) >= input_end)
 			{
@@ -137,19 +131,39 @@ static void* sDecodeInternal(const Callbacks& callbacks, const Settings& setting
 				goto return_failure;
 
 			input = reinterpret_cast<const uint8_t*>(input) + sizeof(TileHead);
-			input = reinterpret_cast<const uint8_t*>(input) + compressed_size;
 		}
 
-		// Write ones
+		// 2. Decompression
 		{
-			auto p = reinterpret_cast<TO*>(image) + (tile_x * channels) + (image_w * channels) * tile_y;
+			if (callbacks.decompression_event != nullptr)
+				callbacks.decompression_event(settings.compression, t + 1, nullptr, callbacks.user_data);
+
+			auto out = reinterpret_cast<TIn*>(workarea[0]);
+			for (size_t i = 0; i < (tile_w * tile_h * channels); i += 1)
+				out[i] = reinterpret_cast<const TIn*>(input)[i];
+
+			input = reinterpret_cast<const uint8_t*>(input) + compressed_size;
+
+			if (callbacks.decompression_event != nullptr)
+				callbacks.decompression_event(settings.compression, t + 1, workarea[0], callbacks.user_data);
+		}
+
+		// 3. Wavelet transformation
+		{}
+
+		// 4. Format
+		{}
+
+		// 5. Write image data
+		{
+			auto out = reinterpret_cast<TOut*>(image) + (tile_x * channels) + (image_w * channels) * tile_y;
 
 			for (size_t r = 0; r < tile_h; r += 1)
 			{
 				for (size_t c = 0; c < (tile_w * channels); c += 1)
-					p[c] = 255;
+					out[c] = 255;
 
-				p += (image_w * channels);
+				out += (image_w * channels);
 			}
 		}
 	}
@@ -274,13 +288,13 @@ void* DecodeEx(const Callbacks& callbacks, size_t input_size, const void* input,
 
 		if (out_depth <= 8)
 		{
-			image_data = sDecodeInternal<uint16_t, uint8_t>(callbacks, settings, out_width, out_height, out_channels,
-			                                                out_depth, input, input_end, status);
+			image_data = sDecodeInternal<int16_t, uint8_t>(callbacks, settings, out_width, out_height, out_channels,
+			                                               out_depth, input, input_end, status);
 		}
 		else
 		{
-			image_data = sDecodeInternal<uint32_t, uint16_t>(callbacks, settings, out_width, out_height, out_channels,
-			                                                 out_depth, input, input_end, status);
+			image_data = sDecodeInternal<int32_t, uint16_t>(callbacks, settings, out_width, out_height, out_channels,
+			                                                out_depth, input, input_end, status);
 		}
 	}
 

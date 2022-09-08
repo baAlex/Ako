@@ -58,6 +58,7 @@ Callbacks DefaultCallbacks()
 	callbacks.generic_event = nullptr;
 	callbacks.format_event = nullptr;
 	callbacks.compression_event = nullptr;
+	callbacks.decompression_event = nullptr;
 	callbacks.user_data = nullptr;
 
 	return callbacks;

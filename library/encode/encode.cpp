@@ -170,8 +170,8 @@ static size_t sEncodeInternal(const Callbacks& callbacks, const Settings& settin
 			if (callbacks.format_event != nullptr)
 				callbacks.format_event(settings.color, t + 1, nullptr, callbacks.user_data);
 
-			FormatToInternal(settings.color, settings.discard, tile_w, tile_h, channels, image_w, input,
-			                 reinterpret_cast<TOut*>(workarea[0]));
+			FormatToInternal(settings.color, settings.discard, tile_w, tile_h, channels, image_w,
+			                 input + (tile_x + image_w * tile_y) * channels, reinterpret_cast<TOut*>(workarea[0]));
 
 			if (callbacks.format_event != nullptr)
 				callbacks.format_event(settings.color, t + 1, workarea[0], callbacks.user_data);
@@ -196,7 +196,7 @@ static size_t sEncodeInternal(const Callbacks& callbacks, const Settings& settin
 			blob_cursor += sizeof(TileHead);
 		}
 
-		// 5. Write data
+		// 5. Write image data
 		{
 			if ((blob = sGrownBlob(callbacks, blob_cursor + tile_data_size, blob, blob_size)) == nullptr)
 			{
@@ -274,13 +274,13 @@ size_t EncodeEx(const Callbacks& callbacks, const Settings& settings, unsigned w
 	// Encode!
 	if (depth <= 8)
 	{
-		blob_size = sEncodeInternal<uint8_t, uint16_t>(callbacks, settings, width, height, channels, depth,
-		                                               reinterpret_cast<const uint8_t*>(input), output, status);
+		blob_size = sEncodeInternal<uint8_t, int16_t>(callbacks, settings, width, height, channels, depth,
+		                                              reinterpret_cast<const uint8_t*>(input), output, status);
 	}
 	else
 	{
-		blob_size = sEncodeInternal<uint16_t, uint32_t>(callbacks, settings, width, height, channels, depth,
-		                                                reinterpret_cast<const uint16_t*>(input), output, status);
+		blob_size = sEncodeInternal<uint16_t, int32_t>(callbacks, settings, width, height, channels, depth,
+		                                               reinterpret_cast<const uint16_t*>(input), output, status);
 	}
 
 	// Bye!

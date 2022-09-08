@@ -100,8 +100,8 @@ Status ValidateInput(const void* ptr, size_t input_size = 1); // TODO?
 // encode/format.cpp:
 
 template <typename TIn, typename TOut>
-void FormatToInternal(const Color& color_transform, bool discard, unsigned width, unsigned height, unsigned channels,
-                      size_t input_stride, const TIn* input, TOut* output);
+void FormatToInternal(const Color& color_transformation, bool discard, unsigned width, unsigned height,
+                      unsigned channels, size_t input_stride, const TIn* input, TOut* output);
 
 
 // Templates:

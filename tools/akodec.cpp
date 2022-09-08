@@ -107,7 +107,7 @@ int main(int argc, const char* argv[])
 		{
 			callbacks.generic_event = CallbackGenericEvent;
 			callbacks.format_event = CallbackFormatEvent;
-			callbacks.compression_event = CallbackCompressionEvent;
+			callbacks.decompression_event = CallbackDecompressionEvent;
 			callbacks.user_data = &callbacks_data;
 			callbacks_data.prefix = "D |";
 		}

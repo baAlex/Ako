@@ -112,7 +112,9 @@ struct Callbacks
 
 	void (*generic_event)(GenericEvent, unsigned, unsigned, unsigned, size_t, void* user_data);
 	void (*format_event)(Color, unsigned tile_no, const void*, void* user_data);
-	void (*compression_event)(Compression, unsigned tile_no, unsigned, void* user_data);
+	void (*compression_event)(Compression, unsigned tile_no, const void*, void* user_data);
+	void (*decompression_event)(Compression, unsigned tile_no, const void*, void* user_data);
+
 	void* user_data;
 };
 
