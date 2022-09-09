@@ -39,6 +39,7 @@ int main(int argc, const char* argv[])
 {
 	std::string input_filename = "";
 	std::string output_filename = "";
+	int effort = 7;
 	bool checksum = false;
 	bool verbose = false;
 	bool quiet = false;
@@ -66,6 +67,7 @@ int main(int argc, const char* argv[])
 		app.add_flag("--quiet", quiet,                 "Do not print anything");
 		app.add_flag("--verbose", verbose,             "Print all available information while running");
 		app.add_option("-o,--output", output_filename, "Output filename")->option_text("FILENAME");
+		app.add_option("-e,--effort", effort,          "Encoding effort. From 1 to 10.\n[Default is " + to_string(effort) + "]");
 		app.add_flag("-k,--checksum", checksum,        "Checksum output image");
 		// clang-format on
 
@@ -98,6 +100,9 @@ int main(int argc, const char* argv[])
 	unsigned channels = 0;
 	unsigned depth = 0;
 	{
+		if (quiet == false && verbose == true)
+			std::cout << "Decoding Ako...\n";
+
 		// Configure callbacks
 		auto callbacks = ako::DefaultCallbacks();
 		CallbacksData callbacks_data = {};
@@ -134,13 +139,40 @@ int main(int argc, const char* argv[])
 	uint32_t hash = 0;
 	if (checksum == true)
 	{
-		hash = ako::Adler32(input_image, width * height * channels);
+		hash = ako::Adler32(input_image, (width * height * channels * (depth / 8)));
 
 		if (quiet == false && verbose == true)
 			std::cout << "Input image hash: " << std::hex << hash << std::dec << " (Adler32)\n";
 	}
 
-	ako::DefaultCallbacks().free(input_image);
+	// Encode
+	void* encoded_blob = nullptr;
+	size_t encoded_blob_size = 0;
+	if (output_filename != "")
+	{
+		if (quiet == false && verbose == true)
+			std::cout << "Encoding PNG...\n";
+
+		if ((encoded_blob_size = EncodePng(effort, width, height, channels, depth, input_image, &encoded_blob)) == 0)
+			return EXIT_FAILURE;
+
+		if (quiet == false && verbose == true)
+			std::cout << "Encoded blob size: " << encoded_blob_size << " byte(s)\n";
+
+		ako::DefaultCallbacks().free(input_image);
+	}
+
+	// Write output file
+	if (output_filename != "")
+	{
+		if (quiet == false && verbose == true)
+			std::cout << "Output file name: '" << output_filename << "'\n";
+
+		if (WriteFile(output_filename, encoded_blob_size, encoded_blob) != 0)
+			return EXIT_FAILURE;
+
+		free(encoded_blob);
+	}
 
 	// Bye!
 	if (quiet == false)

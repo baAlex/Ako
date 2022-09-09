@@ -164,40 +164,17 @@ int main(int argc, const char* argv[])
 	}
 
 	// Decode
-	auto input_image = std::vector<unsigned char>();
+	void* input_image = nullptr;
 	unsigned width = 0;
 	unsigned height = 0;
 	unsigned channels = 0;
+	unsigned depth = 0;
 	{
-		auto state = lodepng::State();
-		state.decoder.color_convert = 0; // No color conversion
+		if (quiet == false && verbose == true)
+			std::cout << "Decoding PNG...\n";
 
-		const auto status = lodepng::decode(input_image, width, height, state, input_blob.data(), input_blob.size());
-
-		if (status != 0)
-		{
-			std::cout << "LodePNG error code " << status << ": '" << lodepng_error_text(status) << "'\n";
+		if (DecodePng(input_blob.size(), input_blob.data(), width, height, channels, depth, &input_image) != 0)
 			return EXIT_FAILURE;
-		}
-
-		if (state.info_png.color.bitdepth != 8)
-		{
-			std::cout << "Only 8 bits images supported\n";
-			return EXIT_FAILURE;
-		}
-
-		switch (state.info_png.color.colortype)
-		{
-		case LCT_GREY: channels = 1; break;
-		case LCT_GREY_ALPHA: channels = 2; break;
-		case LCT_RGB: channels = 3; break;
-		case LCT_RGBA: channels = 4; break;
-		default:
-		{
-			std::cout << "Unsupported channels\n";
-			return EXIT_FAILURE;
-		}
-		}
 
 		input_blob.resize(1);
 	}
@@ -206,7 +183,7 @@ int main(int argc, const char* argv[])
 	uint32_t hash = 0;
 	if (checksum == true)
 	{
-		hash = ako::Adler32(input_image.data(), input_image.size());
+		hash = ako::Adler32(input_image, (width * height * channels * (depth / 8)));
 
 		if (quiet == false && verbose == true)
 			std::cout << "Input image hash: " << std::hex << hash << std::dec << " (Adler32)\n";
@@ -217,7 +194,10 @@ int main(int argc, const char* argv[])
 	size_t encoded_blob_size = 0;
 	{
 		if (quiet == false && verbose == true)
+		{
 			PrintSettings(s, "encoder-side");
+			std::cout << "Encoding Ako...\n";
+		}
 
 		// Configure callbacks
 		auto callbacks = ako::DefaultCallbacks();
@@ -235,7 +215,7 @@ int main(int argc, const char* argv[])
 		// Encode
 		auto status = ako::Status::Error;
 		encoded_blob_size =
-		    ako::EncodeEx(callbacks, s, width, height, channels, 8, input_image.data(), &encoded_blob, &status);
+		    ako::EncodeEx(callbacks, s, width, height, channels, 8, input_image, &encoded_blob, &status);
 
 		if (status != ako::Status::Ok)
 		{
@@ -245,6 +225,8 @@ int main(int argc, const char* argv[])
 
 		if (quiet == false && verbose == true)
 			std::cout << "Encoded blob size: " << encoded_blob_size << " byte(s)\n";
+
+		free(input_image);
 	}
 
 	// Write output file

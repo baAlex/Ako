@@ -29,6 +29,50 @@ SOFTWARE.
 #include "shared.hpp"
 
 
+template <typename T>
+static void sSavePlanarPgm(unsigned width, unsigned height, unsigned in_stride, const T* in,
+                           const std::string& filename)
+{
+	FILE* fp = fopen(filename.c_str(), "wb");
+	if (fp != nullptr)
+	{
+		fprintf(fp, "P5\n%u\n%u\n255\n", width, height);
+
+		for (unsigned row = 0; row < height; row += 1)
+			for (unsigned col = 0; col < width; col += 1)
+			{
+				const auto u8 = static_cast<uint8_t>(abs(in[row * in_stride + col]));
+				fwrite(&u8, 1, 1, fp);
+			}
+
+		fclose(fp);
+	}
+}
+
+
+template <typename T>
+static void sSaveInterleavedPgm(unsigned width, unsigned height, unsigned channels, unsigned in_stride, const T* in,
+                                const std::string& filename)
+{
+	in_stride = in_stride * channels;
+
+	FILE* fp = fopen(filename.c_str(), "wb");
+	if (fp != nullptr)
+	{
+		fprintf(fp, "P5\n%u\n%u\n255\n", width, height);
+
+		for (unsigned row = 0; row < height; row += 1)
+			for (unsigned col = 0; col < width; col += 1)
+			{
+				const auto u8 = static_cast<uint8_t>(in[row * in_stride + col * channels]);
+				fwrite(&u8, 1, 1, fp);
+			}
+
+		fclose(fp);
+	}
+}
+
+
 static void sEventPrintPrefix(const CallbacksData& data, unsigned indent)
 {
 	printf("%s |", (data.side == "encoder-side") ? "E" : "D");
@@ -38,6 +82,7 @@ static void sEventPrintPrefix(const CallbacksData& data, unsigned indent)
 
 	printf("- ");
 }
+
 
 static void sEventPrintTile(const CallbacksData& data)
 {

@@ -64,12 +64,12 @@ inline int ReadFile(const std::string& input_filename, std::vector<uint8_t>& out
 }
 
 
-inline int WriteFile(const std::string& output_filename, size_t size, const void* data)
+inline int WriteFile(const std::string& filename, size_t size, const void* data)
 {
-	FILE* fp = fopen(output_filename.c_str(), "wb");
+	FILE* fp = fopen(filename.c_str(), "wb");
 	if (fp == nullptr)
 	{
-		std::cout << "Failed to create '" << output_filename << "'\n";
+		std::cout << "Failed to create '" << filename << "'\n";
 		return 1;
 	}
 
@@ -104,13 +104,11 @@ inline void PrintSettings(const ako::Settings& s, const std::string& side = "enc
 }
 
 
-template <typename T>
-void SavePlanarPgm(unsigned width, unsigned height, unsigned in_stride, const T* in,
-                   const std::string& output_filename);
+int DecodePng(size_t in_size, const void* in, unsigned& out_width, unsigned& out_height, unsigned& out_channels,
+              unsigned& out_depth, void** out_image);
 
-template <typename T>
-void SaveInterleavedPgm(unsigned width, unsigned height, unsigned channels, unsigned in_stride, const T* in,
-                        const std::string& output_filename);
+size_t EncodePng(int effort, unsigned width, unsigned height, unsigned channels, unsigned depth, const void* in,
+                 void** out_blob);
 
 
 struct CallbacksData
