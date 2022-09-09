@@ -85,8 +85,8 @@ inline int WriteFile(const std::string& output_filename, size_t size, const void
 
 
 template <typename T>
-inline void SavePgm(const unsigned width, const unsigned height, const unsigned in_stride, const T* in,
-                    const std::string& output_filename)
+inline void SavePlanarPgm(unsigned width, unsigned height, unsigned in_stride, const T* in,
+                          const std::string& output_filename)
 {
 	FILE* fp = fopen(output_filename.c_str(), "wb");
 	if (fp != nullptr)
@@ -98,6 +98,29 @@ inline void SavePgm(const unsigned width, const unsigned height, const unsigned 
 			{
 				const auto u = abs(in[row * in_stride + col]);
 				const uint8_t u8 = (u > 0) ? (u < 255) ? static_cast<uint8_t>(u) : 255 : 0;
+				fwrite(&u8, 1, 1, fp);
+			}
+
+		fclose(fp);
+	}
+}
+
+
+template <typename T>
+inline void SaveInterleavedPgm(unsigned width, unsigned height, unsigned channels, unsigned in_stride, const T* in,
+                               const std::string& output_filename)
+{
+	in_stride = in_stride * channels;
+
+	FILE* fp = fopen(output_filename.c_str(), "wb");
+	if (fp != nullptr)
+	{
+		fprintf(fp, "P5\n%u\n%u\n255\n", width, height);
+
+		for (unsigned row = 0; row < height; row += 1)
+			for (unsigned col = 0; col < width; col += 1)
+			{
+				const uint8_t u8 = in[row * in_stride + col * channels];
 				fwrite(&u8, 1, 1, fp);
 			}
 
@@ -128,7 +151,7 @@ inline void PrintSettings(const ako::Settings& s, const std::string& side = "enc
 
 struct CallbacksData
 {
-	std::string prefix;
+	std::string side;
 
 	unsigned image_events;
 	unsigned image_width;
@@ -153,8 +176,6 @@ struct CallbacksData
 
 void CallbackGenericEvent(ako::GenericEvent e, unsigned a, unsigned b, unsigned c, size_t d, void* user_data);
 void CallbackFormatEvent(ako::Color color, unsigned tile_no, const void* image_data, void* user_data);
-
-void CallbackCompressionEvent(ako::Compression method, unsigned tile_no, const void* blob_data, void* user_data);
-void CallbackDecompressionEvent(ako::Compression method, unsigned tile_no, const void* image_data, void* user_data);
+void CallbackCompressionEvent(ako::Compression method, unsigned tile_no, const void* data, void* user_data);
 
 #endif

@@ -87,7 +87,7 @@ static void* sDecodeInternal(const Callbacks& callbacks, const Settings& setting
 		}
 
 		if (tiles_no == 1)
-			image = workarea[0];
+			image = workarea[1];
 		else
 		{
 			if ((image = callbacks.malloc((image_w * image_h * channels) * sizeof(TOut))) == nullptr)
@@ -135,8 +135,8 @@ static void* sDecodeInternal(const Callbacks& callbacks, const Settings& setting
 
 		// 2. Decompression
 		{
-			if (callbacks.decompression_event != nullptr)
-				callbacks.decompression_event(settings.compression, t + 1, nullptr, callbacks.user_data);
+			if (callbacks.compression_event != nullptr)
+				callbacks.compression_event(settings.compression, t + 1, nullptr, callbacks.user_data);
 
 			auto out = reinterpret_cast<TIn*>(workarea[0]);
 			for (size_t i = 0; i < (tile_w * tile_h * channels); i += 1)
@@ -144,24 +144,34 @@ static void* sDecodeInternal(const Callbacks& callbacks, const Settings& setting
 
 			input = reinterpret_cast<const uint8_t*>(input) + compressed_size;
 
-			if (callbacks.decompression_event != nullptr)
-				callbacks.decompression_event(settings.compression, t + 1, workarea[0], callbacks.user_data);
+			if (callbacks.compression_event != nullptr)
+				callbacks.compression_event(settings.compression, t + 1, workarea[0], callbacks.user_data);
 		}
 
 		// 3. Wavelet transformation
 		{}
 
 		// 4. Format
-		{}
+		{
+			if (callbacks.format_event != nullptr)
+				callbacks.format_event(settings.color, t + 1, nullptr, callbacks.user_data);
 
-		// 5. Write image data
+			FormatToRgb(settings.color, tile_w, tile_h, channels, tile_w, reinterpret_cast<const TIn*>(workarea[0]),
+			            reinterpret_cast<TOut*>(workarea[1]));
+
+			if (callbacks.format_event != nullptr)
+				callbacks.format_event(settings.color, t + 1, workarea[1], callbacks.user_data);
+		}
+
+		// 5. Copy image data
+		if (tiles_no != 1) // TODO, Format() is capable of write directly to output
 		{
 			auto out = reinterpret_cast<TOut*>(image) + (tile_x * channels) + (image_w * channels) * tile_y;
 
-			for (size_t r = 0; r < tile_h; r += 1)
+			for (size_t row = 0; row < tile_h; row += 1)
 			{
-				for (size_t c = 0; c < (tile_w * channels); c += 1)
-					out[c] = 255;
+				for (size_t col = 0; col < (tile_w * channels); col += 1)
+					out[col] = reinterpret_cast<TOut*>(workarea[1])[row * tile_w * channels + col];
 
 				out += (image_w * channels);
 			}

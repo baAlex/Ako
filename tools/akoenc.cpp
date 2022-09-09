@@ -230,7 +230,7 @@ int main(int argc, const char* argv[])
 			callbacks.format_event = CallbackFormatEvent;
 			callbacks.compression_event = CallbackCompressionEvent;
 			callbacks.user_data = &callbacks_data;
-			callbacks_data.prefix = "E |";
+			callbacks_data.side = "encoder-side";
 		}
 
 		// Encode

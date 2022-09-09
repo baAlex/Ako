@@ -196,7 +196,7 @@ static size_t sEncodeInternal(const Callbacks& callbacks, const Settings& settin
 			blob_cursor += sizeof(TileHead);
 		}
 
-		// 5. Write image data
+		// 5. Copy encoded data
 		{
 			if ((blob = sGrownBlob(callbacks, blob_cursor + tile_data_size, blob, blob_size)) == nullptr)
 			{

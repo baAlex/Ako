@@ -70,7 +70,7 @@ static void sFormatToInternal(const Color& color_transformation, bool discard, u
 		}
 	}
 
-	// Format
+	// Color transformation
 	if (channels >= 3)
 	{
 		auto data = output;
@@ -84,7 +84,7 @@ static void sFormatToInternal(const Color& color_transformation, bool discard, u
 				const auto g = data[plane_offset * 1 + i];
 				const auto b = data[plane_offset * 2 + i];
 
-				const auto temp = static_cast<TOut>(b + (r - b) / 2);
+				const auto temp = b + (r - b) / 2;
 
 				data[plane_offset * 1 + i] = static_cast<TOut>(r - b);
 				data[plane_offset * 2 + i] = static_cast<TOut>(g - temp);

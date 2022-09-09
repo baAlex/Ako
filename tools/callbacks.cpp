@@ -29,9 +29,9 @@ SOFTWARE.
 #include "shared.hpp"
 
 
-static void sEventPrintPrefix(const char* str, unsigned indent)
+static void sEventPrintPrefix(const CallbacksData& data, unsigned indent)
 {
-	printf("%s", str);
+	printf("%s |", (data.side == "encoder-side") ? "E" : "D");
 
 	for (unsigned i = 0; i < indent; i += 1)
 		printf("    ");
@@ -41,7 +41,7 @@ static void sEventPrintPrefix(const char* str, unsigned indent)
 
 static void sEventPrintTile(const CallbacksData& data)
 {
-	sEventPrintPrefix(data.prefix.c_str(), 1);
+	sEventPrintPrefix(data, 1);
 	printf("Tile %u of %u, [%u, %u], %ux%u px (%zu byte(s))\n", data.current_tile, data.tiles_no, data.tile_x,
 	       data.tile_y, data.tile_width, data.tile_height, data.tile_data_size);
 }
@@ -107,7 +107,7 @@ void CallbackGenericEvent(ako::GenericEvent e, unsigned a, unsigned b, unsigned 
 	// Print
 	if (data.image_events == 3) // Image info
 	{
-		sEventPrintPrefix(data.prefix.c_str(), 1);
+		sEventPrintPrefix(data, 1);
 		printf("Image: %ux%u px, %u channel(s), %u bpp depth\n", data.image_width, data.image_height, data.channels,
 		       data.depth);
 		data.image_events = 0;
@@ -115,14 +115,14 @@ void CallbackGenericEvent(ako::GenericEvent e, unsigned a, unsigned b, unsigned 
 
 	if (data.tiles_events == 2) // Tiles info
 	{
-		sEventPrintPrefix(data.prefix.c_str(), 1);
+		sEventPrintPrefix(data, 1);
 		printf("%u Tiles, %ux%u px\n", data.tiles_no, data.tiles_dimension, data.tiles_dimension);
 		data.tiles_events = 0;
 	}
 
 	if (data.memory_events == 1) // Memory info
 	{
-		sEventPrintPrefix(data.prefix.c_str(), 1);
+		sEventPrintPrefix(data, 1);
 		printf("Workarea size: %zu byte(s)\n", data.workarea_size);
 		data.memory_events = 0;
 	}
@@ -141,20 +141,29 @@ void CallbackFormatEvent(ako::Color color, unsigned tile_no, const void* image_d
 
 	if (tile_no == 1 && image_data == nullptr)
 	{
-		sEventPrintPrefix(data.prefix.c_str(), 2);
-		printf("Format: %s\n", ako::ToString(color));
+		sEventPrintPrefix(data, 2);
+		printf("Color transformation: %s\n", ako::ToString(color));
 	}
 
-#if 1
+#if 0
 	// Developers, developers, developers
-	if (image_data != nullptr)
+	if (image_data != nullptr && data.depth <= 8)
 	{
-		if (data.depth <= 8)
+		for (unsigned ch = 0; ch < data.channels; ch += 1)
 		{
-			for (unsigned ch = 0; ch < data.channels; ch += 1)
-				SavePgm(data.tile_width, data.tile_height, data.tile_width,
-				        reinterpret_cast<const int16_t*>(image_data) + (data.tile_width * data.tile_height * ch),
-				        ("t" + std::to_string(tile_no) + "ch" + std::to_string(ch) + "-format.pgm").c_str());
+			if (data.side == "decoder-side")
+			{
+				SaveInterleavedPgm(
+				    data.tile_width, data.tile_height, data.channels, data.tile_width,
+				    reinterpret_cast<const uint8_t*>(image_data) + ch,
+				    ("t" + std::to_string(tile_no) + "ch" + std::to_string(ch) + "-format-d.pgm").c_str());
+			}
+			else
+			{
+				SavePlanarPgm(data.tile_width, data.tile_height, data.tile_width,
+				              reinterpret_cast<const int16_t*>(image_data) + (data.tile_width * data.tile_height * ch),
+				              ("t" + std::to_string(tile_no) + "ch" + std::to_string(ch) + "-format-e.pgm").c_str());
+			}
 		}
 	}
 #else
@@ -163,31 +172,7 @@ void CallbackFormatEvent(ako::Color color, unsigned tile_no, const void* image_d
 }
 
 
-void CallbackCompressionEvent(ako::Compression method, unsigned tile_no, const void* blob_data, void* user_data)
-{
-	(void)method;
-	(void)tile_no;
-	(void)blob_data;
-	(void)user_data;
-
-	/*	auto& data = *reinterpret_cast<CallbacksData*>(user_data);
-	    (void)blob_data;
-
-	    if (data.current_tile == tile_no)
-	    {
-	        sEventPrintTile(data);
-	        data.current_tile = 0;
-	    }
-
-	    if (tile_no == 1)
-	    {
-	        sEventPrintPrefix(data.prefix.c_str(), 2);
-	        printf("Compression: %s\n", ako::ToString(method));
-	    }*/
-}
-
-
-void CallbackDecompressionEvent(ako::Compression method, unsigned tile_no, const void* image_data, void* user_data)
+void CallbackCompressionEvent(ako::Compression method, unsigned tile_no, const void* image_data, void* user_data)
 {
 	auto& data = *reinterpret_cast<CallbacksData*>(user_data);
 	(void)image_data;
@@ -200,20 +185,23 @@ void CallbackDecompressionEvent(ako::Compression method, unsigned tile_no, const
 
 	if (tile_no == 1 && image_data == nullptr)
 	{
-		sEventPrintPrefix(data.prefix.c_str(), 2);
-		printf("Compression: %s\n", ako::ToString(method));
+		sEventPrintPrefix(data, 2);
+		printf("Compression method: %s\n", ako::ToString(method));
 	}
 
-#if 1
+#if 0
 	// Developers, developers, developers
-	if (image_data != nullptr)
+	if (image_data != nullptr && data.side == "decoder-side")
 	{
 		if (data.depth <= 8)
 		{
 			for (unsigned ch = 0; ch < data.channels; ch += 1)
-				SavePgm(data.tile_width, data.tile_height, data.tile_width,
-				        reinterpret_cast<const int16_t*>(image_data) + (data.tile_width * data.tile_height * ch),
-				        ("t" + std::to_string(tile_no) + "ch" + std::to_string(ch) + "-decompression.pgm").c_str());
+			{
+				SavePlanarPgm(
+				    data.tile_width, data.tile_height, data.tile_width,
+				    reinterpret_cast<const int16_t*>(image_data) + (data.tile_width * data.tile_height * ch),
+				    ("d-t" + std::to_string(tile_no) + "ch" + std::to_string(ch) + "-compression.pgm").c_str());
+			}
 		}
 	}
 #else

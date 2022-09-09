@@ -97,6 +97,13 @@ Status ValidateProperties(unsigned image_w, unsigned image_h, unsigned channels,
 Status ValidateInput(const void* ptr, size_t input_size = 1); // TODO?
 
 
+// decode/format.cpp:
+
+template <typename TIn, typename TOut>
+void FormatToRgb(const Color& color_transformation, unsigned width, unsigned height, unsigned channels,
+                 size_t output_stride, const TIn* input, TOut* output);
+
+
 // encode/format.cpp:
 
 template <typename TIn, typename TOut>
@@ -109,6 +116,23 @@ void FormatToInternal(const Color& color_transformation, bool discard, unsigned 
 template <typename T> T Min(T a, T b)
 {
 	return (a < b) ? a : b;
+}
+
+template <typename T> T Max(T a, T b)
+{
+	return (a > b) ? a : b;
+}
+
+template <typename TIn, typename TOut> TOut Saturate(TIn v);
+
+template <> inline uint8_t Saturate(int16_t v)
+{
+	return static_cast<uint8_t>(Max<int16_t>(0, Min<int16_t>(v, 255)));
+}
+
+template <> inline uint16_t Saturate(int32_t v)
+{
+	return static_cast<uint16_t>(Max<int32_t>(0, Min<int32_t>(v, 65535)));
 }
 
 template <typename T> size_t TileDataSize(unsigned tile_w, unsigned tile_h, unsigned channels)
