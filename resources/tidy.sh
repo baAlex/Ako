@@ -2,7 +2,8 @@
 
 flags="-std=c++11 -Wall -Wextra -Wconversion -pedantic -Wold-style-cast -I./library"
 
-files="./library/common/conversions.cpp
+files="./library/common/adler32.cpp
+       ./library/common/conversions.cpp
        ./library/common/defaults.cpp
        ./library/common/utilities.cpp
        ./library/common/version.cpp

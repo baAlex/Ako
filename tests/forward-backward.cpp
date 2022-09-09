@@ -99,56 +99,6 @@ static void sCallbackGenericEvent(ako::GenericEvent e, unsigned a, unsigned b, u
 }*/
 
 
-static uint32_t sAdler32(const void* input, size_t data_size)
-{
-	// Function borrowed from LodePNG, modified.
-
-	/*
-	Copyright (c) 2005-2018 Lode Vandevenne
-
-	This software is provided 'as-is', without any express or implied
-	warranty. In no event will the authors be held liable for any damages
-	arising from the use of this software.
-
-	Permission is granted to anyone to use this software for any purpose,
-	including commercial applications, and to alter it and redistribute it
-	freely, subject to the following restrictions:
-
-	    1. The origin of this software must not be misrepresented; you must not
-	    claim that you wrote the original software. If you use this software
-	    in a product, an acknowledgment in the product documentation would be
-	    appreciated but is not required.
-
-	    2. Altered source versions must be plainly marked as such, and must not be
-	    misrepresented as being the original software.
-
-	    3. This notice may not be removed or altered from any source
-	    distribution.
-	*/
-
-	auto in = reinterpret_cast<const uint8_t*>(input);
-	uint32_t s1 = 1;
-	uint32_t s2 = 0;
-
-	while (data_size != 0)
-	{
-		const auto amount = (data_size > 5552) ? 5552 : data_size;
-		data_size -= amount;
-
-		for (size_t i = 0; i != amount; i += 1)
-		{
-			s1 += (*in++);
-			s2 += s1;
-		}
-
-		s1 %= 65521;
-		s2 %= 65521;
-	}
-
-	return (s2 << 16) | s1;
-}
-
-
 static void sTest(const char* out_filename, const Settings& settings, unsigned width, unsigned height,
                   unsigned channels, unsigned depth)
 {
@@ -192,7 +142,7 @@ static void sTest(const char* out_filename, const Settings& settings, unsigned w
 		fclose(fp);
 
 		// Checksum
-		const auto hash = sAdler32(encoded_blob, encoded_blob_size);
+		const auto hash = Adler32(encoded_blob, encoded_blob_size);
 		printf("     Encoded blob hash: 0x%08x\n", hash); // Faster than use an hex viewer
 	}
 #endif

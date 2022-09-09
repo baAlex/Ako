@@ -19,6 +19,7 @@ endif ()
 
 
 set(AKO_SOURCES
+	"./library/common/adler32.cpp"
 	"./library/common/conversions.cpp"
 	"./library/common/defaults.cpp"
 	"./library/common/utilities.cpp"
@@ -53,7 +54,6 @@ endif ()
 
 if (AKO_ENC OR AKODEC)
 	add_library("thirdparty-static" STATIC
-		"./tools/thirdparty/Crc32.cpp"
 		"./tools/thirdparty/lodepng.cpp")
 endif ()
 

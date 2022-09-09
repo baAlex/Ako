@@ -33,7 +33,6 @@ SOFTWARE.
 #include "shared.hpp"
 
 #include "thirdparty/CLI11.hpp"
-#include "thirdparty/Crc32.h"
 #include "thirdparty/lodepng.h"
 
 
@@ -207,10 +206,10 @@ int main(int argc, const char* argv[])
 	uint32_t hash = 0;
 	if (checksum == true)
 	{
-		hash = crc32_fast(input_image.data(), input_image.size());
+		hash = ako::Adler32(input_image.data(), input_image.size());
 
 		if (quiet == false && verbose == true)
-			std::cout << "Input image hash: " << std::hex << hash << std::dec << " (CRC32)\n";
+			std::cout << "Input image hash: " << std::hex << hash << std::dec << " (Adler32)\n";
 	}
 
 	// Encode
