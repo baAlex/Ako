@@ -61,7 +61,8 @@ endif ()
 if (AKO_DEC)
 	add_executable("akodec"
 		"./tools/akodec.cpp"
-		"./tools/callbacks.cpp")
+		"./tools/callbacks.cpp"
+		"./tools/pgm.cpp")
 
 	target_include_directories("akodec" PRIVATE "./library/")
 	target_link_libraries("akodec" PRIVATE "ako-static")
@@ -76,7 +77,8 @@ endif ()
 if (AKO_ENC)
 	add_executable("akoenc"
 		"./tools/akoenc.cpp"
-		"./tools/callbacks.cpp")
+		"./tools/callbacks.cpp"
+		"./tools/pgm.cpp")
 
 	target_include_directories("akoenc" PRIVATE "./library/")
 	target_link_libraries("akoenc" PRIVATE "ako-static")

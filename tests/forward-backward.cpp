@@ -48,11 +48,6 @@ GatheredInfo g_encoded_info = {};
 GatheredInfo g_decoded_info = {};
 
 
-template <typename T> static T sMax(T a, T b)
-{
-	return (a > b) ? a : b;
-}
-
 static void sCallbackGenericEvent(ako::GenericEvent e, unsigned a, unsigned b, unsigned c, size_t d, void* user_data)
 {
 	auto& data = *reinterpret_cast<GatheredInfo*>(user_data);
@@ -72,19 +67,19 @@ static void sCallbackGenericEvent(ako::GenericEvent e, unsigned a, unsigned b, u
 
 	case ako::GenericEvent::TileDimensions:
 		assert(a < MAX_TILE_INFO);
-		data.max_tile_index = sMax(data.max_tile_index, a);
+		data.max_tile_index = Max(data.max_tile_index, a);
 		data.tile[a].width = b;
 		data.tile[a].height = c;
 		break;
 	case ako::GenericEvent::TilePosition:
 		assert(a < MAX_TILE_INFO);
-		data.max_tile_index = sMax(data.max_tile_index, a);
+		data.max_tile_index = Max(data.max_tile_index, a);
 		data.tile[a].x = b;
 		data.tile[a].y = c;
 		break;
 	case ako::GenericEvent::TileDataSize:
 		assert(a < MAX_TILE_INFO);
-		data.max_tile_index = sMax(data.max_tile_index, a);
+		data.max_tile_index = Max(data.max_tile_index, a);
 		data.tile[a].data_size = d;
 		break;
 	}
@@ -140,7 +135,7 @@ static uint32_t sAdler32(const void* input, size_t data_size)
 		const auto amount = (data_size > 5552) ? 5552 : data_size;
 		data_size -= amount;
 
-		for (size_t i = 0; i != amount; ++i)
+		for (size_t i = 0; i != amount; i += 1)
 		{
 			s1 += (*in++);
 			s2 += s1;

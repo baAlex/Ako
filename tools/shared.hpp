@@ -84,51 +84,6 @@ inline int WriteFile(const std::string& output_filename, size_t size, const void
 }
 
 
-template <typename T>
-inline void SavePlanarPgm(unsigned width, unsigned height, unsigned in_stride, const T* in,
-                          const std::string& output_filename)
-{
-	FILE* fp = fopen(output_filename.c_str(), "wb");
-	if (fp != nullptr)
-	{
-		fprintf(fp, "P5\n%u\n%u\n255\n", width, height);
-
-		for (unsigned row = 0; row < height; row += 1)
-			for (unsigned col = 0; col < width; col += 1)
-			{
-				const auto u = abs(in[row * in_stride + col]);
-				const uint8_t u8 = (u > 0) ? (u < 255) ? static_cast<uint8_t>(u) : 255 : 0;
-				fwrite(&u8, 1, 1, fp);
-			}
-
-		fclose(fp);
-	}
-}
-
-
-template <typename T>
-inline void SaveInterleavedPgm(unsigned width, unsigned height, unsigned channels, unsigned in_stride, const T* in,
-                               const std::string& output_filename)
-{
-	in_stride = in_stride * channels;
-
-	FILE* fp = fopen(output_filename.c_str(), "wb");
-	if (fp != nullptr)
-	{
-		fprintf(fp, "P5\n%u\n%u\n255\n", width, height);
-
-		for (unsigned row = 0; row < height; row += 1)
-			for (unsigned col = 0; col < width; col += 1)
-			{
-				const uint8_t u8 = in[row * in_stride + col * channels];
-				fwrite(&u8, 1, 1, fp);
-			}
-
-		fclose(fp);
-	}
-}
-
-
 inline void PrintSettings(const ako::Settings& s, const std::string& side = "encoder-side")
 {
 	std::cout << "[" << ako::ToString(s.color);
@@ -147,6 +102,15 @@ inline void PrintSettings(const ako::Settings& s, const std::string& side = "enc
 
 	std::cout << "]\n";
 }
+
+
+template <typename T>
+void SavePlanarPgm(unsigned width, unsigned height, unsigned in_stride, const T* in,
+                   const std::string& output_filename);
+
+template <typename T>
+void SaveInterleavedPgm(unsigned width, unsigned height, unsigned channels, unsigned in_stride, const T* in,
+                        const std::string& output_filename);
 
 
 struct CallbacksData

@@ -13,6 +13,7 @@ files="./library/common/conversions.cpp
        ./tests/forward-backward.cpp
        ./tools/akodec.cpp
        ./tools/akoenc.cpp
-       ./tools/callbacks.cpp"
+       ./tools/callbacks.cpp
+       ./tools/pgm.cpp"
 
 clang-tidy-12 $files -- $flags

@@ -52,10 +52,11 @@ static void sFormatToRgb(const Color& color_transformation, unsigned width, unsi
 					const auto u = in[plane_offset * 1 + col];
 					const auto v = in[plane_offset * 2 + col];
 
-					const TIn temp = y - (v / 2);
-					const TIn g = v + temp;
-					const TIn b = temp - (u / 2);
-					const TIn r = b + u;
+					const auto temp = static_cast<TIn>(y - (v / 2));
+
+					const auto g = static_cast<TIn>(v + temp);
+					const auto b = static_cast<TIn>(temp - (u / 2));
+					const auto r = static_cast<TIn>(b + u);
 
 					out[col * channels + 0] = Saturate<TIn, TOut>(r);
 					out[col * channels + 1] = Saturate<TIn, TOut>(g);
@@ -76,9 +77,9 @@ static void sFormatToRgb(const Color& color_transformation, unsigned width, unsi
 					const auto u = in[plane_offset * 1 + col];
 					const auto v = in[plane_offset * 2 + col];
 
-					const TIn r = u + y;
-					const TIn g = y;
-					const TIn b = v + y;
+					const auto r = static_cast<TIn>(u + y);
+					const auto g = static_cast<TIn>(y);
+					const auto b = static_cast<TIn>(v + y);
 
 					out[col * channels + 0] = Saturate<TIn, TOut>(r);
 					out[col * channels + 1] = Saturate<TIn, TOut>(g);
