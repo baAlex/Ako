@@ -74,6 +74,7 @@ int main(int argc, const char* argv[])
 	bool checksum = false;
 	bool verbose = false;
 	bool quiet = false;
+	bool benchmark = false;
 
 	auto s = ako::DefaultSettings();
 
@@ -101,6 +102,7 @@ int main(int argc, const char* argv[])
 		app.add_flag("--verbose", verbose,             "Print all available information while running");
 		app.add_option("-o,--output", output_filename, "Output filename")->option_text("FILENAME");
 		app.add_flag("-k,--checksum", checksum,        "Checksum input image");
+		app.add_flag("-b,--benchmark", benchmark,      "Benchmark");
 
 		app.add_option("-c,--color", s.color, "Color transformation: YCOCG, SUBTRACTG or NONE.\n"
 		                                      "[Default is " + string(ToString(s.color)) + "]")
@@ -203,13 +205,19 @@ int main(int argc, const char* argv[])
 		auto callbacks = ako::DefaultCallbacks();
 		CallbacksData callbacks_data = {};
 
-		if (quiet == false && verbose == true)
+		if (quiet == false)
 		{
-			callbacks.generic_event = CallbackGenericEvent;
-			callbacks.format_event = CallbackFormatEvent;
-			callbacks.compression_event = CallbackCompressionEvent;
 			callbacks.user_data = &callbacks_data;
 			callbacks_data.side = "encoder-side";
+
+			if (verbose == true)
+			{
+				callbacks.generic_event = CallbackGenericEvent;
+				callbacks.format_event = CallbackFormatEvent;
+				callbacks.compression_event = CallbackCompressionEvent;
+			}
+			else if (benchmark == true)
+				callbacks.format_event = CallbackBenchmarkFormatEvent;
 		}
 
 		// Encode
@@ -227,6 +235,14 @@ int main(int argc, const char* argv[])
 			std::cout << "Encoded blob size: " << encoded_blob_size << " byte(s)\n";
 
 		free(input_image);
+
+		// Benchmark
+		if (quiet == false && benchmark == true)
+		{
+			std::cout << "Benchmark:\n";
+			std::cout << " - Format: " << static_cast<double>(callbacks_data.format_duration.count()) / 1000.0
+			          << " ms\n";
+		}
 	}
 
 	// Write output file

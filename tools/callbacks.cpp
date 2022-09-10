@@ -174,16 +174,44 @@ void CallbackGenericEvent(ako::GenericEvent e, unsigned a, unsigned b, unsigned 
 }
 
 
+void CallbackBenchmarkFormatEvent(ako::Color color, unsigned tile_no, const void* image_data, void* user_data)
+{
+	(void)color;
+	(void)tile_no;
+
+	auto& data = *reinterpret_cast<CallbacksData*>(user_data);
+
+	// Start format event
+	if (image_data == nullptr)
+		data.clock_start = std::chrono::steady_clock::now();
+
+	// End format event
+	else
+	{
+		const std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+		const std::chrono::microseconds diff =
+		    std::chrono::duration_cast<std::chrono::microseconds>(end - data.clock_start);
+
+		data.format_duration += diff;
+	}
+}
+
+
 void CallbackFormatEvent(ako::Color color, unsigned tile_no, const void* image_data, void* user_data)
 {
 	auto& data = *reinterpret_cast<CallbacksData*>(user_data);
 
+	CallbackBenchmarkFormatEvent(color, tile_no, image_data, user_data);
+
+	// Tile information shouldn't be print until is completely gathered, so,
+	// we do it now as being in a format event means all tile info is there
 	if (data.current_tile == tile_no)
 	{
 		sEventPrintTile(data);
 		data.current_tile = 0;
 	}
 
+	// Format information
 	if (tile_no == 1 && image_data == nullptr)
 	{
 		sEventPrintPrefix(data, 2);
@@ -222,12 +250,15 @@ void CallbackCompressionEvent(ako::Compression method, unsigned tile_no, const v
 	auto& data = *reinterpret_cast<CallbacksData*>(user_data);
 	(void)image_data;
 
+	// Tile information shouldn't be print until is completely gathered, so,
+	// we do it now as being in a compression event means all tile info is there
 	if (data.current_tile == tile_no)
 	{
 		sEventPrintTile(data);
 		data.current_tile = 0;
 	}
 
+	// Compression information
 	if (tile_no == 1 && image_data == nullptr)
 	{
 		sEventPrintPrefix(data, 2);

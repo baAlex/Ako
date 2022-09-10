@@ -43,6 +43,7 @@ int main(int argc, const char* argv[])
 	bool checksum = false;
 	bool verbose = false;
 	bool quiet = false;
+	bool benchmark = false;
 
 	// Parse arguments
 	{
@@ -67,8 +68,10 @@ int main(int argc, const char* argv[])
 		app.add_flag("--quiet", quiet,                 "Do not print anything");
 		app.add_flag("--verbose", verbose,             "Print all available information while running");
 		app.add_option("-o,--output", output_filename, "Output filename")->option_text("FILENAME");
-		app.add_option("-e,--effort", effort,          "Encoding effort. From 1 to 10.\n[Default is " + to_string(effort) + "]");
 		app.add_flag("-k,--checksum", checksum,        "Checksum output image");
+		app.add_flag("-b,--benchmark", benchmark,      "Benchmark");
+
+		app.add_option("-e,--effort", effort, "Encoding effort. From 1 to 10.\n[Default is " + to_string(effort) + "]");
 		// clang-format on
 
 		CLI11_PARSE(app, argc, argv);
@@ -107,13 +110,19 @@ int main(int argc, const char* argv[])
 		auto callbacks = ako::DefaultCallbacks();
 		CallbacksData callbacks_data = {};
 
-		if (quiet == false && verbose == true)
+		if (quiet == false)
 		{
-			callbacks.generic_event = CallbackGenericEvent;
-			callbacks.format_event = CallbackFormatEvent;
-			callbacks.compression_event = CallbackCompressionEvent;
 			callbacks.user_data = &callbacks_data;
 			callbacks_data.side = "decoder-side";
+
+			if (verbose == true)
+			{
+				callbacks.generic_event = CallbackGenericEvent;
+				callbacks.format_event = CallbackFormatEvent;
+				callbacks.compression_event = CallbackCompressionEvent;
+			}
+			else if (benchmark == true)
+				callbacks.format_event = CallbackBenchmarkFormatEvent;
 		}
 
 		// Decode
@@ -133,6 +142,14 @@ int main(int argc, const char* argv[])
 			PrintSettings(s, "decoder-side");
 
 		input_blob.resize(1);
+
+		// Benchmark
+		if (quiet == false && benchmark == true)
+		{
+			std::cout << "Benchmark:\n";
+			std::cout << " - Format: " << static_cast<double>(callbacks_data.format_duration.count()) / 1000.0
+			          << " ms\n";
+		}
 	}
 
 	// Checksum image
