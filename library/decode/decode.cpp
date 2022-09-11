@@ -156,7 +156,7 @@ static void* sDecodeInternal(const Callbacks& callbacks, const Settings& setting
 			if (callbacks.format_event != nullptr)
 				callbacks.format_event(settings.color, t + 1, nullptr, callbacks.user_data);
 
-			FormatToRgb(settings.color, tile_w, tile_h, channels, tile_w, reinterpret_cast<const TIn*>(workarea[0]),
+			FormatToRgb(settings.color, tile_w, tile_h, channels, tile_w, reinterpret_cast<TIn*>(workarea[0]),
 			            reinterpret_cast<TOut*>(workarea[1]));
 
 			if (callbacks.format_event != nullptr)

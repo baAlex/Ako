@@ -30,91 +30,83 @@ namespace ako
 
 template <typename TIn, typename TOut>
 static void sFormatToRgb(const Color& color_transformation, unsigned width, unsigned height, unsigned channels,
-                         size_t output_stride, const TIn* input, TOut* output)
+                         size_t output_stride, TIn* input, TOut* output)
 {
 	output_stride = output_stride * channels;
 	const auto plane_offset = width * height;
 
-	// Color transformation, and interleave first 3 channels
+	// Color transformation
 	if (channels >= 3)
 	{
-		auto in = input;
-		auto out = output;
+		auto data = input;
 
 		switch (color_transformation)
 		{
 		case Color::YCoCg:
-			for (unsigned row = 0; row < height; row += 1)
+			for (unsigned i = 0; i < (width * height); i += 1)
 			{
-				for (unsigned col = 0; col < width; col += 1)
-				{
-					const auto y = in[plane_offset * 0 + col];
-					const auto u = in[plane_offset * 1 + col];
-					const auto v = in[plane_offset * 2 + col];
+				const auto y = data[plane_offset * 0 + i];
+				const auto u = data[plane_offset * 1 + i];
+				const auto v = data[plane_offset * 2 + i];
 
-					const auto temp = static_cast<TIn>(y - (v / 2));
+				const auto temp = static_cast<TIn>(y - (v / 2));
 
-					const auto g = static_cast<TIn>(v + temp);
-					const auto b = static_cast<TIn>(temp - (u / 2));
-					const auto r = static_cast<TIn>(b + u);
+				const auto g = static_cast<TIn>(v + temp);
+				const auto b = static_cast<TIn>(temp - (u / 2));
+				const auto r = static_cast<TIn>(b + u);
 
-					out[col * channels + 0] = Saturate<TIn, TOut>(r);
-					out[col * channels + 1] = Saturate<TIn, TOut>(g);
-					out[col * channels + 2] = Saturate<TIn, TOut>(b);
-				}
-
-				in += width;
-				out += output_stride;
+				data[plane_offset * 0 + i] = SaturateToLower<TIn>(r);
+				data[plane_offset * 1 + i] = SaturateToLower<TIn>(g);
+				data[plane_offset * 2 + i] = SaturateToLower<TIn>(b);
 			}
 			break;
 
 		case Color::SubtractG:
-			for (unsigned row = 0; row < height; row += 1)
+			for (unsigned i = 0; i < (width * height); i += 1)
 			{
-				for (unsigned col = 0; col < width; col += 1)
-				{
-					const auto y = in[plane_offset * 0 + col];
-					const auto u = in[plane_offset * 1 + col];
-					const auto v = in[plane_offset * 2 + col];
+				const auto y = data[plane_offset * 0 + i];
+				const auto u = data[plane_offset * 1 + i];
+				const auto v = data[plane_offset * 2 + i];
 
-					const auto r = static_cast<TIn>(u + y);
-					const auto g = static_cast<TIn>(y);
-					const auto b = static_cast<TIn>(v + y);
+				const auto r = static_cast<TIn>(u + y);
+				const auto g = static_cast<TIn>(y);
+				const auto b = static_cast<TIn>(v + y);
 
-					out[col * channels + 0] = Saturate<TIn, TOut>(r);
-					out[col * channels + 1] = Saturate<TIn, TOut>(g);
-					out[col * channels + 2] = Saturate<TIn, TOut>(b);
-				}
-
-				in += width;
-				out += output_stride;
+				data[plane_offset * 0 + i] = SaturateToLower<TIn>(r);
+				data[plane_offset * 1 + i] = SaturateToLower<TIn>(g);
+				data[plane_offset * 2 + i] = SaturateToLower<TIn>(b);
 			}
 			break;
 
 		case Color::None: // We still need to saturate it
-			for (unsigned row = 0; row < height; row += 1)
+			for (unsigned i = 0; i < (width * height); i += 1)
 			{
-				for (unsigned col = 0; col < width; col += 1)
-				{
-					const auto r = in[plane_offset * 0 + col];
-					const auto g = in[plane_offset * 1 + col];
-					const auto b = in[plane_offset * 2 + col];
+				const auto r = data[plane_offset * 0 + i];
+				const auto g = data[plane_offset * 1 + i];
+				const auto b = data[plane_offset * 2 + i];
 
-					out[col * channels + 0] = Saturate<TIn, TOut>(r);
-					out[col * channels + 1] = Saturate<TIn, TOut>(g);
-					out[col * channels + 2] = Saturate<TIn, TOut>(b);
-				}
-
-				in += width;
-				out += output_stride;
+				data[plane_offset * 0 + i] = SaturateToLower<TIn>(r);
+				data[plane_offset * 1 + i] = SaturateToLower<TIn>(g);
+				data[plane_offset * 2 + i] = SaturateToLower<TIn>(b);
 			}
 		}
 	}
 
-	// Interleave remaining channels
+	// Saturate
 	if (channels != 3)
 	{
-		const unsigned from_channel = (channels > 3) ? 3 : 0;
+		const unsigned from_channel = (channels < 3) ? 0 : 3;
+		auto data = input;
+
+		for (unsigned ch = from_channel; ch < channels; ch += 1)
+			for (unsigned i = 0; i < (width * height); i += 1)
+			{
+				data[plane_offset * ch + i] = SaturateToLower<TIn>(data[plane_offset * ch + i]);
+			}
+	}
+
+	// Interleave channels
+	{
 		auto in = input;
 		auto out = output;
 
@@ -122,8 +114,8 @@ static void sFormatToRgb(const Color& color_transformation, unsigned width, unsi
 		{
 			for (unsigned col = 0; col < width; col += 1)
 			{
-				for (unsigned ch = from_channel; ch < channels; ch += 1)
-					out[col * channels + ch] = Saturate<TIn, TOut>(in[plane_offset * ch + col]);
+				for (unsigned ch = 0; ch < channels; ch += 1)
+					out[col * channels + ch] = static_cast<TOut>(in[plane_offset * ch + col]);
 			}
 
 			in += width;
@@ -135,14 +127,14 @@ static void sFormatToRgb(const Color& color_transformation, unsigned width, unsi
 
 template <>
 void FormatToRgb(const Color& color_transformation, unsigned width, unsigned height, unsigned channels,
-                 size_t output_stride, const int16_t* input, uint8_t* output)
+                 size_t output_stride, int16_t* input, uint8_t* output)
 {
 	sFormatToRgb(color_transformation, width, height, channels, output_stride, input, output);
 }
 
 template <>
 void FormatToRgb(const Color& color_transformation, unsigned width, unsigned height, unsigned channels,
-                 size_t output_stride, const int32_t* input, uint16_t* output)
+                 size_t output_stride, int32_t* input, uint16_t* output)
 {
 	sFormatToRgb(color_transformation, width, height, channels, output_stride, input, output);
 }

@@ -101,7 +101,7 @@ Status ValidateInput(const void* ptr, size_t input_size = 1); // TODO?
 
 template <typename TIn, typename TOut>
 void FormatToRgb(const Color& color_transformation, unsigned width, unsigned height, unsigned channels,
-                 size_t output_stride, const TIn* input, TOut* output);
+                 size_t output_stride, TIn* input, TOut* output); // Destroys input
 
 
 // encode/format.cpp:
@@ -123,16 +123,16 @@ template <typename T> T Max(T a, T b)
 	return (a > b) ? a : b;
 }
 
-template <typename TIn, typename TOut> TOut Saturate(TIn v);
+template <typename T> T SaturateToLower(T v);
 
-template <> inline uint8_t Saturate(int16_t v)
+template <> inline int16_t SaturateToLower(int16_t v)
 {
-	return static_cast<uint8_t>(Max<int16_t>(0, Min<int16_t>(v, 255)));
+	return (Max<int16_t>(0, Min<int16_t>(v, 255)));
 }
 
-template <> inline uint16_t Saturate(int32_t v)
+template <> inline int32_t SaturateToLower(int32_t v)
 {
-	return static_cast<uint16_t>(Max<int32_t>(0, Min<int32_t>(v, 65535)));
+	return (Max<int32_t>(0, Min<int32_t>(v, 65535)));
 }
 
 template <typename T> size_t TileDataSize(unsigned tile_w, unsigned tile_h, unsigned channels)
