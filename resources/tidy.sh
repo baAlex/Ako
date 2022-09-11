@@ -1,6 +1,6 @@
 #!/bin/bash
 
-flags="-std=c++11 -Wall -Wextra -Wconversion -pedantic -Wold-style-cast -I./library"
+flags="-std=c++11 -I./library -Werror -Wall -Wextra -Wconversion -pedantic -Wold-style-cast -Wstrict-aliasing=2"
 
 files="./library/common/adler32.cpp
        ./library/common/conversions.cpp

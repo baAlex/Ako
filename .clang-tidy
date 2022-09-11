@@ -1,2 +1,3 @@
 
-Checks: "-*, bugprone-*, cert-*, clang-analyzer-*, misc-*, performance-*, portability-*"
+Checks: "-*, bugprone-*, cert-*, clang-analyzer-*, misc-*, performance-*, portability-*,
+         modernize-use-auto, modernize-use-nullptr"

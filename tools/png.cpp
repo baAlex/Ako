@@ -28,7 +28,7 @@ SOFTWARE.
 
 
 // clang-format off
-const LodePNGCompressSettings ZLIB_PRESET[10] ={
+const static LodePNGCompressSettings ZLIB_PRESET[10] ={
 	{0, 1, 256,   6, 32,  0, nullptr, nullptr, nullptr},
 	{1, 1, 512,   6, 32,  0, nullptr, nullptr, nullptr},
 	{1, 1, 512,   6, 64,  0, nullptr, nullptr, nullptr},
@@ -41,7 +41,7 @@ const LodePNGCompressSettings ZLIB_PRESET[10] ={
 	{2, 1, 32768, 3, 256, 1, nullptr, nullptr, nullptr},
 };
 
-const LodePNGFilterStrategy PNG_FILTER_PRESET[10] = {
+const static LodePNGFilterStrategy PNG_FILTER_PRESET[10] = {
 	LFS_ZERO,
 	LFS_MINSUM,
 	LFS_MINSUM,

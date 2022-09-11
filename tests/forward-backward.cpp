@@ -164,7 +164,7 @@ static void sTest(const char* out_filename, const Settings& settings, unsigned w
 		decoded_data = DecodeEx(callbacks, encoded_blob_size, encoded_blob, decoded_width, decoded_height,
 		                        decoded_channels, decoded_depth, &decoded_settings, &status);
 
-		if (decoded_data == 0)
+		if (decoded_data == nullptr)
 			printf("Ako decode error: '%s'\n", ToString(status));
 
 		// Checks

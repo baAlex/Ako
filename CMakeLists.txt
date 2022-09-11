@@ -1,5 +1,5 @@
 
-cmake_minimum_required(VERSION 3.12)
+cmake_minimum_required(VERSION 3.16)
 project("Ako" CXX)
 
 
@@ -11,6 +11,9 @@ option(AKO_TESTS  "Build tests"          ON)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS True) # For Clangd
 set(CMAKE_CXX_STANDARD 11)
+
+
+set(CFLAGS -Werror -Wall -Wextra -Wconversion -pedantic -Wold-style-cast -Wstrict-aliasing=2)
 
 
 if (MSVC)
@@ -37,7 +40,7 @@ if (AKO_SHARED)
 	target_include_directories("ako" PRIVATE "./library/")
 
 	if (NOT MSVC)
-		target_compile_options("ako" PRIVATE -Werror -Wall -Wextra -Wconversion -pedantic -Wold-style-cast)
+		target_compile_options("ako" PRIVATE ${CFLAGS})
 	endif ()
 endif ()
 
@@ -47,45 +50,44 @@ if (AKO_STATIC)
 	target_include_directories("ako-static" PRIVATE "./library/")
 
 	if (NOT MSVC)
-		target_compile_options("ako-static" PRIVATE -Werror -Wall -Wextra -Wconversion -pedantic -Wold-style-cast)
+		target_compile_options("ako-static" PRIVATE ${CFLAGS})
 	endif ()
 endif ()
 
 
 if (AKO_ENC OR AKODEC)
-	add_library("thirdparty-static" STATIC
-		"./tools/thirdparty/lodepng.cpp")
+	add_library("tools-shared" STATIC
+		"./tools/thirdparty/lodepng.cpp"
+		"./tools/callbacks.cpp"
+		"./tools/png.cpp")
+	target_include_directories("tools-shared" PRIVATE "./library/")
 endif ()
 
 
 if (AKO_DEC)
-	add_executable("akodec"
-		"./tools/akodec.cpp"
-		"./tools/callbacks.cpp"
-		"./tools/png.cpp")
-
+	add_executable("akodec" "./tools/akodec.cpp")
 	target_include_directories("akodec" PRIVATE "./library/")
 	target_link_libraries("akodec" PRIVATE "ako-static")
-	target_link_libraries("akodec" PRIVATE "thirdparty-static")
+	target_link_libraries("akodec" PRIVATE "tools-shared")
+
+	target_precompile_headers("akodec" PRIVATE "./tools/thirdparty/CLI11.hpp")
 
 	if (NOT MSVC)
-		target_compile_options("akodec" PRIVATE -Werror -Wall -Wextra -Wconversion -pedantic -Wold-style-cast)
+		target_compile_options("akodec" PRIVATE ${CFLAGS})
 	endif ()
 endif ()
 
 
 if (AKO_ENC)
-	add_executable("akoenc"
-		"./tools/akoenc.cpp"
-		"./tools/callbacks.cpp"
-		"./tools/png.cpp")
-
+	add_executable("akoenc" "./tools/akoenc.cpp")
 	target_include_directories("akoenc" PRIVATE "./library/")
 	target_link_libraries("akoenc" PRIVATE "ako-static")
-	target_link_libraries("akoenc" PRIVATE "thirdparty-static")
+	target_link_libraries("akoenc" PRIVATE "tools-shared")
+
+	target_precompile_headers("akoenc" PRIVATE "./tools/thirdparty/CLI11.hpp")
 
 	if (NOT MSVC)
-		target_compile_options("akoenc" PRIVATE -Werror -Wall -Wextra -Wconversion -pedantic -Wold-style-cast)
+		target_compile_options("akoenc" PRIVATE ${CFLAGS})
 	endif ()
 endif ()
 

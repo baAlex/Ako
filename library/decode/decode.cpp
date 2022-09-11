@@ -232,19 +232,19 @@ static Status sReadImageHead(const ImageHead& head_raw, Settings& out_settings, 
 	if (td != 0)
 		settings.tiles_dimension = 1 << td;
 
-	settings.color = ToColor(static_cast<uint32_t>(head.c >> 9) & 0x07, status); // 3 bits
+	settings.color = ToColor(static_cast<uint32_t>((head.c >> 9) & 0x07), status); // 3 bits
 	if (status != Status::Ok)
 		return status;
 
-	settings.wavelet = ToWavelet(static_cast<uint32_t>(head.c >> 6) & 0x07, status); // 3 bits
+	settings.wavelet = ToWavelet(static_cast<uint32_t>((head.c >> 6) & 0x07), status); // 3 bits
 	if (status != Status::Ok)
 		return status;
 
-	settings.wrap = ToWrap(static_cast<uint32_t>(head.c >> 3) & 0x07, status); // 3 bits
+	settings.wrap = ToWrap(static_cast<uint32_t>((head.c >> 3) & 0x07), status); // 3 bits
 	if (status != Status::Ok)
 		return status;
 
-	settings.compression = ToCompression(static_cast<uint32_t>(head.c >> 0) & 0x07, status); // 3 bits
+	settings.compression = ToCompression(static_cast<uint32_t>((head.c >> 0) & 0x07), status); // 3 bits
 	if (status != Status::Ok)
 		return status;
 
