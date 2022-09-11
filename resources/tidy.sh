@@ -1,6 +1,7 @@
 #!/bin/bash
 
-flags="-std=c++11 -I./library -Werror -Wall -Wextra -Wconversion -pedantic -Wold-style-cast -Wstrict-aliasing=2"
+flags="-I./library -I./tools/thirdparty/CLI11/include -I./tools/thirdparty/lodepng
+       -std=c++11 -Werror -Wall -Wextra -Wconversion -pedantic -Wold-style-cast -Wstrict-aliasing=2"
 
 files="./library/common/adler32.cpp
        ./library/common/conversions.cpp
@@ -9,8 +10,10 @@ files="./library/common/adler32.cpp
        ./library/common/version.cpp
        ./library/decode/decode.cpp
        ./library/decode/format.cpp
+       ./library/decode/lifting.cpp
        ./library/encode/encode.cpp
        ./library/encode/format.cpp
+       ./library/encode/lifting.cpp
        ./tests/forward-backward.cpp
        ./tools/akodec.cpp
        ./tools/akoenc.cpp

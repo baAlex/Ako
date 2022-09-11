@@ -27,10 +27,14 @@ set(AKO_SOURCES
 	"./library/common/defaults.cpp"
 	"./library/common/utilities.cpp"
 	"./library/common/version.cpp"
+
 	"./library/decode/decode.cpp"
 	"./library/decode/format.cpp"
+	"./library/decode/lifting.cpp"
+
 	"./library/encode/encode.cpp"
-	"./library/encode/format.cpp")
+	"./library/encode/format.cpp"
+	"./library/encode/lifting.cpp")
 
 
 if (AKO_SHARED)

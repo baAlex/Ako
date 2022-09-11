@@ -16,25 +16,33 @@ rule Link
  command = $cpp $in -o $out
 
 
+build ./build/sparc64/library/common/adler32.o:     CompileCpp ./library/common/adler32.cpp
 build ./build/sparc64/library/common/conversions.o: CompileCpp ./library/common/conversions.cpp
 build ./build/sparc64/library/common/defaults.o:    CompileCpp ./library/common/defaults.cpp
 build ./build/sparc64/library/common/utilities.o:   CompileCpp ./library/common/utilities.cpp
 build ./build/sparc64/library/common/version.o:     CompileCpp ./library/common/version.cpp
+
 build ./build/sparc64/library/decode/decode.o:      CompileCpp ./library/decode/decode.cpp
 build ./build/sparc64/library/decode/format.o:      CompileCpp ./library/decode/format.cpp
+build ./build/sparc64/library/decode/lifting.o:     CompileCpp ./library/decode/lifting.cpp
+
 build ./build/sparc64/library/encode/encode.o:      CompileCpp ./library/encode/encode.cpp
 build ./build/sparc64/library/encode/format.o:      CompileCpp ./library/encode/format.cpp
+build ./build/sparc64/library/encode/lifting.o:     CompileCpp ./library/encode/lifting.cpp
 
 build ./build/sparc64/tests/forward-backward.o: CompileCpp ./tests/forward-backward.cpp
 
 
 build ./build/sparc64-forward-backward: Link $
  ./build/sparc64/tests/forward-backward.o $
+ ./build/sparc64/library/common/adler32.o $
  ./build/sparc64/library/common/conversions.o $
  ./build/sparc64/library/common/defaults.o $
  ./build/sparc64/library/common/utilities.o $
  ./build/sparc64/library/common/version.o $
  ./build/sparc64/library/decode/decode.o $
  ./build/sparc64/library/decode/format.o $
+ ./build/sparc64/library/decode/lifting.o $
  ./build/sparc64/library/encode/encode.o $
- ./build/sparc64/library/encode/format.o
+ ./build/sparc64/library/encode/format.o $
+ ./build/sparc64/library/encode/lifting.o

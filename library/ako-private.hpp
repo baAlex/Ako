@@ -98,17 +98,25 @@ Status ValidateInput(const void* ptr, size_t input_size = 1); // TODO?
 
 
 // decode/format.cpp:
+// encode/format.cpp:
 
 template <typename TIn, typename TOut>
 void FormatToRgb(const Color& color_transformation, unsigned width, unsigned height, unsigned channels,
                  size_t output_stride, TIn* input, TOut* output); // Destroys input
 
-
-// encode/format.cpp:
-
 template <typename TIn, typename TOut>
 void FormatToInternal(const Color& color_transformation, bool discard, unsigned width, unsigned height,
                       unsigned channels, size_t input_stride, const TIn* input, TOut* output);
+
+
+// decode/lifting.cpp:
+// encode/lifting.cpp:
+
+template <typename T>
+void Unlift(const Wavelet& w, unsigned width, unsigned height, unsigned channels, const T* input, T* output);
+
+template <typename T>
+void Lift(const Wavelet& w, unsigned width, unsigned height, unsigned channels, const T* input, T* output);
 
 
 // Templates:
