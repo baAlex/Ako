@@ -1,0 +1,6 @@
+[submodule "tools/thirdparty/CLI11"]
+	path = tools/thirdparty/CLI11
+	url = https://github.com/CLIUtils/CLI11
+[submodule "tools/thirdparty/lodepng"]
+	path = tools/thirdparty/lodepng
+	url = https://github.com/lvandeve/lodepng

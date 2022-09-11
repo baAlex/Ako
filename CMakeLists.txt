@@ -56,38 +56,43 @@ endif ()
 
 
 if (AKO_ENC OR AKODEC)
-	add_library("tools-shared" STATIC
-		"./tools/thirdparty/lodepng.cpp"
+	add_library("tools-common" STATIC
+		"./tools/thirdparty/CLI11/src/Precompile.cpp"
+		"./tools/thirdparty/lodepng/lodepng.cpp"
 		"./tools/callbacks.cpp"
 		"./tools/png.cpp")
-	target_include_directories("tools-shared" PRIVATE "./library/")
+	target_include_directories("tools-common" PRIVATE "./library/")
+	target_include_directories("tools-common" PRIVATE "./tools/thirdparty/CLI11/include/")
+	target_include_directories("tools-common" PRIVATE "./tools/thirdparty/lodepng/")
 endif ()
 
 
 if (AKO_DEC)
 	add_executable("akodec" "./tools/akodec.cpp")
-	target_include_directories("akodec" PRIVATE "./library/")
 	target_link_libraries("akodec" PRIVATE "ako-static")
-	target_link_libraries("akodec" PRIVATE "tools-shared")
+	target_link_libraries("akodec" PRIVATE "tools-common")
 
-	target_precompile_headers("akodec" PRIVATE "./tools/thirdparty/CLI11.hpp")
+	target_include_directories("akodec" PRIVATE "./library/")
+	target_include_directories("akodec" PRIVATE "./tools/thirdparty/CLI11/include/")
+	target_include_directories("akodec" PRIVATE "./tools/thirdparty/lodepng/")
 
 	if (NOT MSVC)
-		target_compile_options("akodec" PRIVATE ${CFLAGS})
+		# target_compile_options("akodec" PRIVATE ${CFLAGS})
 	endif ()
 endif ()
 
 
 if (AKO_ENC)
 	add_executable("akoenc" "./tools/akoenc.cpp")
-	target_include_directories("akoenc" PRIVATE "./library/")
 	target_link_libraries("akoenc" PRIVATE "ako-static")
-	target_link_libraries("akoenc" PRIVATE "tools-shared")
+	target_link_libraries("akoenc" PRIVATE "tools-common")
 
-	target_precompile_headers("akoenc" PRIVATE "./tools/thirdparty/CLI11.hpp")
+	target_include_directories("akoenc" PRIVATE "./library/")
+	target_include_directories("akoenc" PRIVATE "./tools/thirdparty/CLI11/include/")
+	target_include_directories("akoenc" PRIVATE "./tools/thirdparty/lodepng/")
 
 	if (NOT MSVC)
-		target_compile_options("akoenc" PRIVATE ${CFLAGS})
+		# target_compile_options("akoenc" PRIVATE ${CFLAGS})
 	endif ()
 endif ()
 

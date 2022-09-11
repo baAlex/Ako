@@ -28,11 +28,7 @@ SOFTWARE.
 #include <string>
 #include <vector>
 
-#include "ako.hpp"
 #include "shared.hpp"
-
-#include "thirdparty/CLI11.hpp"
-#include "thirdparty/lodepng.h"
 
 
 int main(int argc, const char* argv[])

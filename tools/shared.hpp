@@ -31,6 +31,10 @@ SOFTWARE.
 
 #include "ako.hpp"
 
+#include "lodepng.h"
+#include "CLI/CLI.hpp"
+
+
 #ifndef SHARED_HPP
 #define SHARED_HPP
 

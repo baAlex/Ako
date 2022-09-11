@@ -24,7 +24,6 @@ SOFTWARE.
 */
 
 #include "shared.hpp"
-#include "thirdparty/lodepng.h"
 
 
 // clang-format off

@@ -29,11 +29,7 @@ SOFTWARE.
 #include <string>
 #include <vector>
 
-#include "ako.hpp"
 #include "shared.hpp"
-
-#include "thirdparty/CLI11.hpp"
-#include "thirdparty/lodepng.h"
 
 
 const static auto s_color_transformer = // NOLINT(cert-err58-cpp)
