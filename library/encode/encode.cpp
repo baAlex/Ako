@@ -178,7 +178,14 @@ static size_t sEncodeInternal(const Callbacks& callbacks, const Settings& settin
 		}
 
 		// 2. Wavelet transform
-		{}
+		{
+			if (callbacks.lifting_event != nullptr)
+				callbacks.lifting_event(settings.wavelet, settings.wrap, t + 1, nullptr, callbacks.user_data);
+
+
+			if (callbacks.lifting_event != nullptr)
+				callbacks.lifting_event(settings.wavelet, settings.wrap, t + 1, workarea[1], callbacks.user_data);
+		}
 
 		// 3. Compression
 		{}

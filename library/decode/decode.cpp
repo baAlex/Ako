@@ -149,7 +149,14 @@ static void* sDecodeInternal(const Callbacks& callbacks, const Settings& setting
 		}
 
 		// 3. Wavelet transformation
-		{}
+		{
+			if (callbacks.lifting_event != nullptr)
+				callbacks.lifting_event(settings.wavelet, settings.wrap, t + 1, nullptr, callbacks.user_data);
+
+
+			if (callbacks.lifting_event != nullptr)
+				callbacks.lifting_event(settings.wavelet, settings.wrap, t + 1, workarea[1], callbacks.user_data);
+		}
 
 		// 4. Format
 		{

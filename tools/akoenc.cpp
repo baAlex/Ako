@@ -204,16 +204,14 @@ int main(int argc, const char* argv[])
 		if (quiet == false)
 		{
 			callbacks.user_data = &callbacks_data;
-			callbacks_data.side = "encoder-side";
 
-			if (verbose == true)
-			{
-				callbacks.generic_event = CallbackGenericEvent;
-				callbacks.format_event = CallbackFormatEvent;
-				callbacks.compression_event = CallbackCompressionEvent;
-			}
-			else if (benchmark == true)
-				callbacks.format_event = CallbackBenchmarkFormatEvent;
+			callbacks_data.print = verbose;
+			callbacks_data.prefix = "E |";
+
+			callbacks.generic_event = CallbackGenericEvent;
+			callbacks.format_event = CallbackFormatEvent;
+			callbacks.lifting_event = CallbackLiftingEvent;
+			callbacks.compression_event = CallbackCompressionEvent;
 		}
 
 		// Encode
@@ -235,9 +233,13 @@ int main(int argc, const char* argv[])
 		// Benchmark
 		if (quiet == false && benchmark == true)
 		{
+			// clang-format off
 			std::cout << "Benchmark:\n";
-			std::cout << " - Format: " << static_cast<double>(callbacks_data.format_duration.count()) / 1000.0
-			          << " ms\n";
+			std::cout << " - Format:      " << static_cast<double>(callbacks_data.format_duration.count()) / 1000.0 << " ms\n";
+			std::cout << " - Lift:        " << static_cast<double>(callbacks_data.lifting_duration.count()) / 1000.0 << " ms\n";
+			std::cout << " - Compression: " << static_cast<double>(callbacks_data.compression_duration.count()) / 1000.0 << " ms\n";
+			std::cout << " - Total:       " << static_cast<double>(callbacks_data.total_duration.count()) / 1000.0 << " ms\n";
+			// clang-format on
 		}
 	}
 

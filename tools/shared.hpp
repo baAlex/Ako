@@ -31,8 +31,8 @@ SOFTWARE.
 
 #include "ako.hpp"
 
-#include "lodepng.h"
 #include "CLI/CLI.hpp"
+#include "lodepng.h"
 
 
 #ifndef SHARED_HPP
@@ -118,10 +118,14 @@ size_t EncodePng(int effort, unsigned width, unsigned height, unsigned channels,
 
 struct CallbacksData
 {
-	std::string side;
-	std::chrono::steady_clock::time_point clock_start;
+	bool print;
+	const char* prefix;
 
+	std::chrono::steady_clock::time_point clock;
 	std::chrono::microseconds format_duration;
+	std::chrono::microseconds lifting_duration;
+	std::chrono::microseconds compression_duration;
+	std::chrono::microseconds total_duration;
 
 	unsigned image_events;
 	unsigned image_width;
@@ -145,9 +149,9 @@ struct CallbacksData
 };
 
 void CallbackGenericEvent(ako::GenericEvent e, unsigned a, unsigned b, unsigned c, size_t d, void* user_data);
-void CallbackFormatEvent(ako::Color color, unsigned tile_no, const void* image_data, void* user_data);
-void CallbackCompressionEvent(ako::Compression method, unsigned tile_no, const void* data, void* user_data);
 
-void CallbackBenchmarkFormatEvent(ako::Color color, unsigned tile_no, const void* image_data, void* user_data);
+void CallbackFormatEvent(ako::Color, unsigned tile_no, const void* image_data, void* user_data);
+void CallbackLiftingEvent(ako::Wavelet, ako::Wrap, unsigned tile_no, const void* image_data, void* user_data);
+void CallbackCompressionEvent(ako::Compression, unsigned tile_no, const void* data, void* user_data);
 
 #endif

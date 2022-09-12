@@ -56,7 +56,9 @@ Callbacks DefaultCallbacks()
 	callbacks.free = std::free;
 
 	callbacks.generic_event = nullptr;
+
 	callbacks.format_event = nullptr;
+	callbacks.lifting_event = nullptr;
 	callbacks.compression_event = nullptr;
 	callbacks.user_data = nullptr;
 
