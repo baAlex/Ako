@@ -1,0 +1,77 @@
+
+
+# sudo apt install ???
+# ninja -f ./resources/native.ninja
+
+
+cpp = clang++-12
+ld = clang++-12 -fuse-ld=lld
+
+cflags = -c -flto -O3 -I./library -I./tools/thirdparty/CLI11/include -I./tools/thirdparty/lodepng
+lflags = -flto
+
+
+rule CompileCpp
+ command = $cpp $cflags $in -o $out
+rule Link
+ command = $ld $in -o $out
+
+
+build ./build/native/library/common/adler32.o:     CompileCpp ./library/common/adler32.cpp
+build ./build/native/library/common/conversions.o: CompileCpp ./library/common/conversions.cpp
+build ./build/native/library/common/defaults.o:    CompileCpp ./library/common/defaults.cpp
+build ./build/native/library/common/utilities.o:   CompileCpp ./library/common/utilities.cpp
+build ./build/native/library/common/version.o:     CompileCpp ./library/common/version.cpp
+
+build ./build/native/library/decode/decode.o:  CompileCpp ./library/decode/decode.cpp
+build ./build/native/library/decode/format.o:  CompileCpp ./library/decode/format.cpp
+build ./build/native/library/decode/lifting.o: CompileCpp ./library/decode/lifting.cpp
+
+build ./build/native/library/encode/encode.o:  CompileCpp ./library/encode/encode.cpp
+build ./build/native/library/encode/format.o:  CompileCpp ./library/encode/format.cpp
+build ./build/native/library/encode/lifting.o: CompileCpp ./library/encode/lifting.cpp
+
+build ./build/native/tools/akodec.o:    CompileCpp ./tools/akodec.cpp
+build ./build/native/tools/akoenc.o:    CompileCpp ./tools/akoenc.cpp
+build ./build/native/tools/callbacks.o: CompileCpp ./tools/callbacks.cpp
+build ./build/native/tools/png.o:       CompileCpp ./tools/png.cpp
+
+build ./build/native/tools/thirdparty/CLI11/src/Precompile.o: CompileCpp ./tools/thirdparty/CLI11/src/Precompile.cpp
+build ./build/native/tools/thirdparty/lodepng/lodepng.o:      CompileCpp ./tools/thirdparty/lodepng/lodepng.cpp
+
+
+build ./build/native-akodec: Link $
+ ./build/native/tools/akodec.o $
+ ./build/native/tools/callbacks.o $
+ ./build/native/tools/png.o $
+ ./build/native/tools/thirdparty/CLI11/src/Precompile.o $
+ ./build/native/tools/thirdparty/lodepng/lodepng.o $
+ ./build/native/library/common/adler32.o $
+ ./build/native/library/common/conversions.o $
+ ./build/native/library/common/defaults.o $
+ ./build/native/library/common/utilities.o $
+ ./build/native/library/common/version.o $
+ ./build/native/library/decode/decode.o $
+ ./build/native/library/decode/format.o $
+ ./build/native/library/decode/lifting.o $
+ ./build/native/library/encode/encode.o $
+ ./build/native/library/encode/format.o $
+ ./build/native/library/encode/lifting.o
+
+build ./build/native-akoenc: Link $
+ ./build/native/tools/akoenc.o $
+ ./build/native/tools/callbacks.o $
+ ./build/native/tools/png.o $
+ ./build/native/tools/thirdparty/CLI11/src/Precompile.o $
+ ./build/native/tools/thirdparty/lodepng/lodepng.o $
+ ./build/native/library/common/adler32.o $
+ ./build/native/library/common/conversions.o $
+ ./build/native/library/common/defaults.o $
+ ./build/native/library/common/utilities.o $
+ ./build/native/library/common/version.o $
+ ./build/native/library/decode/decode.o $
+ ./build/native/library/decode/format.o $
+ ./build/native/library/decode/lifting.o $
+ ./build/native/library/encode/encode.o $
+ ./build/native/library/encode/format.o $
+ ./build/native/library/encode/lifting.o

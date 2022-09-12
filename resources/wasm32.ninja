@@ -6,6 +6,7 @@
 
 cpp = clang++-12
 ar = llvm-ar-12
+
 cflags = -emit-llvm --target=wasm32 -ffreestanding --no-standard-libraries -DAKO_FREESTANDING $
  -c -I ./library/ -Werror -Wall -Wextra -Wconversion -pedantic -Wold-style-cast
 
@@ -22,13 +23,13 @@ build ./build/wasm32/library/common/defaults.o:    CompileCpp ./library/common/d
 build ./build/wasm32/library/common/utilities.o:   CompileCpp ./library/common/utilities.cpp
 build ./build/wasm32/library/common/version.o:     CompileCpp ./library/common/version.cpp
 
-build ./build/wasm32/library/decode/decode.o:      CompileCpp ./library/decode/decode.cpp
-build ./build/wasm32/library/decode/format.o:      CompileCpp ./library/decode/format.cpp
-build ./build/wasm32/library/decode/lifting.o:     CompileCpp ./library/decode/lifting.cpp
+build ./build/wasm32/library/decode/decode.o:  CompileCpp ./library/decode/decode.cpp
+build ./build/wasm32/library/decode/format.o:  CompileCpp ./library/decode/format.cpp
+build ./build/wasm32/library/decode/lifting.o: CompileCpp ./library/decode/lifting.cpp
 
-build ./build/wasm32/library/encode/encode.o:      CompileCpp ./library/encode/encode.cpp
-build ./build/wasm32/library/encode/format.o:      CompileCpp ./library/encode/format.cpp
-build ./build/wasm32/library/encode/lifting.o:     CompileCpp ./library/encode/lifting.cpp
+build ./build/wasm32/library/encode/encode.o:  CompileCpp ./library/encode/encode.cpp
+build ./build/wasm32/library/encode/format.o:  CompileCpp ./library/encode/format.cpp
+build ./build/wasm32/library/encode/lifting.o: CompileCpp ./library/encode/lifting.cpp
 
 
 build ./build/wasm32-libako-static.a: Pack $
