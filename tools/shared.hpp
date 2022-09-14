@@ -115,11 +115,17 @@ int DecodePng(size_t in_size, const void* in, unsigned& out_width, unsigned& out
 size_t EncodePng(int effort, unsigned width, unsigned height, unsigned channels, unsigned depth, const void* in,
                  void** out_blob);
 
+void SavePlanarPgm(unsigned tile_no, unsigned width, unsigned height, unsigned channels, unsigned depth,
+                   unsigned in_stride, const void* in, const std::string& basename);
+
+void SaveInterleavedPgm(unsigned tile_no, unsigned width, unsigned height, unsigned channels, unsigned depth,
+                        unsigned in_stride, const void* in, const std::string& basename);
+
 
 struct CallbacksData
 {
 	bool print;
-	const char* prefix;
+	std::string prefix;
 
 	std::chrono::steady_clock::time_point clock;
 	std::chrono::microseconds format_duration;

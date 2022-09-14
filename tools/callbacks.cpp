@@ -95,7 +95,7 @@ void CallbackGenericEvent(ako::GenericEvent e, unsigned a, unsigned b, unsigned 
 		// Image info
 		if (data.image_events == 3)
 		{
-			printf("%s\t-Image: %ux%u px, %u channel(s), %u bpp depth\n", data.prefix, data.image_width,
+			printf("%s\t-Image: %ux%u px, %u channel(s), %u bpp depth\n", data.prefix.c_str(), data.image_width,
 			       data.image_height, data.channels, data.depth);
 			data.image_events = 0;
 		}
@@ -103,7 +103,7 @@ void CallbackGenericEvent(ako::GenericEvent e, unsigned a, unsigned b, unsigned 
 		// Tiles info
 		if (data.tiles_events == 2)
 		{
-			printf("%s\t- %u Tiles, %ux%u px\n", data.prefix, data.tiles_no, data.tiles_dimension,
+			printf("%s\t- %u Tiles, %ux%u px\n", data.prefix.c_str(), data.tiles_no, data.tiles_dimension,
 			       data.tiles_dimension);
 			data.tiles_events = 0;
 		}
@@ -111,7 +111,7 @@ void CallbackGenericEvent(ako::GenericEvent e, unsigned a, unsigned b, unsigned 
 		// Memory info
 		if (data.memory_events == 1)
 		{
-			printf("%s\t- Workarea size: %zu byte(s)\n", data.prefix, data.workarea_size);
+			printf("%s\t- Workarea size: %zu byte(s)\n", data.prefix.c_str(), data.workarea_size);
 			data.memory_events = 0;
 		}
 	}
@@ -127,8 +127,8 @@ void CallbackFormatEvent(ako::Color color, unsigned tile_no, const void* image_d
 	// we do it now as being in a format event means that all tile info is there
 	if (data.print == true && data.current_tile == tile_no)
 	{
-		printf("%s\tTile %u of %u, [%u, %u], %ux%u px (%zu byte(s))\n", data.prefix, data.current_tile, data.tiles_no,
-		       data.tile_x, data.tile_y, data.tile_width, data.tile_height, data.tile_data_size);
+		printf("%s\tTile %u of %u, [%u, %u], %ux%u px (%zu byte(s))\n", data.prefix.c_str(), data.current_tile,
+		       data.tiles_no, data.tile_x, data.tile_y, data.tile_width, data.tile_height, data.tile_data_size);
 		data.current_tile = 0;
 	}
 
@@ -140,15 +140,24 @@ void CallbackFormatEvent(ako::Color color, unsigned tile_no, const void* image_d
 
 		// Format info
 		if (data.print == true && tile_no == 1)
-			printf("%s\t\t- Color transformation: %s\n", data.prefix, ako::ToString(color));
+			printf("%s\t\t- Color transformation: %s\n", data.prefix.c_str(), ako::ToString(color));
 	}
 
 	// End event
 	else
 	{
+		// Benchmark
 		const auto diff = chrono::duration_cast<chrono::microseconds>(chrono::steady_clock::now() - data.clock);
 		data.format_duration += diff;
 		data.total_duration += diff;
+
+		// Developers, developers, developers
+		/*if (data.prefix == "E |")
+			SavePlanarPgm(tile_no, data.tile_width, data.tile_height, data.channels, data.depth, data.tile_width,
+			              image_data, data.prefix + " Format");
+		else
+			SaveInterleavedPgm(tile_no, data.tile_width, data.tile_height, data.channels, data.depth, data.tile_width,
+			                   image_data, data.prefix + " Format");*/
 	}
 }
 
@@ -162,8 +171,8 @@ void CallbackLiftingEvent(ako::Wavelet wavelet, ako::Wrap wrap, unsigned tile_no
 	// As above
 	if (data.print == true && data.current_tile == tile_no)
 	{
-		printf("%s\t- Tile %u of %u, [%u, %u], %ux%u px (%zu byte(s))\n", data.prefix, data.current_tile, data.tiles_no,
-		       data.tile_x, data.tile_y, data.tile_width, data.tile_height, data.tile_data_size);
+		printf("%s\t- Tile %u of %u, [%u, %u], %ux%u px (%zu byte(s))\n", data.prefix.c_str(), data.current_tile,
+		       data.tiles_no, data.tile_x, data.tile_y, data.tile_width, data.tile_height, data.tile_data_size);
 		data.current_tile = 0;
 	}
 
@@ -176,14 +185,15 @@ void CallbackLiftingEvent(ako::Wavelet wavelet, ako::Wrap wrap, unsigned tile_no
 		// Lifting info
 		if (data.print == true && tile_no == 1)
 		{
-			printf("%s\t\t- Wavelet transformation: %s\n", data.prefix, ako::ToString(wavelet));
-			printf("%s\t\t- Wrap mode: %s\n", data.prefix, ako::ToString(wrap));
+			printf("%s\t\t- Wavelet transformation: %s\n", data.prefix.c_str(), ako::ToString(wavelet));
+			printf("%s\t\t- Wrap mode: %s\n", data.prefix.c_str(), ako::ToString(wrap));
 		}
 	}
 
 	// End event
 	else
 	{
+		// Benchmark
 		const auto diff = chrono::duration_cast<chrono::microseconds>(chrono::steady_clock::now() - data.clock);
 		data.lifting_duration += diff;
 		data.total_duration += diff;
@@ -199,8 +209,8 @@ void CallbackCompressionEvent(ako::Compression compression, unsigned tile_no, co
 	// As above
 	if (data.print == true && data.current_tile == tile_no)
 	{
-		printf("%s\t- Tile %u of %u, [%u, %u], %ux%u px (%zu byte(s))\n", data.prefix, data.current_tile, data.tiles_no,
-		       data.tile_x, data.tile_y, data.tile_width, data.tile_height, data.tile_data_size);
+		printf("%s\t- Tile %u of %u, [%u, %u], %ux%u px (%zu byte(s))\n", data.prefix.c_str(), data.current_tile,
+		       data.tiles_no, data.tile_x, data.tile_y, data.tile_width, data.tile_height, data.tile_data_size);
 		data.current_tile = 0;
 	}
 
@@ -212,12 +222,13 @@ void CallbackCompressionEvent(ako::Compression compression, unsigned tile_no, co
 
 		// Compression info
 		if (data.print == true && tile_no == 1)
-			printf("%s\t\t- Compression method: %s\n", data.prefix, ako::ToString(compression));
+			printf("%s\t\t- Compression method: %s\n", data.prefix.c_str(), ako::ToString(compression));
 	}
 
 	// End event
 	else
 	{
+		// Benchmark
 		const auto diff = chrono::duration_cast<chrono::microseconds>(chrono::steady_clock::now() - data.clock);
 		data.compression_duration += diff;
 		data.total_duration += diff;

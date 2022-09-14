@@ -64,6 +64,7 @@ if (AKO_ENC OR AKODEC)
 		"./tools/thirdparty/CLI11/src/Precompile.cpp"
 		"./tools/thirdparty/lodepng/lodepng.cpp"
 		"./tools/callbacks.cpp"
+		"./tools/developer.cpp"
 		"./tools/png.cpp")
 	target_include_directories("tools-common" PRIVATE "./library/")
 	target_include_directories("tools-common" PRIVATE "./tools/thirdparty/CLI11/include/")

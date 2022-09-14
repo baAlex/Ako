@@ -34,6 +34,7 @@ build ./build/native/library/encode/lifting.o: CompileCpp ./library/encode/lifti
 build ./build/native/tools/akodec.o:    CompileCpp ./tools/akodec.cpp
 build ./build/native/tools/akoenc.o:    CompileCpp ./tools/akoenc.cpp
 build ./build/native/tools/callbacks.o: CompileCpp ./tools/callbacks.cpp
+build ./build/native/tools/developer.o: CompileCpp ./tools/developer.cpp
 build ./build/native/tools/png.o:       CompileCpp ./tools/png.cpp
 
 build ./build/native/tools/thirdparty/CLI11/src/Precompile.o: CompileCpp ./tools/thirdparty/CLI11/src/Precompile.cpp
@@ -43,6 +44,7 @@ build ./build/native/tools/thirdparty/lodepng/lodepng.o:      CompileCpp ./tools
 build ./build/native-akodec: Link $
  ./build/native/tools/akodec.o $
  ./build/native/tools/callbacks.o $
+ ./build/native/tools/developer.o $
  ./build/native/tools/png.o $
  ./build/native/tools/thirdparty/CLI11/src/Precompile.o $
  ./build/native/tools/thirdparty/lodepng/lodepng.o $
@@ -61,6 +63,7 @@ build ./build/native-akodec: Link $
 build ./build/native-akoenc: Link $
  ./build/native/tools/akoenc.o $
  ./build/native/tools/callbacks.o $
+ ./build/native/tools/developer.o $
  ./build/native/tools/png.o $
  ./build/native/tools/thirdparty/CLI11/src/Precompile.o $
  ./build/native/tools/thirdparty/lodepng/lodepng.o $

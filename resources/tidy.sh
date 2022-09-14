@@ -18,6 +18,7 @@ files="./library/common/adler32.cpp
        ./tools/akodec.cpp
        ./tools/akoenc.cpp
        ./tools/callbacks.cpp
+       ./tools/developer.cpp
        ./tools/png.cpp"
 
 clang-tidy-12 $files -- $flags
