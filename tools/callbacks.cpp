@@ -153,11 +153,11 @@ void CallbackFormatEvent(ako::Color color, unsigned tile_no, const void* image_d
 
 		// Developers, developers, developers
 		/*if (data.prefix == "E |")
-			SavePlanarPgm(tile_no, data.tile_width, data.tile_height, data.channels, data.depth, data.tile_width,
-			              image_data, data.prefix + " Format");
+		    SavePlanarPgm(tile_no, data.tile_width, data.tile_height, data.channels, data.depth, data.tile_width,
+		                  image_data, data.prefix + " Format");
 		else
-			SaveInterleavedPgm(tile_no, data.tile_width, data.tile_height, data.channels, data.depth, data.tile_width,
-			                   image_data, data.prefix + " Format");*/
+		    SaveInterleavedPgm(tile_no, data.tile_width, data.tile_height, data.channels, data.depth, data.tile_width,
+		                       image_data, data.prefix + " Format");*/
 	}
 }
 
@@ -197,6 +197,11 @@ void CallbackLiftingEvent(ako::Wavelet wavelet, ako::Wrap wrap, unsigned tile_no
 		const auto diff = chrono::duration_cast<chrono::microseconds>(chrono::steady_clock::now() - data.clock);
 		data.lifting_duration += diff;
 		data.total_duration += diff;
+
+		// Developers, developers, developers
+		/*if (data.prefix == "E |")
+		    SavePlanarPgm(tile_no, data.tile_width, data.tile_height, data.channels, data.depth, data.tile_width,
+		                  image_data, data.prefix + " Lift");*/
 	}
 }
 

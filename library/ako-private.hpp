@@ -80,7 +80,13 @@ Compression ToCompression(uint32_t number, Status& out_status);
 
 // common/utilities.cpp:
 
+unsigned Half(unsigned length);            // By convention yields highpass length
+unsigned HalfPlusOneRule(unsigned length); // By convention yields lowpass length
 unsigned NearPowerOfTwo(unsigned v);
+
+unsigned LiftsNo(unsigned width, unsigned height);
+void LiftMeasures(unsigned no, unsigned width, unsigned height, unsigned& out_lp_w, unsigned& out_lp_h,
+                  unsigned& out_hp_w, unsigned& out_hp_h);
 
 unsigned TilesNo(unsigned tiles_dimension, unsigned image_w, unsigned image_h);
 void TileMeasures(unsigned tile_no, unsigned tiles_dimension, unsigned image_w, unsigned image_h, //
@@ -113,10 +119,10 @@ void FormatToInternal(const Color& color_transformation, bool discard, unsigned 
 // encode/lifting.cpp:
 
 template <typename T>
-void Unlift(const Wavelet& w, unsigned width, unsigned height, unsigned channels, const T* input, T* output);
+void Unlift(const Wavelet& w, unsigned width, unsigned height, unsigned channels, T* input, T* output);
 
 template <typename T>
-void Lift(const Wavelet& w, unsigned width, unsigned height, unsigned channels, const T* input, T* output);
+void Lift(const Wavelet& w, unsigned width, unsigned height, unsigned channels, T* input, T* output);
 
 
 // Templates:
@@ -131,6 +137,7 @@ template <typename T> T Max(T a, T b)
 	return (a > b) ? a : b;
 }
 
+
 template <typename T> T SaturateToLower(T v);
 
 template <> inline int16_t SaturateToLower(int16_t v)
@@ -143,6 +150,21 @@ template <> inline int32_t SaturateToLower(int32_t v)
 	return (Max<int32_t>(0, Min<int32_t>(v, 65535)));
 }
 
+
+template <typename T>
+void Memcpy2d(size_t width, size_t height, size_t in_stride, size_t out_stride, const T* in, T* out)
+{
+	for (size_t row = 0; row < height; row += 1)
+	{
+		for (size_t col = 0; col < width; col += 1)
+			out[col] = in[col];
+
+		in += in_stride;
+		out += out_stride;
+	}
+}
+
+
 template <typename T> size_t TileDataSize(unsigned tile_w, unsigned tile_h, unsigned channels)
 {
 	// Silly formula, but the idea is to abstract it to make it future-proof
@@ -152,6 +174,9 @@ template <typename T> size_t TileDataSize(unsigned tile_w, unsigned tile_h, unsi
 template <typename T>
 size_t WorkareaSize(unsigned tiles_dimension, unsigned image_w, unsigned image_h, unsigned channels)
 {
+	// image_w += 1; // Extra column to honor plus-one rule
+	image_h += 1; // Extra row to honor plus-one rule
+
 	if (tiles_dimension != 0)
 		return (Min(tiles_dimension, image_w) * Min(tiles_dimension, image_h) * channels) * sizeof(T) +
 		       sizeof(ImageHead) + sizeof(TileHead);

@@ -28,6 +28,19 @@ SOFTWARE.
 namespace ako
 {
 
+unsigned Half(unsigned length)
+{
+	return (length >> 1);
+}
+
+unsigned HalfPlusOneRule(unsigned length)
+{
+	if (length == 1)
+		return 1;
+
+	return (length + (length & 1)) >> 1;
+}
+
 unsigned NearPowerOfTwo(unsigned v)
 {
 	unsigned x = 2;
@@ -39,6 +52,39 @@ unsigned NearPowerOfTwo(unsigned v)
 	}
 
 	return x;
+}
+
+
+unsigned LiftsNo(unsigned width, unsigned height)
+{
+	unsigned lp_w = width;
+	unsigned lp_h = height;
+	unsigned lift_no = 0;
+
+	for (; lp_w > 1 && lp_h > 1; lift_no += 1)
+	{
+		lp_w = HalfPlusOneRule(lp_w);
+		lp_h = HalfPlusOneRule(lp_h);
+	}
+
+	return lift_no;
+}
+
+void LiftMeasures(unsigned no, unsigned width, unsigned height, unsigned& out_lp_w, unsigned& out_lp_h,
+                  unsigned& out_hp_w, unsigned& out_hp_h)
+{
+	out_hp_w = Half(width);
+	out_hp_h = Half(height);
+	out_lp_w = HalfPlusOneRule(width);
+	out_lp_h = HalfPlusOneRule(height);
+
+	for (unsigned i = 0; i < no; i += 1)
+	{
+		out_hp_w = Half(out_lp_w);
+		out_hp_h = Half(out_lp_h);
+		out_lp_w = HalfPlusOneRule(out_lp_w);
+		out_lp_h = HalfPlusOneRule(out_lp_h);
+	}
 }
 
 

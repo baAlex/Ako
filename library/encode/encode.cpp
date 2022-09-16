@@ -128,8 +128,8 @@ static size_t sEncodeInternal(const Callbacks& callbacks, const Settings& settin
 
 		if (tiles_no == 1)
 		{
-			blob = workarea[0];
-			workarea[0] = (reinterpret_cast<uint8_t*>(workarea[0]) + sizeof(ImageHead) + sizeof(TileHead)); // HACK
+			blob = workarea[1];
+			workarea[1] = (reinterpret_cast<uint8_t*>(workarea[1]) + sizeof(ImageHead) + sizeof(TileHead)); // HACK
 		}
 	}
 
@@ -182,6 +182,8 @@ static size_t sEncodeInternal(const Callbacks& callbacks, const Settings& settin
 			if (callbacks.lifting_event != nullptr)
 				callbacks.lifting_event(settings.wavelet, settings.wrap, t + 1, nullptr, callbacks.user_data);
 
+			Lift(settings.wavelet, tile_w, tile_h, channels, reinterpret_cast<TOut*>(workarea[0]),
+			     reinterpret_cast<TOut*>(workarea[1]));
 
 			if (callbacks.lifting_event != nullptr)
 				callbacks.lifting_event(settings.wavelet, settings.wrap, t + 1, workarea[1], callbacks.user_data);
@@ -215,7 +217,7 @@ static size_t sEncodeInternal(const Callbacks& callbacks, const Settings& settin
 			{
 				auto out = reinterpret_cast<TOut*>(reinterpret_cast<uint8_t*>(blob) + blob_cursor);
 				for (size_t i = 0; i < (tile_w * tile_h * channels); i += 1)
-					out[i] = reinterpret_cast<TOut*>(workarea[0])[i];
+					out[i] = reinterpret_cast<TOut*>(workarea[1])[i];
 			}
 
 			blob_cursor += tile_data_size;
@@ -224,7 +226,7 @@ static size_t sEncodeInternal(const Callbacks& callbacks, const Settings& settin
 
 	// Bye!
 	if (tiles_no == 1)
-		workarea[0] = (reinterpret_cast<uint8_t*>(workarea[0]) - sizeof(ImageHead) - sizeof(TileHead)); // HACK
+		workarea[1] = (reinterpret_cast<uint8_t*>(workarea[1]) - sizeof(ImageHead) - sizeof(TileHead)); // HACK
 
 	for (size_t i = 0; i < workareas_no; i += 1)
 	{
@@ -245,7 +247,7 @@ static size_t sEncodeInternal(const Callbacks& callbacks, const Settings& settin
 
 return_failure:
 	if (tiles_no == 1)
-		workarea[0] = (reinterpret_cast<uint8_t*>(workarea[0]) - sizeof(ImageHead) - sizeof(TileHead)); // HACK
+		workarea[1] = (reinterpret_cast<uint8_t*>(workarea[0]) - sizeof(ImageHead) - sizeof(TileHead)); // HACK
 
 	for (size_t i = 0; i < workareas_no; i += 1)
 	{

@@ -87,7 +87,7 @@ static void* sDecodeInternal(const Callbacks& callbacks, const Settings& setting
 		}
 
 		if (tiles_no == 1)
-			image = workarea[1];
+			image = workarea[0];
 		else
 		{
 			if ((image = callbacks.malloc((image_w * image_h * channels) * sizeof(TOut))) == nullptr)
@@ -153,6 +153,8 @@ static void* sDecodeInternal(const Callbacks& callbacks, const Settings& setting
 			if (callbacks.lifting_event != nullptr)
 				callbacks.lifting_event(settings.wavelet, settings.wrap, t + 1, nullptr, callbacks.user_data);
 
+			Unlift(settings.wavelet, tile_w, tile_h, channels, reinterpret_cast<TIn*>(workarea[0]),
+			       reinterpret_cast<TIn*>(workarea[1]));
 
 			if (callbacks.lifting_event != nullptr)
 				callbacks.lifting_event(settings.wavelet, settings.wrap, t + 1, workarea[1], callbacks.user_data);
@@ -163,11 +165,11 @@ static void* sDecodeInternal(const Callbacks& callbacks, const Settings& setting
 			if (callbacks.format_event != nullptr)
 				callbacks.format_event(settings.color, t + 1, nullptr, callbacks.user_data);
 
-			FormatToRgb(settings.color, tile_w, tile_h, channels, tile_w, reinterpret_cast<TIn*>(workarea[0]),
-			            reinterpret_cast<TOut*>(workarea[1]));
+			FormatToRgb(settings.color, tile_w, tile_h, channels, tile_w, reinterpret_cast<TIn*>(workarea[1]),
+			            reinterpret_cast<TOut*>(workarea[0]));
 
 			if (callbacks.format_event != nullptr)
-				callbacks.format_event(settings.color, t + 1, workarea[1], callbacks.user_data);
+				callbacks.format_event(settings.color, t + 1, workarea[0], callbacks.user_data);
 		}
 
 		// 5. Copy image data
