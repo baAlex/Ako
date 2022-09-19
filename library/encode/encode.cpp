@@ -124,6 +124,9 @@ static size_t sEncodeInternal(const Callbacks& callbacks, const Settings& settin
 				status = Status::NoEnoughMemory;
 				goto return_failure;
 			}
+
+			// Developers, developers, developers
+			Memset(workarea[i], 0, workarea_size);
 		}
 
 		if (tiles_no == 1)
@@ -215,12 +218,15 @@ static size_t sEncodeInternal(const Callbacks& callbacks, const Settings& settin
 
 			if (tiles_no != 1) // HACK
 			{
-				auto out = reinterpret_cast<TOut*>(reinterpret_cast<uint8_t*>(blob) + blob_cursor);
-				for (size_t i = 0; i < (tile_w * tile_h * channels); i += 1)
-					out[i] = reinterpret_cast<TOut*>(workarea[1])[i];
+				// auto out = reinterpret_cast<TOut*>(reinterpret_cast<uint8_t*>(blob) + blob_cursor);
+				// for (size_t i = 0; i < (tile_w * tile_h * channels); i += 1)
+				// 	out[i] = reinterpret_cast<TOut*>(workarea[1])[i];
 			}
 
 			blob_cursor += tile_data_size;
+
+			// Developers, developers, developers
+			// printf("Hash: %8x \n", Adler32(workarea[1], tile_data_size));
 		}
 	}
 

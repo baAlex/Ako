@@ -35,12 +35,19 @@ static void HaarHorizontalInverse(unsigned height, unsigned lp_w, unsigned hp_w,
 	for (unsigned row = 0; row < height; row += 1)
 	{
 		// Evens/Odds
-		for (size_t col = 0; col < hp_w; col += 1)
+		for (unsigned col = 0; col < hp_w; col += 1)
 		{
-			const T lp = lowpass[col];
-			const T hp = highpass[col];
+			const auto lp = lowpass[col];
+			const auto hp = highpass[col];
 			output[(col << 1) + 0] = lp;
-			output[(col << 1) + 1] = lp - hp;
+			output[(col << 1) + 1] = WrapSubtract(lp, hp);
+		}
+
+		if (lp_w != hp_w)
+		{
+			const auto col = hp_w;
+			const auto lp = lowpass[col];
+			output[(col << 1) + 0] = lp;
 		}
 
 		// Next row
@@ -55,26 +62,34 @@ template <typename T>
 static void HaarInPlaceishVerticalInverse(unsigned width, unsigned lp_h, unsigned hp_h, const T* lowpass, T* highpass,
                                           T* out_lowpass)
 {
-	(void)lp_h;
-
 	// Evens (consumes 'lowpass', outputs to 'out_lowpass')
 	for (unsigned row = 0; row < hp_h; row += 1)
 	{
-		const T* lp = lowpass + width * row;
-		T* out_even = out_lowpass + width * row;
+		const auto lp = lowpass + width * row;
+		auto out_lp = out_lowpass + width * row;
 
 		for (unsigned col = 0; col < width; col += 1)
-			out_even[col] = lp[col];
+			out_lp[col] = lp[col];
+	}
+
+	if (lp_h != hp_h)
+	{
+		const auto row = hp_h;
+		const auto lp = lowpass + width * row;
+		auto out_lp = out_lowpass + width * row;
+
+		for (unsigned col = 0; col < width; col += 1)
+			out_lp[col] = lp[col];
 	}
 
 	// Odds (consumes and output to 'highpass')
 	for (unsigned row = 0; row < hp_h; row += 1)
 	{
-		T* hp = highpass + width * row;
-		const T* even = out_lowpass + width * row;
+		auto hp = highpass + width * row;
+		const auto even = out_lowpass + width * row;
 
 		for (unsigned col = 0; col < width; col += 1)
-			hp[col] = even[col] - hp[col];
+			hp[col] = WrapSubtract(even[col], hp[col]);
 	}
 }
 
@@ -84,7 +99,7 @@ static void sUnlift(const Wavelet& w, unsigned width, unsigned height, unsigned 
 {
 	(void)w;
 
-	T* in = input;
+	auto in = input;
 
 	unsigned lp_w = 0;
 	unsigned lp_h = 0;
@@ -97,11 +112,12 @@ static void sUnlift(const Wavelet& w, unsigned width, unsigned height, unsigned 
 	// Lowpasses
 	for (unsigned ch = 0; ch < channels; ch += 1)
 	{
-		T* lp = output + (width * height) * ch;
-		Memcpy2d(lp_w, lp_h, lp_w, lp_w, in, lp); // Quadrant A
+		auto lp = output + (width * height) * ch;
+		Memcpy2d(lp_w, lp_h, lp_w, lp_w, in, lp);
+
 		// printf("! \tLpCh%u = %i\n", ch, *lp);
 
-		in += (lp_w * lp_h) * 1; // Move it one lowpass quadrant forward
+		in += (lp_w * lp_h); // Quadrant A
 	}
 
 	// Highpasses
@@ -113,24 +129,30 @@ static void sUnlift(const Wavelet& w, unsigned width, unsigned height, unsigned 
 		// Iterate in Yuv order
 		for (unsigned ch = 0; ch < channels; ch += 1)
 		{
-			T* lp = output + (width * height) * ch;
+			auto lp = output + (width * height) * ch;
 
 			// Set auxiliary memory
-			T* aux = input; // in - (lp_w * lp_h);
+			auto aux = in - (lp_w * lp_h);
 
 			// Input highpasses
-			auto hp_quad_c = in + (hp_w * hp_h) * 0; // Memcpy2d() in the encoder side already
-			auto hp_quad_b = in + (hp_w * hp_h) * 1; // did all work involving strides
-			auto hp_quad_d = in + (hp_w * hp_h) * 2;
+			const auto hp_quad_c = in;
+			in += (lp_w * hp_h); // Quadrant C
 
-			in += (hp_w * hp_h) * 3; // Move it three highpasses quadrants forward
-			                         // printf("! \tHpsCh%u = %i, %i, %i\n", ch, *hp_quad_c, *hp_quad_b, *hp_quad_d);
+			auto hp_quad_b = in;
+			in += (hp_w * lp_h); // Quadrant B
+
+			const auto hp_quad_d = in;
+			in += (hp_w * hp_h); // Quadrant D
+
+			// printf("! \tHpsCh%u %ux%u = %i, %i, %i\n", ch, lp_w + hp_w, lp_h + hp_h, *hp_quad_c, *hp_quad_b,
+			//       *hp_quad_d);
 
 			// Wavelet transformation
 			HaarInPlaceishVerticalInverse(lp_w, lp_h, hp_h, lp, hp_quad_c, aux);
-			HaarInPlaceishVerticalInverse(lp_w, lp_h, hp_h, hp_quad_b, hp_quad_d, hp_quad_b);
+			HaarInPlaceishVerticalInverse(hp_w, lp_h, hp_h, hp_quad_b, hp_quad_d, hp_quad_b);
+
 			HaarHorizontalInverse(lp_h, lp_w, hp_w, (lp_w + hp_w) << 1, aux, hp_quad_b, lp);
-			HaarHorizontalInverse(lp_h, lp_w, hp_w, (lp_w + hp_w) << 1, hp_quad_c, hp_quad_d, lp + (lp_w + hp_w));
+			HaarHorizontalInverse(hp_h, lp_w, hp_w, (lp_w + hp_w) << 1, hp_quad_c, hp_quad_d, lp + (lp_w + hp_w));
 		}
 	}
 }

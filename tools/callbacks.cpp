@@ -152,12 +152,12 @@ void CallbackFormatEvent(ako::Color color, unsigned tile_no, const void* image_d
 		data.total_duration += diff;
 
 		// Developers, developers, developers
-		/*if (data.prefix == "E |")
-		    SavePlanarPgm(tile_no, data.tile_width, data.tile_height, data.channels, data.depth, data.tile_width,
-		                  image_data, data.prefix + " Format");
-		else
-		    SaveInterleavedPgm(tile_no, data.tile_width, data.tile_height, data.channels, data.depth, data.tile_width,
-		                       image_data, data.prefix + " Format");*/
+		// if (data.prefix == "E |")
+		// 	SavePlanarPgm(tile_no, data.tile_width, data.tile_height, data.channels, data.depth, data.tile_width,
+		// 	              image_data, data.prefix + " Format");
+		// else
+		// 	SaveInterleavedPgm(tile_no, data.tile_width, data.tile_height, data.channels, data.depth, data.tile_width,
+		// 	                   image_data, data.prefix + " Format");
 	}
 }
 
@@ -199,9 +199,9 @@ void CallbackLiftingEvent(ako::Wavelet wavelet, ako::Wrap wrap, unsigned tile_no
 		data.total_duration += diff;
 
 		// Developers, developers, developers
-		/*if (data.prefix == "E |")
-		    SavePlanarPgm(tile_no, data.tile_width, data.tile_height, data.channels, data.depth, data.tile_width,
-		                  image_data, data.prefix + " Lift");*/
+		// if (data.prefix == "E |")
+		// 	SavePlanarPgm(tile_no, data.tile_width, data.tile_height, data.channels, data.depth, data.tile_width,
+		// 	              image_data, data.prefix + " Lift");
 	}
 }
 
@@ -237,5 +237,10 @@ void CallbackCompressionEvent(ako::Compression compression, unsigned tile_no, co
 		const auto diff = chrono::duration_cast<chrono::microseconds>(chrono::steady_clock::now() - data.clock);
 		data.compression_duration += diff;
 		data.total_duration += diff;
+
+		// Developers, developers, developers
+		// if (data.prefix == "D |")
+		//	SavePlanarPgm(tile_no, data.tile_width, data.tile_height, data.channels, data.depth, data.tile_width,
+		//	              image_data, data.prefix + " Compression");
 	}
 }

@@ -84,6 +84,9 @@ static void* sDecodeInternal(const Callbacks& callbacks, const Settings& setting
 				status = Status::NoEnoughMemory;
 				goto return_failure;
 			}
+
+			// Developers, developers, developers
+			Memset(workarea[i], 0, workarea_size);
 		}
 
 		if (tiles_no == 1)
@@ -139,13 +142,15 @@ static void* sDecodeInternal(const Callbacks& callbacks, const Settings& setting
 				callbacks.compression_event(settings.compression, t + 1, nullptr, callbacks.user_data);
 
 			auto out = reinterpret_cast<TIn*>(workarea[0]);
-			for (size_t i = 0; i < (tile_w * tile_h * channels); i += 1)
-				out[i] = reinterpret_cast<const TIn*>(input)[i];
+			Memcpy(out, input, compressed_size);
 
 			input = reinterpret_cast<const uint8_t*>(input) + compressed_size;
 
 			if (callbacks.compression_event != nullptr)
 				callbacks.compression_event(settings.compression, t + 1, workarea[0], callbacks.user_data);
+
+			// Developers, developers, developers
+			// printf("Hash: %8x \n", Adler32(workarea[0], tile_data_size));
 		}
 
 		// 3. Wavelet transformation
@@ -175,15 +180,14 @@ static void* sDecodeInternal(const Callbacks& callbacks, const Settings& setting
 		// 5. Copy image data
 		if (tiles_no != 1) // TODO, Format() is capable of write directly to output
 		{
-			auto out = reinterpret_cast<TOut*>(image) + (tile_x * channels) + (image_w * channels) * tile_y;
+			// auto out = reinterpret_cast<TOut*>(image) + (tile_x * channels) + (image_w * channels) * tile_y;
 
-			for (size_t row = 0; row < tile_h; row += 1)
-			{
-				for (size_t col = 0; col < (tile_w * channels); col += 1)
-					out[col] = reinterpret_cast<TOut*>(workarea[1])[row * tile_w * channels + col];
-
-				out += (image_w * channels);
-			}
+			// for (size_t row = 0; row < tile_h; row += 1)
+			// {
+			// 	for (size_t col = 0; col < (tile_w * channels); col += 1)
+			// 		out[col] = reinterpret_cast<TOut*>(workarea[1])[row * tile_w * channels + col];
+			// 	out += (image_w * channels);
+			// }
 		}
 	}
 

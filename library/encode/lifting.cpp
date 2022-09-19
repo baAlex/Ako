@@ -29,68 +29,68 @@ namespace ako
 {
 
 template <typename T>
-static void HaarHorizontalForward(unsigned width, unsigned height, unsigned inout_stride, const T* input, T* output)
+static void HaarHorizontalForward(unsigned width, unsigned height, unsigned input_stride, unsigned output_stride,
+                                  const T* input, T* output)
 {
-	const unsigned half = Half(width);
-	const unsigned rule = HalfPlusOneRule(width);
+	const auto half = Half(width);
+	const auto rule = HalfPlusOneRule(width);
 
 	for (unsigned row = 0; row < height; row += 1)
 	{
 		// Highpass (length of 'half')
 		for (unsigned col = 0; col < half; col += 1)
 		{
-			const T even = input[(col << 1) + 0];
-			const T odd = input[(col << 1) + 1];
+			const auto even = input[(col << 1) + 0];
+			const auto odd = input[(col << 1) + 1];
 
-			output[rule + col] = even - odd;
+			output[rule + col] = WrapSubtract(even, odd);
 		}
 
 		// Lowpass (length of 'rule')
-		for (unsigned col = 0; col < half; col += 1)
+		for (unsigned col = 0; col < rule; col += 1)
 		{
-			const T even = input[(col << 1) + 0];
+			const auto even = input[(col << 1) + 0];
 			output[col] = even;
 		}
 
 		// Next row
-		input += inout_stride;
-		output += inout_stride; // TODO, the old C code, while complicated, had an individual more compact output
-		                        // stride. I need to measure if that helps with cache locality, maybe helps in the
-		                        // vertical transform (probably not that much since processors can deal with strides)
+		input += input_stride;
+		output += output_stride;
 	}
 }
 
 
 template <typename T>
-static void HaarVerticalForward(unsigned width, unsigned height, unsigned inout_stride, const T* input, T* output)
+static void HaarVerticalForward(unsigned width, unsigned height, unsigned input_stride, unsigned output_stride,
+                                const T* input, T* output)
 {
-	const unsigned rule = HalfPlusOneRule(height);
-	const unsigned half = Half(height);
+	const auto rule = HalfPlusOneRule(height);
+	const auto half = Half(height);
 
 	// Highpass (length of 'half')
 	for (unsigned row = 0; row < half; row += 1)
 	{
-		const T* in = input + inout_stride * (row << 1);
-		T* hp_out = output + inout_stride * (row + rule);
+		const auto in = input + input_stride * (row << 1);
+		auto hp_out = output + output_stride * (row + rule);
 
 		for (unsigned col = 0; col < width; col += 1)
 		{
-			const T even = in[col + inout_stride * 0];
-			const T odd = in[col + inout_stride * 1];
+			const auto even = in[col + input_stride * 0];
+			const auto odd = in[col + input_stride * 1];
 
-			hp_out[col] = even - odd;
+			hp_out[col] = WrapSubtract(even, odd);
 		}
 	}
 
 	// Lowpass (length of 'rule')
-	for (unsigned row = 0; row < half; row += 1)
+	for (unsigned row = 0; row < rule; row += 1)
 	{
-		const T* in = input + inout_stride * (row << 1);
-		T* lp_out = output + inout_stride * (row);
+		const auto in = input + input_stride * (row << 1);
+		auto lp_out = output + output_stride * (row);
 
 		for (unsigned col = 0; col < width; col += 1)
 		{
-			const T even = in[col + inout_stride * 0];
+			const auto even = in[col + output_stride * 0];
 			lp_out[col] = even;
 		}
 	}
@@ -104,78 +104,71 @@ static void sLift(const Wavelet& w, unsigned width, unsigned height, unsigned ch
 
 	// Everything here operates in reverse
 
+	auto out = reinterpret_cast<T*>(reinterpret_cast<uint8_t*>(output) +
+	                                TileDataSize<T>(width, height, channels)); // Set to the very end
+
 	unsigned lp_w = width;
 	unsigned lp_h = height;
+	unsigned hp_w = 0;
+	unsigned hp_h = 0;
 
-	T* out = output + (width * height) * channels; // Set to the very end
+	const auto lifts_no = LiftsNo(width, height);
 
 	// Highpasses
-	for (unsigned lift = 0; lp_w > 1 && lp_h > 1; lift += 1, lp_w = HalfPlusOneRule(lp_w), lp_h = HalfPlusOneRule(lp_h))
+	for (unsigned lift = 0; lift < lifts_no; lift += 1)
 	{
-		// printf("! \tLift, %ux%u -> lp: %ux%u, hp: %ux%u\n", lp_w, lp_h, HalfPlusOneRule(lp_w), HalfPlusOneRule(lp_h),
-		//       Half(lp_w), Half(lp_h));
+		const auto prev_stride = (lp_w + hp_w);
+
+		LiftMeasures(lift, width, height, lp_w, lp_h, hp_w, hp_h);
+		const auto current_w = lp_w + hp_w;
+		const auto current_h = lp_h + hp_h;
+
+		// printf("! \tLift, %ux%u -> lp: %ux%u, hp: %ux%u\n", current_w, current_h, lp_w, lp_h, hp_w, hp_h);
 
 		// Iterate in Vuy order
 		for (unsigned ch = (channels - 1); ch < channels; ch -= 1) // Underflows
 		{
-			T* inout = input + (width * height) * ch;
+			auto inout = input + (width * height) * ch;
 
-			// Lift
-			{
-				// Set auxiliary memory
-				T* aux = inout + (width * lp_h);
-				if (lift == 0)
-					aux = output; // + (width * height) * ch; // First lift needs extra sauce
+			// Set auxiliary memory
+			const auto current_stride = current_w;
 
-				// Wavelet transformation, note the ping-pong between buffers
-				HaarHorizontalForward(lp_w, lp_h, width, inout, aux);
-				HaarVerticalForward(lp_w, lp_h, width, aux, inout);
-			}
+			auto aux = inout + current_h * prev_stride;
+			if (lift == 0)
+				aux = output;
+
+			// Wavelet transformation
+			HaarHorizontalForward(current_w, current_h, prev_stride, current_stride, inout, aux);
+			HaarVerticalForward(current_w, current_h, current_stride, current_stride, aux, inout);
 
 			// Output highpasses
-			{
-				const unsigned next_lp_w = HalfPlusOneRule(lp_w);
-				const unsigned next_lp_h = HalfPlusOneRule(lp_h);
-				const unsigned hp_w = Half(lp_w);
-				const unsigned hp_h = Half(lp_h);
+			out -= (hp_w * hp_h);                      // Quadrant D
+			Memcpy2d(hp_w, hp_h, current_stride, hp_w, //
+			         inout + lp_h * current_stride + lp_w, out);
 
-				out -= (hp_w * hp_h) * 3; // Move it three highpasses quadrants back
+			out -= (hp_w * lp_h);                      // Quadrant B
+			Memcpy2d(hp_w, lp_h, current_stride, hp_w, //
+			         inout + lp_w, out);
 
-				Memcpy2d(hp_w, hp_h, width, hp_w,
-				         inout + next_lp_h * width, //
-				         out + (hp_w * hp_h) * 0);  // Quadrant C
+			out -= (lp_w * hp_h);                      // Quadrant C
+			Memcpy2d(lp_w, hp_h, current_stride, lp_w, //
+			         inout + lp_h * current_stride, out);
 
-				Memcpy2d(hp_w, hp_h, width, hp_w,
-				         inout + next_lp_w,        //
-				         out + (hp_w * hp_h) * 1); // Quadrant B
-
-				Memcpy2d(hp_w, hp_h, width, hp_w,
-				         inout + next_lp_h * width + next_lp_w, //
-				         out + (hp_w * hp_h) * 2);              // Quadrant D
-
-				// printf("! \tHpsCh%u = %i, %i, %i\n", ch, *(out + (hp_w * hp_h) * 0), *(out + (hp_w * hp_h) * 1),
-				//       *(out + (hp_w * hp_h) * 2));
-			}
+			// printf("! \tHpsCh%u %ux%u = %i, %i, %i\n", ch, lp_w, lp_h, q_c, q_b, q_d);
 		}
-
-		// Developers, developers, developers
-		// if (lp_w <= width / 2) // Stop earlier
-		//	break;
 	}
 
 	// Lowpasses
 	for (unsigned ch = (channels - 1); ch < channels; ch -= 1)
 	{
-		out -= (lp_w * lp_h) * 1; // Move it one lowpass quadrant back
+		out -= (lp_w * lp_h); // Quadrant A
 
-		const T* lp = input + (width * height) * ch;
-		Memcpy2d(lp_w, lp_h, width, lp_w, lp, out); // Quadrant A
-		                                            // printf("! \tLpCh%u = %i\n", ch, *lp);
+		const auto lp = input + (width * height) * ch;
+		const auto current_stride = (lp_w + hp_w);
+		Memcpy2d(lp_w, lp_h, current_stride, lp_w, lp, out);
+
+		// printf("! \tLpCh%u = %i\n", ch, *lp);
 	}
-
-	// Developers, developers, developers
-	// if (out != output)
-	//	printf("Non square image! (%li)\n", out - output);
 }
 
 

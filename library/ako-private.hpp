@@ -164,24 +164,91 @@ void Memcpy2d(size_t width, size_t height, size_t in_stride, size_t out_stride, 
 	}
 }
 
-
-template <typename T> size_t TileDataSize(unsigned tile_w, unsigned tile_h, unsigned channels)
+inline void* Memset(void* output, int c, size_t size)
 {
-	// Silly formula, but the idea is to abstract it to make it future-proof
-	return tile_w * tile_h * channels * sizeof(T);
+#if defined(__clang__) || defined(__GNUC__)
+	__builtin_memset(output, c, size);
+#else
+	auto out = reinterpret_cast<uint8_t*>(output);
+	for (; size != 0; size -= 1, out += 1)
+		*out = static_cast<uint8_t>(c);
+#endif
+
+	return output;
+}
+
+inline void* Memcpy(void* output, const void* input, size_t size)
+{
+#if defined(__clang__) || defined(__GNUC__)
+	__builtin_memcpy(output, input, size);
+#else
+	auto out = reinterpret_cast<uint8_t*>(output);
+	auto in = reinterpret_cast<const uint8_t*>(input);
+	for (; size != 0; size -= 1, out += 1, in += 1)
+		*out = *in;
+#endif
+
+	return output;
+}
+
+
+template <typename T> size_t TileDataSize(unsigned width, unsigned height, unsigned channels)
+{
+	size_t size = 0;
+	auto lp_w = width;
+	auto lp_h = height;
+
+	for (; lp_w > 1 && lp_h > 1;)
+	{
+		size += (Half(lp_w) * Half(lp_h));            // Quadrant D
+		size += (Half(lp_w) * HalfPlusOneRule(lp_h)); // Quadrant B
+		size += (HalfPlusOneRule(lp_w) * Half(lp_h)); // Quadrant C
+
+		lp_w = HalfPlusOneRule(lp_w);
+		lp_h = HalfPlusOneRule(lp_h);
+	}
+
+	size += (lp_w * lp_h) * 1; // Quadrant A
+
+	return size * channels * sizeof(T);
 }
 
 template <typename T>
 size_t WorkareaSize(unsigned tiles_dimension, unsigned image_w, unsigned image_h, unsigned channels)
 {
-	// image_w += 1; // Extra column to honor plus-one rule
-	image_h += 1; // Extra row to honor plus-one rule
-
 	if (tiles_dimension != 0)
 		return (Min(tiles_dimension, image_w) * Min(tiles_dimension, image_h) * channels) * sizeof(T) +
 		       sizeof(ImageHead) + sizeof(TileHead);
 
 	return (image_w * image_h * channels) * sizeof(T) + sizeof(ImageHead) + sizeof(TileHead);
+}
+
+
+template <typename T> T WrapSubtract(T a, T b);
+template <typename T> T WrapAdd(T a, T b);
+
+template <> inline int16_t WrapSubtract(int16_t a, int16_t b)
+{
+	// This seems to be a non trivial problem: https://en.wikipedia.org/wiki/Modulo_operation
+	// In any case following formulas are reversible, in a defined way, in C and C++ compilers:
+	return static_cast<int16_t>((static_cast<int32_t>(a) - static_cast<int32_t>(b)) % 65536);
+
+	// Also: https://bugzilla.mozilla.org/show_bug.cgi?id=1031653
+}
+
+template <> inline int16_t WrapAdd(int16_t a, int16_t b)
+{
+	return static_cast<int16_t>((static_cast<int32_t>(a) + static_cast<int32_t>(b)) % 65536);
+}
+
+template <> inline int32_t WrapSubtract(int32_t a, int32_t b)
+{
+	return static_cast<int32_t>((static_cast<int64_t>(a) - static_cast<int64_t>(b)) % 4294967296);
+}
+
+template <> inline int32_t WrapAdd(int32_t a, int32_t b)
+{
+	return static_cast<int16_t>((static_cast<int64_t>(a) + static_cast<int64_t>(b)) % 4294967296);
 }
 
 } // namespace ako
