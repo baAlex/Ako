@@ -29,11 +29,13 @@ set(AKO_SOURCES
 	"./library/common/utilities.cpp"
 	"./library/common/version.cpp"
 
+	"./library/decode/compression.cpp"
 	"./library/decode/decode.cpp"
 	"./library/decode/format.cpp"
 	"./library/decode/haar.cpp"
 	"./library/decode/lifting.cpp"
 
+	"./library/encode/compression.cpp"
 	"./library/encode/encode.cpp"
 	"./library/encode/format.cpp"
 	"./library/encode/haar.cpp"

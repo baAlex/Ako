@@ -27,15 +27,17 @@ build ./build/sparc64/library/common/essentials.o:  Compile ./library/common/ess
 build ./build/sparc64/library/common/utilities.o:   Compile ./library/common/utilities.cpp
 build ./build/sparc64/library/common/version.o:     Compile ./library/common/version.cpp
 
-build ./build/sparc64/library/decode/decode.o:  Compile ./library/decode/decode.cpp
-build ./build/sparc64/library/decode/format.o:  Compile ./library/decode/format.cpp
-build ./build/sparc64/library/decode/haar.o:    Compile ./library/decode/haar.cpp
-build ./build/sparc64/library/decode/lifting.o: Compile ./library/decode/lifting.cpp
+build ./build/sparc64/library/decode/compression.o: Compile ./library/decode/compression.cpp
+build ./build/sparc64/library/decode/decode.o:      Compile ./library/decode/decode.cpp
+build ./build/sparc64/library/decode/format.o:      Compile ./library/decode/format.cpp
+build ./build/sparc64/library/decode/haar.o:        Compile ./library/decode/haar.cpp
+build ./build/sparc64/library/decode/lifting.o:     Compile ./library/decode/lifting.cpp
 
-build ./build/sparc64/library/encode/encode.o:  Compile ./library/encode/encode.cpp
-build ./build/sparc64/library/encode/format.o:  Compile ./library/encode/format.cpp
-build ./build/sparc64/library/encode/haar.o:    Compile ./library/encode/haar.cpp
-build ./build/sparc64/library/encode/lifting.o: Compile ./library/encode/lifting.cpp
+build ./build/sparc64/library/encode/compression.o: Compile ./library/encode/compression.cpp
+build ./build/sparc64/library/encode/encode.o:      Compile ./library/encode/encode.cpp
+build ./build/sparc64/library/encode/format.o:      Compile ./library/encode/format.cpp
+build ./build/sparc64/library/encode/haar.o:        Compile ./library/encode/haar.cpp
+build ./build/sparc64/library/encode/lifting.o:     Compile ./library/encode/lifting.cpp
 
 build ./build/sparc64/tests/forward-backward.o: Compile ./tests/forward-backward.cpp
 
@@ -47,10 +49,12 @@ build ./build/sparc64-libako-static.a: Pack $
  ./build/sparc64/library/common/essentials.o $
  ./build/sparc64/library/common/utilities.o $
  ./build/sparc64/library/common/version.o $
+ ./build/sparc64/library/decode/compression.o $
  ./build/sparc64/library/decode/decode.o $
  ./build/sparc64/library/decode/format.o $
  ./build/sparc64/library/decode/haar.o $
  ./build/sparc64/library/decode/lifting.o $
+ ./build/sparc64/library/encode/compression.o $
  ./build/sparc64/library/encode/encode.o $
  ./build/sparc64/library/encode/format.o $
  ./build/sparc64/library/encode/haar.o $

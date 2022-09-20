@@ -24,15 +24,17 @@ build ./build/wasm32/library/common/essentials.o:  Compile ./library/common/esse
 build ./build/wasm32/library/common/utilities.o:   Compile ./library/common/utilities.cpp
 build ./build/wasm32/library/common/version.o:     Compile ./library/common/version.cpp
 
-build ./build/wasm32/library/decode/decode.o:  Compile ./library/decode/decode.cpp
-build ./build/wasm32/library/decode/format.o:  Compile ./library/decode/format.cpp
-build ./build/wasm32/library/decode/haar.o:    Compile ./library/decode/haar.cpp
-build ./build/wasm32/library/decode/lifting.o: Compile ./library/decode/lifting.cpp
+build ./build/wasm32/library/decode/compression.o: Compile ./library/decode/compression.cpp
+build ./build/wasm32/library/decode/decode.o:      Compile ./library/decode/decode.cpp
+build ./build/wasm32/library/decode/format.o:      Compile ./library/decode/format.cpp
+build ./build/wasm32/library/decode/haar.o:        Compile ./library/decode/haar.cpp
+build ./build/wasm32/library/decode/lifting.o:     Compile ./library/decode/lifting.cpp
 
-build ./build/wasm32/library/encode/encode.o:  Compile ./library/encode/encode.cpp
-build ./build/wasm32/library/encode/format.o:  Compile ./library/encode/format.cpp
-build ./build/wasm32/library/encode/haar.o:    Compile ./library/encode/haar.cpp
-build ./build/wasm32/library/encode/lifting.o: Compile ./library/encode/lifting.cpp
+build ./build/wasm32/library/encode/compression.o: Compile ./library/encode/compression.cpp
+build ./build/wasm32/library/encode/encode.o:      Compile ./library/encode/encode.cpp
+build ./build/wasm32/library/encode/format.o:      Compile ./library/encode/format.cpp
+build ./build/wasm32/library/encode/haar.o:        Compile ./library/encode/haar.cpp
+build ./build/wasm32/library/encode/lifting.o:     Compile ./library/encode/lifting.cpp
 
 
 build ./build/wasm32-libako-static.a: Pack $
@@ -42,10 +44,12 @@ build ./build/wasm32-libako-static.a: Pack $
  ./build/wasm32/library/common/essentials.o $
  ./build/wasm32/library/common/utilities.o $
  ./build/wasm32/library/common/version.o $
+ ./build/wasm32/library/decode/compression.o $
  ./build/wasm32/library/decode/decode.o $
  ./build/wasm32/library/decode/format.o $
  ./build/wasm32/library/decode/haar.o $
  ./build/wasm32/library/decode/lifting.o $
+ ./build/wasm32/library/encode/compression.o $
  ./build/wasm32/library/encode/encode.o $
  ./build/wasm32/library/encode/format.o $
  ./build/wasm32/library/encode/haar.o $

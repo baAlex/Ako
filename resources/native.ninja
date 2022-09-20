@@ -29,15 +29,17 @@ build ./build/native/library/common/essentials.o:  Compile ./library/common/esse
 build ./build/native/library/common/utilities.o:   Compile ./library/common/utilities.cpp
 build ./build/native/library/common/version.o:     Compile ./library/common/version.cpp
 
-build ./build/native/library/decode/decode.o:  Compile ./library/decode/decode.cpp
-build ./build/native/library/decode/format.o:  Compile ./library/decode/format.cpp
-build ./build/native/library/decode/haar.o:    Compile ./library/decode/haar.cpp
-build ./build/native/library/decode/lifting.o: Compile ./library/decode/lifting.cpp
+build ./build/native/library/decode/compression.o: Compile ./library/decode/compression.cpp
+build ./build/native/library/decode/decode.o:      Compile ./library/decode/decode.cpp
+build ./build/native/library/decode/format.o:      Compile ./library/decode/format.cpp
+build ./build/native/library/decode/haar.o:        Compile ./library/decode/haar.cpp
+build ./build/native/library/decode/lifting.o:     Compile ./library/decode/lifting.cpp
 
-build ./build/native/library/encode/encode.o:  Compile ./library/encode/encode.cpp
-build ./build/native/library/encode/format.o:  Compile ./library/encode/format.cpp
-build ./build/native/library/encode/haar.o:    Compile ./library/encode/haar.cpp
-build ./build/native/library/encode/lifting.o: Compile ./library/encode/lifting.cpp
+build ./build/native/library/encode/compression.o: Compile ./library/encode/compression.cpp
+build ./build/native/library/encode/encode.o:      Compile ./library/encode/encode.cpp
+build ./build/native/library/encode/format.o:      Compile ./library/encode/format.cpp
+build ./build/native/library/encode/haar.o:        Compile ./library/encode/haar.cpp
+build ./build/native/library/encode/lifting.o:     Compile ./library/encode/lifting.cpp
 
 build ./build/native/tests/forward-backward.o: Compile ./tests/forward-backward.cpp
 
@@ -58,10 +60,12 @@ build ./build/native-libako-static.a: Pack $
  ./build/native/library/common/essentials.o $
  ./build/native/library/common/utilities.o $
  ./build/native/library/common/version.o $
+ ./build/native/library/decode/compression.o $
  ./build/native/library/decode/decode.o $
  ./build/native/library/decode/format.o $
  ./build/native/library/decode/haar.o $
  ./build/native/library/decode/lifting.o $
+ ./build/native/library/encode/compression.o $
  ./build/native/library/encode/encode.o $
  ./build/native/library/encode/format.o $
  ./build/native/library/encode/haar.o $
