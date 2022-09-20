@@ -6,75 +6,84 @@
 
 cpp = clang++-12
 ld = clang++-12 -fuse-ld=lld
+ar = llvm-ar-12
 
-cflags = -c -flto -O3 -I./library -I./tools/thirdparty/CLI11/include -I./tools/thirdparty/lodepng
-lflags = -flto
+cflags = -c -O3 -flto -I ./library/ -Werror -Wall -Wextra -Wconversion -pedantic -Wold-style-cast
+cflags_tools = -c -O3 -flto -I ./library/ -I ./tools/thirdparty/lodepng/ -I ./tools/thirdparty/CLI11/include/
 
 
-rule CompileCpp
+rule Compile
  command = $cpp $cflags $in -o $out
+rule CompileTool
+ command = $cpp $cflags_tools $in -o $out
+rule Pack
+ command = $ar -rcs $out $in
 rule Link
  command = $ld $in -o $out
 
 
-build ./build/native/library/common/adler32.o:     CompileCpp ./library/common/adler32.cpp
-build ./build/native/library/common/conversions.o: CompileCpp ./library/common/conversions.cpp
-build ./build/native/library/common/defaults.o:    CompileCpp ./library/common/defaults.cpp
-build ./build/native/library/common/utilities.o:   CompileCpp ./library/common/utilities.cpp
-build ./build/native/library/common/version.o:     CompileCpp ./library/common/version.cpp
+build ./build/native/library/common/adler32.o:     Compile ./library/common/adler32.cpp
+build ./build/native/library/common/conversions.o: Compile ./library/common/conversions.cpp
+build ./build/native/library/common/defaults.o:    Compile ./library/common/defaults.cpp
+build ./build/native/library/common/essentials.o:  Compile ./library/common/essentials.cpp
+build ./build/native/library/common/utilities.o:   Compile ./library/common/utilities.cpp
+build ./build/native/library/common/version.o:     Compile ./library/common/version.cpp
 
-build ./build/native/library/decode/decode.o:  CompileCpp ./library/decode/decode.cpp
-build ./build/native/library/decode/format.o:  CompileCpp ./library/decode/format.cpp
-build ./build/native/library/decode/lifting.o: CompileCpp ./library/decode/lifting.cpp
+build ./build/native/library/decode/decode.o:  Compile ./library/decode/decode.cpp
+build ./build/native/library/decode/format.o:  Compile ./library/decode/format.cpp
+build ./build/native/library/decode/haar.o:    Compile ./library/decode/haar.cpp
+build ./build/native/library/decode/lifting.o: Compile ./library/decode/lifting.cpp
 
-build ./build/native/library/encode/encode.o:  CompileCpp ./library/encode/encode.cpp
-build ./build/native/library/encode/format.o:  CompileCpp ./library/encode/format.cpp
-build ./build/native/library/encode/lifting.o: CompileCpp ./library/encode/lifting.cpp
+build ./build/native/library/encode/encode.o:  Compile ./library/encode/encode.cpp
+build ./build/native/library/encode/format.o:  Compile ./library/encode/format.cpp
+build ./build/native/library/encode/haar.o:    Compile ./library/encode/haar.cpp
+build ./build/native/library/encode/lifting.o: Compile ./library/encode/lifting.cpp
 
-build ./build/native/tools/akodec.o:    CompileCpp ./tools/akodec.cpp
-build ./build/native/tools/akoenc.o:    CompileCpp ./tools/akoenc.cpp
-build ./build/native/tools/callbacks.o: CompileCpp ./tools/callbacks.cpp
-build ./build/native/tools/developer.o: CompileCpp ./tools/developer.cpp
-build ./build/native/tools/png.o:       CompileCpp ./tools/png.cpp
+build ./build/native/tests/forward-backward.o: Compile ./tests/forward-backward.cpp
 
-build ./build/native/tools/thirdparty/CLI11/src/Precompile.o: CompileCpp ./tools/thirdparty/CLI11/src/Precompile.cpp
-build ./build/native/tools/thirdparty/lodepng/lodepng.o:      CompileCpp ./tools/thirdparty/lodepng/lodepng.cpp
+build ./build/native/tools/akodec.o:    CompileTool ./tools/akodec.cpp
+build ./build/native/tools/akoenc.o:    CompileTool ./tools/akoenc.cpp
+build ./build/native/tools/callbacks.o: CompileTool ./tools/callbacks.cpp
+build ./build/native/tools/developer.o: CompileTool ./tools/developer.cpp
+build ./build/native/tools/png.o:       CompileTool ./tools/png.cpp
 
+build ./build/native/tools/thirdparty/lodepng/lodepng.o:      CompileTool ./tools/thirdparty/lodepng/lodepng.cpp
+build ./build/native/tools/thirdparty/CLI11/src/Precompile.o: CompileTool ./tools/thirdparty/CLI11/src/Precompile.cpp
+
+
+build ./build/native-libako-static.a: Pack $
+ ./build/native/library/common/adler32.o $
+ ./build/native/library/common/conversions.o $
+ ./build/native/library/common/defaults.o $
+ ./build/native/library/common/essentials.o $
+ ./build/native/library/common/utilities.o $
+ ./build/native/library/common/version.o $
+ ./build/native/library/decode/decode.o $
+ ./build/native/library/decode/format.o $
+ ./build/native/library/decode/haar.o $
+ ./build/native/library/decode/lifting.o $
+ ./build/native/library/encode/encode.o $
+ ./build/native/library/encode/format.o $
+ ./build/native/library/encode/haar.o $
+ ./build/native/library/encode/lifting.o
+
+build ./build/native-tools-common.a: Pack $
+ ./build/native/tools/callbacks.o $
+ ./build/native/tools/developer.o $
+ ./build/native/tools/png.o $
+ ./build/native/tools/thirdparty/lodepng/lodepng.o $
+ ./build/native/tools/thirdparty/CLI11/src/Precompile.o
+
+build ./build/native-test-forward-backward: Link $
+ ./build/native/tests/forward-backward.o $
+ ./build/native-libako-static.a
 
 build ./build/native-akodec: Link $
  ./build/native/tools/akodec.o $
- ./build/native/tools/callbacks.o $
- ./build/native/tools/developer.o $
- ./build/native/tools/png.o $
- ./build/native/tools/thirdparty/CLI11/src/Precompile.o $
- ./build/native/tools/thirdparty/lodepng/lodepng.o $
- ./build/native/library/common/adler32.o $
- ./build/native/library/common/conversions.o $
- ./build/native/library/common/defaults.o $
- ./build/native/library/common/utilities.o $
- ./build/native/library/common/version.o $
- ./build/native/library/decode/decode.o $
- ./build/native/library/decode/format.o $
- ./build/native/library/decode/lifting.o $
- ./build/native/library/encode/encode.o $
- ./build/native/library/encode/format.o $
- ./build/native/library/encode/lifting.o
+ ./build/native-tools-common.a $
+ ./build/native-libako-static.a
 
 build ./build/native-akoenc: Link $
  ./build/native/tools/akoenc.o $
- ./build/native/tools/callbacks.o $
- ./build/native/tools/developer.o $
- ./build/native/tools/png.o $
- ./build/native/tools/thirdparty/CLI11/src/Precompile.o $
- ./build/native/tools/thirdparty/lodepng/lodepng.o $
- ./build/native/library/common/adler32.o $
- ./build/native/library/common/conversions.o $
- ./build/native/library/common/defaults.o $
- ./build/native/library/common/utilities.o $
- ./build/native/library/common/version.o $
- ./build/native/library/decode/decode.o $
- ./build/native/library/decode/format.o $
- ./build/native/library/decode/lifting.o $
- ./build/native/library/encode/encode.o $
- ./build/native/library/encode/format.o $
- ./build/native/library/encode/lifting.o
+ ./build/native-tools-common.a $
+ ./build/native-libako-static.a

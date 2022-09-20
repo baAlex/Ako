@@ -6,15 +6,22 @@ flags="-I./library -I./tools/thirdparty/CLI11/include -I./tools/thirdparty/lodep
 files="./library/common/adler32.cpp
        ./library/common/conversions.cpp
        ./library/common/defaults.cpp
+       ./library/common/essentials.cpp
        ./library/common/utilities.cpp
        ./library/common/version.cpp
+
        ./library/decode/decode.cpp
        ./library/decode/format.cpp
+       ./library/decode/haar.cpp
        ./library/decode/lifting.cpp
+
        ./library/encode/encode.cpp
        ./library/encode/format.cpp
+       ./library/encode/haar.cpp
        ./library/encode/lifting.cpp
+
        ./tests/forward-backward.cpp
+
        ./tools/akodec.cpp
        ./tools/akoenc.cpp
        ./tools/callbacks.cpp

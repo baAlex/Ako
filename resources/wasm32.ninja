@@ -8,39 +8,45 @@ cpp = clang++-12
 ar = llvm-ar-12
 
 cflags = -emit-llvm --target=wasm32 -ffreestanding --no-standard-libraries -DAKO_FREESTANDING $
- -c -I ./library/ -Werror -Wall -Wextra -Wconversion -pedantic -Wold-style-cast
+ -c -O3 -flto -I ./library/ -Werror -Wall -Wextra -Wconversion -pedantic -Wold-style-cast
 
 
-rule CompileCpp
+rule Compile
  command = $cpp $cflags $in -o $out
 rule Pack
  command = $ar -rcs $out $in
 
 
-build ./build/wasm32/library/common/adler32.o:     CompileCpp ./library/common/adler32.cpp
-build ./build/wasm32/library/common/conversions.o: CompileCpp ./library/common/conversions.cpp
-build ./build/wasm32/library/common/defaults.o:    CompileCpp ./library/common/defaults.cpp
-build ./build/wasm32/library/common/utilities.o:   CompileCpp ./library/common/utilities.cpp
-build ./build/wasm32/library/common/version.o:     CompileCpp ./library/common/version.cpp
+build ./build/wasm32/library/common/adler32.o:     Compile ./library/common/adler32.cpp
+build ./build/wasm32/library/common/conversions.o: Compile ./library/common/conversions.cpp
+build ./build/wasm32/library/common/defaults.o:    Compile ./library/common/defaults.cpp
+build ./build/wasm32/library/common/essentials.o:  Compile ./library/common/essentials.cpp
+build ./build/wasm32/library/common/utilities.o:   Compile ./library/common/utilities.cpp
+build ./build/wasm32/library/common/version.o:     Compile ./library/common/version.cpp
 
-build ./build/wasm32/library/decode/decode.o:  CompileCpp ./library/decode/decode.cpp
-build ./build/wasm32/library/decode/format.o:  CompileCpp ./library/decode/format.cpp
-build ./build/wasm32/library/decode/lifting.o: CompileCpp ./library/decode/lifting.cpp
+build ./build/wasm32/library/decode/decode.o:  Compile ./library/decode/decode.cpp
+build ./build/wasm32/library/decode/format.o:  Compile ./library/decode/format.cpp
+build ./build/wasm32/library/decode/haar.o:    Compile ./library/decode/haar.cpp
+build ./build/wasm32/library/decode/lifting.o: Compile ./library/decode/lifting.cpp
 
-build ./build/wasm32/library/encode/encode.o:  CompileCpp ./library/encode/encode.cpp
-build ./build/wasm32/library/encode/format.o:  CompileCpp ./library/encode/format.cpp
-build ./build/wasm32/library/encode/lifting.o: CompileCpp ./library/encode/lifting.cpp
+build ./build/wasm32/library/encode/encode.o:  Compile ./library/encode/encode.cpp
+build ./build/wasm32/library/encode/format.o:  Compile ./library/encode/format.cpp
+build ./build/wasm32/library/encode/haar.o:    Compile ./library/encode/haar.cpp
+build ./build/wasm32/library/encode/lifting.o: Compile ./library/encode/lifting.cpp
 
 
 build ./build/wasm32-libako-static.a: Pack $
  ./build/wasm32/library/common/adler32.o $
  ./build/wasm32/library/common/conversions.o $
  ./build/wasm32/library/common/defaults.o $
+ ./build/wasm32/library/common/essentials.o $
  ./build/wasm32/library/common/utilities.o $
  ./build/wasm32/library/common/version.o $
  ./build/wasm32/library/decode/decode.o $
  ./build/wasm32/library/decode/format.o $
+ ./build/wasm32/library/decode/haar.o $
  ./build/wasm32/library/decode/lifting.o $
  ./build/wasm32/library/encode/encode.o $
  ./build/wasm32/library/encode/format.o $
+ ./build/wasm32/library/encode/haar.o $
  ./build/wasm32/library/encode/lifting.o

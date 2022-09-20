@@ -89,13 +89,14 @@ void SavePlanarPgm(unsigned tile_no, unsigned width, unsigned height, unsigned c
                    unsigned in_stride, const void* in, const std::string& basename)
 {
 	if (depth <= 8)
-		sSavePlanarPgm(tile_no, width, height, channels, depth, in_stride, static_cast<const int16_t*>(in), basename);
+		sSavePlanarPgm(tile_no, width, height, channels, depth, in_stride, reinterpret_cast<const int16_t*>(in),
+		               basename);
 }
 
 void SaveInterleavedPgm(unsigned tile_no, unsigned width, unsigned height, unsigned channels, unsigned depth,
                         unsigned in_stride, const void* in, const std::string& basename)
 {
 	if (depth <= 8)
-		sSaveInterleavedPgm(tile_no, width, height, channels, depth, in_stride, static_cast<const uint8_t*>(in),
+		sSaveInterleavedPgm(tile_no, width, height, channels, depth, in_stride, reinterpret_cast<const uint8_t*>(in),
 		                    basename);
 }

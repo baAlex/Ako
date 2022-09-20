@@ -199,7 +199,7 @@ static void sTest(const char* out_filename, const Settings& settings, unsigned w
 
 		// Now with tiles
 		assert(g_encoded_info.max_tile_index == g_decoded_info.max_tile_index);
-		for (size_t i = 0; i < g_encoded_info.max_tile_index; i++) // Yes, ignoring 'tiles_no'
+		for (size_t i = 0; i < g_encoded_info.max_tile_index; i += 1) // Yes, ignoring 'tiles_no'
 		{
 			// Bad maths, since all information here isn't transmitted in the file itself, but calculated
 			assert(g_encoded_info.tile[i].width == g_decoded_info.tile[i].width);
@@ -226,7 +226,7 @@ int main()
 	printf("# ForwardBackward (Ako v%i.%i.%i, %s)\n", VersionMajor(), VersionMinor(), VersionPatch(),
 	       (SystemEndianness() == Endianness::Little) ? "little-endian" : "big-endian");
 
-	auto settings = DefaultSettings();
+	/*auto settings = DefaultSettings();
 	sTest("/tmp/out1.ako", settings, 1, 1, 1, 8);
 	sTest("/tmp/out2.ako", settings, 1, 1, 1, 16);
 	sTest("/tmp/out3.ako", settings, 640, 480, 3, 8);
@@ -243,7 +243,7 @@ int main()
 	settings.tiles_dimension = 256;
 	sTest("/tmp/out9.ako", settings, 1490, 900, 2, 16);
 	settings.tiles_dimension = 128;
-	sTest("/tmp/out10.ako", settings, 1490, 900, 2, 16);
+	sTest("/tmp/out10.ako", settings, 1490, 900, 2, 16);*/
 
 	return EXIT_SUCCESS;
 }

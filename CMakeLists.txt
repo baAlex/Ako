@@ -116,6 +116,7 @@ if (AKO_TESTS)
 	add_executable("forward-backward" "./tests/forward-backward.cpp")
 	target_include_directories("forward-backward" PRIVATE "./library/")
 	target_link_libraries("forward-backward" PRIVATE "ako-static")
+	set_property(TARGET "forward-backward" PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
 
 	add_test(NAME "ForwardBackward" COMMAND "forward-backward")
 

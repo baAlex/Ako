@@ -6,44 +6,56 @@
 
 
 cpp = sparc64-linux-gnu-g++
-ld = sparc64-linux-gnu-ld
+ld = sparc64-linux-gnu-g++
+ar = sparc64-linux-gnu-ar
 
-cflags = -c -I ./library/ -Werror -Wall -Wextra -Wconversion -pedantic -Wold-style-cast
+cflags = -c -O3 -I ./library/ -Werror -Wall -Wextra -Wconversion -pedantic -Wold-style-cast
 
 
-rule CompileCpp
+rule Compile
  command = $cpp $cflags $in -o $out
+rule Pack
+ command = $ar -rcs $out $in
 rule Link
- command = $cpp $in -o $out
+ command = $ld $in -o $out
 
 
-build ./build/sparc64/library/common/adler32.o:     CompileCpp ./library/common/adler32.cpp
-build ./build/sparc64/library/common/conversions.o: CompileCpp ./library/common/conversions.cpp
-build ./build/sparc64/library/common/defaults.o:    CompileCpp ./library/common/defaults.cpp
-build ./build/sparc64/library/common/utilities.o:   CompileCpp ./library/common/utilities.cpp
-build ./build/sparc64/library/common/version.o:     CompileCpp ./library/common/version.cpp
+build ./build/sparc64/library/common/adler32.o:     Compile ./library/common/adler32.cpp
+build ./build/sparc64/library/common/conversions.o: Compile ./library/common/conversions.cpp
+build ./build/sparc64/library/common/defaults.o:    Compile ./library/common/defaults.cpp
+build ./build/sparc64/library/common/essentials.o:  Compile ./library/common/essentials.cpp
+build ./build/sparc64/library/common/utilities.o:   Compile ./library/common/utilities.cpp
+build ./build/sparc64/library/common/version.o:     Compile ./library/common/version.cpp
 
-build ./build/sparc64/library/decode/decode.o:  CompileCpp ./library/decode/decode.cpp
-build ./build/sparc64/library/decode/format.o:  CompileCpp ./library/decode/format.cpp
-build ./build/sparc64/library/decode/lifting.o: CompileCpp ./library/decode/lifting.cpp
+build ./build/sparc64/library/decode/decode.o:  Compile ./library/decode/decode.cpp
+build ./build/sparc64/library/decode/format.o:  Compile ./library/decode/format.cpp
+build ./build/sparc64/library/decode/haar.o:    Compile ./library/decode/haar.cpp
+build ./build/sparc64/library/decode/lifting.o: Compile ./library/decode/lifting.cpp
 
-build ./build/sparc64/library/encode/encode.o:  CompileCpp ./library/encode/encode.cpp
-build ./build/sparc64/library/encode/format.o:  CompileCpp ./library/encode/format.cpp
-build ./build/sparc64/library/encode/lifting.o: CompileCpp ./library/encode/lifting.cpp
+build ./build/sparc64/library/encode/encode.o:  Compile ./library/encode/encode.cpp
+build ./build/sparc64/library/encode/format.o:  Compile ./library/encode/format.cpp
+build ./build/sparc64/library/encode/haar.o:    Compile ./library/encode/haar.cpp
+build ./build/sparc64/library/encode/lifting.o: Compile ./library/encode/lifting.cpp
 
-build ./build/sparc64/tests/forward-backward.o: CompileCpp ./tests/forward-backward.cpp
+build ./build/sparc64/tests/forward-backward.o: Compile ./tests/forward-backward.cpp
 
 
-build ./build/sparc64-forward-backward: Link $
- ./build/sparc64/tests/forward-backward.o $
+build ./build/sparc64-libako-static.a: Pack $
  ./build/sparc64/library/common/adler32.o $
  ./build/sparc64/library/common/conversions.o $
  ./build/sparc64/library/common/defaults.o $
+ ./build/sparc64/library/common/essentials.o $
  ./build/sparc64/library/common/utilities.o $
  ./build/sparc64/library/common/version.o $
  ./build/sparc64/library/decode/decode.o $
  ./build/sparc64/library/decode/format.o $
+ ./build/sparc64/library/decode/haar.o $
  ./build/sparc64/library/decode/lifting.o $
  ./build/sparc64/library/encode/encode.o $
  ./build/sparc64/library/encode/format.o $
+ ./build/sparc64/library/encode/haar.o $
  ./build/sparc64/library/encode/lifting.o
+
+build ./build/sparc64-test-forward-backward: Link $
+ ./build/sparc64/tests/forward-backward.o $
+ ./build/sparc64-libako-static.a

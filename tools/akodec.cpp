@@ -28,6 +28,7 @@ SOFTWARE.
 #include <string>
 #include <vector>
 
+#include "CLI/CLI.hpp"
 #include "shared.hpp"
 
 
