@@ -34,9 +34,9 @@ static Status sReadTileHead(const TileHead& head_raw, size_t& out_compressed_siz
 
 	if (SystemEndianness() != Endianness::Little)
 	{
-		head.magic = EndiannessReverseU32(head.magic);
-		head.no = EndiannessReverseU32(head.no);
-		head.compressed_size = EndiannessReverseU32(head.compressed_size);
+		head.magic = EndiannessReverse(head.magic);
+		head.no = EndiannessReverse(head.no);
+		head.compressed_size = EndiannessReverse(head.compressed_size);
 	}
 
 	if (head.magic != TILE_HEAD_MAGIC || head.compressed_size == 0)
@@ -226,10 +226,10 @@ static Status sReadImageHead(const ImageHead& head_raw, Settings& out_settings, 
 
 	if (SystemEndianness() != Endianness::Little)
 	{
-		head.magic = EndiannessReverseU32(head.magic);
-		head.a = EndiannessReverseU32(head.a);
-		head.b = EndiannessReverseU32(head.b);
-		head.c = EndiannessReverseU32(head.c);
+		head.magic = EndiannessReverse(head.magic);
+		head.a = EndiannessReverse(head.a);
+		head.b = EndiannessReverse(head.b);
+		head.c = EndiannessReverse(head.c);
 	}
 
 	if (head.magic != IMAGE_HEAD_MAGIC)

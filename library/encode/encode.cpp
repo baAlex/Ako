@@ -61,10 +61,10 @@ static void sWriteImageHead(const Settings& settings, unsigned image_w, unsigned
 
 	if (SystemEndianness() != Endianness::Little)
 	{
-		out.magic = EndiannessReverseU32(out.magic);
-		out.a = EndiannessReverseU32(out.a);
-		out.b = EndiannessReverseU32(out.b);
-		out.c = EndiannessReverseU32(out.c);
+		out.magic = EndiannessReverse(out.magic);
+		out.a = EndiannessReverse(out.a);
+		out.b = EndiannessReverse(out.b);
+		out.c = EndiannessReverse(out.c);
 	}
 }
 
@@ -79,9 +79,9 @@ static void sWriteTileHead(unsigned no, size_t compressed_size, TileHead& out)
 
 	if (SystemEndianness() != Endianness::Little)
 	{
-		out.magic = EndiannessReverseU32(out.magic);
-		out.no = EndiannessReverseU32(out.no);
-		out.compressed_size = EndiannessReverseU32(out.compressed_size);
+		out.magic = EndiannessReverse(out.magic);
+		out.no = EndiannessReverse(out.no);
+		out.compressed_size = EndiannessReverse(out.compressed_size);
 	}
 }
 

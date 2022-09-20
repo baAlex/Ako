@@ -25,23 +25,27 @@ set(AKO_SOURCES
 	"./library/common/adler32.cpp"
 	"./library/common/conversions.cpp"
 	"./library/common/defaults.cpp"
+	"./library/common/essentials.cpp"
 	"./library/common/utilities.cpp"
 	"./library/common/version.cpp"
 
 	"./library/decode/decode.cpp"
 	"./library/decode/format.cpp"
+	"./library/decode/haar.cpp"
 	"./library/decode/lifting.cpp"
 
 	"./library/encode/encode.cpp"
 	"./library/encode/format.cpp"
+	"./library/encode/haar.cpp"
 	"./library/encode/lifting.cpp")
 
 
 if (AKO_SHARED)
 	add_library("ako" SHARED ${AKO_SOURCES})
+	target_include_directories("ako" PRIVATE "./library/")
+
 	set_property(TARGET "ako" PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
 	set_property(TARGET "ako" PROPERTY CXX_VISIBILITY_PRESET hidden)
-	target_include_directories("ako" PRIVATE "./library/")
 
 	if (NOT MSVC)
 		target_compile_options("ako" PRIVATE ${CFLAGS})
@@ -52,6 +56,8 @@ endif ()
 if (AKO_STATIC)
 	add_library("ako-static" STATIC ${AKO_SOURCES})
 	target_include_directories("ako-static" PRIVATE "./library/")
+
+	set_property(TARGET "ako-static" PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
 
 	if (NOT MSVC)
 		target_compile_options("ako-static" PRIVATE ${CFLAGS})
@@ -81,6 +87,8 @@ if (AKO_DEC)
 	target_include_directories("akodec" PRIVATE "./tools/thirdparty/CLI11/include/")
 	target_include_directories("akodec" PRIVATE "./tools/thirdparty/lodepng/")
 
+	set_property(TARGET "akodec" PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
+
 	if (NOT MSVC)
 		# target_compile_options("akodec" PRIVATE ${CFLAGS})
 	endif ()
@@ -95,6 +103,8 @@ if (AKO_ENC)
 	target_include_directories("akoenc" PRIVATE "./library/")
 	target_include_directories("akoenc" PRIVATE "./tools/thirdparty/CLI11/include/")
 	target_include_directories("akoenc" PRIVATE "./tools/thirdparty/lodepng/")
+
+	set_property(TARGET "akoenc" PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
 
 	if (NOT MSVC)
 		# target_compile_options("akoenc" PRIVATE ${CFLAGS})

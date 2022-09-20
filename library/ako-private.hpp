@@ -78,7 +78,7 @@ Wrap ToWrap(uint32_t number, Status& out_status);
 Compression ToCompression(uint32_t number, Status& out_status);
 
 
-// common/utilities.cpp:
+// common/essentials.cpp:
 
 unsigned Half(unsigned length);            // By convention yields highpass length
 unsigned HalfPlusOneRule(unsigned length); // By convention yields lowpass length
@@ -92,15 +92,33 @@ unsigned TilesNo(unsigned tiles_dimension, unsigned image_w, unsigned image_h);
 void TileMeasures(unsigned tile_no, unsigned tiles_dimension, unsigned image_w, unsigned image_h, //
                   unsigned& out_w, unsigned& out_h, unsigned& out_x, unsigned& out_y);
 
-void* BetterRealloc(const Callbacks& callbacks, void* ptr, size_t new_size);
-
-Endianness SystemEndianness();
-uint32_t EndiannessReverseU32(uint32_t value);
+template <typename T> size_t TileDataSize(unsigned width, unsigned height, unsigned channels);
+template <typename T>
+size_t WorkareaSize(unsigned tiles_dimension, unsigned image_w, unsigned image_h, unsigned channels);
 
 Status ValidateCallbacks(const Callbacks& callbacks);
 Status ValidateSettings(const Settings& settings);
 Status ValidateProperties(unsigned image_w, unsigned image_h, unsigned channels, unsigned depth);
 Status ValidateInput(const void* ptr, size_t input_size = 1); // TODO?
+
+
+// common/utilities.cpp:
+
+void* BetterRealloc(const Callbacks& callbacks, void* ptr, size_t new_size);
+
+void* Memset(void* output, int c, size_t size);
+void* Memcpy(void* output, const void* input, size_t size);
+
+template <typename T>
+void Memcpy2d(size_t width, size_t height, size_t in_stride, size_t out_stride, const T* in, T* out);
+
+Endianness SystemEndianness();
+template <typename T> T EndiannessReverse(T value);
+
+template <typename T> T WrapSubtract(T a, T b);
+template <typename T> T WrapAdd(T a, T b);
+
+template <typename T> T SaturateToLower(T v);
 
 
 // decode/format.cpp:
@@ -125,7 +143,27 @@ template <typename T>
 void Lift(const Wavelet& w, unsigned width, unsigned height, unsigned channels, T* input, T* output);
 
 
-// Templates:
+// decode/haar.cpp:
+// encode/haar.cpp:
+
+template <typename T>
+void HaarHorizontalForward(unsigned width, unsigned height, unsigned input_stride, unsigned output_stride,
+                           const T* input, T* output);
+
+template <typename T>
+void HaarVerticalForward(unsigned width, unsigned height, unsigned input_stride, unsigned output_stride, const T* input,
+                         T* output);
+
+template <typename T>
+void HaarHorizontalInverse(unsigned height, unsigned lp_w, unsigned hp_w, unsigned out_stride, const T* lowpass,
+                           const T* highpass, T* output);
+
+template <typename T>
+void HaarInPlaceishVerticalInverse(unsigned width, unsigned lp_h, unsigned hp_h, const T* lowpass, T* highpass,
+                                   T* out_lowpass);
+
+
+// Misc:
 
 template <typename T> T Min(T a, T b)
 {
@@ -135,120 +173,6 @@ template <typename T> T Min(T a, T b)
 template <typename T> T Max(T a, T b)
 {
 	return (a > b) ? a : b;
-}
-
-
-template <typename T> T SaturateToLower(T v);
-
-template <> inline int16_t SaturateToLower(int16_t v)
-{
-	return (Max<int16_t>(0, Min<int16_t>(v, 255)));
-}
-
-template <> inline int32_t SaturateToLower(int32_t v)
-{
-	return (Max<int32_t>(0, Min<int32_t>(v, 65535)));
-}
-
-
-template <typename T>
-void Memcpy2d(size_t width, size_t height, size_t in_stride, size_t out_stride, const T* in, T* out)
-{
-	for (size_t row = 0; row < height; row += 1)
-	{
-		for (size_t col = 0; col < width; col += 1)
-			out[col] = in[col];
-
-		in += in_stride;
-		out += out_stride;
-	}
-}
-
-inline void* Memset(void* output, int c, size_t size)
-{
-#if defined(__clang__) || defined(__GNUC__)
-	__builtin_memset(output, c, size);
-#else
-	auto out = reinterpret_cast<uint8_t*>(output);
-	for (; size != 0; size -= 1, out += 1)
-		*out = static_cast<uint8_t>(c);
-#endif
-
-	return output;
-}
-
-inline void* Memcpy(void* output, const void* input, size_t size)
-{
-#if defined(__clang__) || defined(__GNUC__)
-	__builtin_memcpy(output, input, size);
-#else
-	auto out = reinterpret_cast<uint8_t*>(output);
-	auto in = reinterpret_cast<const uint8_t*>(input);
-	for (; size != 0; size -= 1, out += 1, in += 1)
-		*out = *in;
-#endif
-
-	return output;
-}
-
-
-template <typename T> size_t TileDataSize(unsigned width, unsigned height, unsigned channels)
-{
-	size_t size = 0;
-	auto lp_w = width;
-	auto lp_h = height;
-
-	for (; lp_w > 1 && lp_h > 1;)
-	{
-		size += (Half(lp_w) * Half(lp_h));            // Quadrant D
-		size += (Half(lp_w) * HalfPlusOneRule(lp_h)); // Quadrant B
-		size += (HalfPlusOneRule(lp_w) * Half(lp_h)); // Quadrant C
-
-		lp_w = HalfPlusOneRule(lp_w);
-		lp_h = HalfPlusOneRule(lp_h);
-	}
-
-	size += (lp_w * lp_h) * 1; // Quadrant A
-
-	return size * channels * sizeof(T);
-}
-
-template <typename T>
-size_t WorkareaSize(unsigned tiles_dimension, unsigned image_w, unsigned image_h, unsigned channels)
-{
-	if (tiles_dimension != 0)
-		return (Min(tiles_dimension, image_w) * Min(tiles_dimension, image_h) * channels) * sizeof(T) +
-		       sizeof(ImageHead) + sizeof(TileHead);
-
-	return (image_w * image_h * channels) * sizeof(T) + sizeof(ImageHead) + sizeof(TileHead);
-}
-
-
-template <typename T> T WrapSubtract(T a, T b);
-template <typename T> T WrapAdd(T a, T b);
-
-template <> inline int16_t WrapSubtract(int16_t a, int16_t b)
-{
-	// This seems to be a non trivial problem: https://en.wikipedia.org/wiki/Modulo_operation
-	// In any case following formulas are reversible, in a defined way, in C and C++ compilers:
-	return static_cast<int16_t>((static_cast<int32_t>(a) - static_cast<int32_t>(b)) % 65536);
-
-	// Also: https://bugzilla.mozilla.org/show_bug.cgi?id=1031653
-}
-
-template <> inline int16_t WrapAdd(int16_t a, int16_t b)
-{
-	return static_cast<int16_t>((static_cast<int32_t>(a) + static_cast<int32_t>(b)) % 65536);
-}
-
-template <> inline int32_t WrapSubtract(int32_t a, int32_t b)
-{
-	return static_cast<int32_t>((static_cast<int64_t>(a) - static_cast<int64_t>(b)) % 4294967296);
-}
-
-template <> inline int32_t WrapAdd(int32_t a, int32_t b)
-{
-	return static_cast<int16_t>((static_cast<int64_t>(a) + static_cast<int64_t>(b)) % 4294967296);
 }
 
 } // namespace ako

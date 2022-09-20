@@ -28,100 +28,6 @@ SOFTWARE.
 namespace ako
 {
 
-unsigned Half(unsigned length)
-{
-	return (length >> 1);
-}
-
-unsigned HalfPlusOneRule(unsigned length)
-{
-	if (length == 1)
-		return 1;
-
-	return (length + (length & 1)) >> 1;
-}
-
-unsigned NearPowerOfTwo(unsigned v)
-{
-	unsigned x = 2;
-	while (x < v)
-	{
-		x <<= 1;
-		if (x == 0)
-			return 0;
-	}
-
-	return x;
-}
-
-
-unsigned LiftsNo(unsigned width, unsigned height)
-{
-	unsigned lp_w = width;
-	unsigned lp_h = height;
-	unsigned lift_no = 0;
-
-	for (; lp_w > 1 && lp_h > 1; lift_no += 1)
-	{
-		lp_w = HalfPlusOneRule(lp_w);
-		lp_h = HalfPlusOneRule(lp_h);
-	}
-
-	return lift_no;
-}
-
-void LiftMeasures(unsigned no, unsigned width, unsigned height, unsigned& out_lp_w, unsigned& out_lp_h,
-                  unsigned& out_hp_w, unsigned& out_hp_h)
-{
-	out_hp_w = Half(width);
-	out_hp_h = Half(height);
-	out_lp_w = HalfPlusOneRule(width);
-	out_lp_h = HalfPlusOneRule(height);
-
-	for (unsigned i = 0; i < no; i += 1)
-	{
-		out_hp_w = Half(out_lp_w);
-		out_hp_h = Half(out_lp_h);
-		out_lp_w = HalfPlusOneRule(out_lp_w);
-		out_lp_h = HalfPlusOneRule(out_lp_h);
-	}
-}
-
-
-unsigned TilesNo(unsigned tiles_dimension, unsigned image_w, unsigned image_h)
-{
-	if (tiles_dimension == 0)
-		return 1;
-
-	const auto horizontal = image_w / tiles_dimension + ((image_w % tiles_dimension == 0) ? 0 : 1);
-	const auto vertical = image_h / tiles_dimension + ((image_h % tiles_dimension == 0) ? 0 : 1);
-
-	return horizontal * vertical;
-}
-
-
-void TileMeasures(unsigned tile_no, unsigned tiles_dimension, unsigned image_w, unsigned image_h, //
-                  unsigned& out_w, unsigned& out_h, unsigned& out_x, unsigned& out_y)
-{
-	if (tiles_dimension == 0)
-	{
-		out_x = 0;
-		out_y = 0;
-		out_w = image_w;
-		out_h = image_h;
-		return;
-	}
-
-	const auto horizontal_tiles = image_w / tiles_dimension + ((image_w % tiles_dimension == 0) ? 0 : 1);
-
-	out_x = (tile_no % horizontal_tiles) * tiles_dimension;
-	out_y = (tile_no / horizontal_tiles) * tiles_dimension;
-
-	out_w = (out_x + tiles_dimension <= image_w) ? (tiles_dimension) : (image_w % tiles_dimension);
-	out_h = (out_y + tiles_dimension <= image_h) ? (tiles_dimension) : (image_h % tiles_dimension);
-}
-
-
 void* BetterRealloc(const Callbacks& callbacks, void* ptr, size_t new_size)
 {
 	void* prev_ptr = ptr;
@@ -132,6 +38,61 @@ void* BetterRealloc(const Callbacks& callbacks, void* ptr, size_t new_size)
 	}
 
 	return ptr;
+}
+
+
+void* Memset(void* output, int c, size_t size)
+{
+#if defined(__clang__) || defined(__GNUC__)
+	__builtin_memset(output, c, size);
+#else
+	auto out = reinterpret_cast<uint8_t*>(output);
+	for (; size != 0; size -= 1, out += 1)
+		*out = static_cast<uint8_t>(c);
+#endif
+
+	return output;
+}
+
+
+void* Memcpy(void* output, const void* input, size_t size)
+{
+#if defined(__clang__) || defined(__GNUC__)
+	__builtin_memcpy(output, input, size);
+#else
+	auto out = reinterpret_cast<uint8_t*>(output);
+	auto in = reinterpret_cast<const uint8_t*>(input);
+	for (; size != 0; size -= 1, out += 1, in += 1)
+		*out = *in;
+#endif
+
+	return output;
+}
+
+
+template <typename T>
+static void sMemcpy2d(size_t width, size_t height, size_t in_stride, size_t out_stride, const T* in, T* out)
+{
+	for (size_t row = 0; row < height; row += 1)
+	{
+		for (size_t col = 0; col < width; col += 1)
+			out[col] = in[col];
+
+		in += in_stride;
+		out += out_stride;
+	}
+}
+
+template <>
+void Memcpy2d(size_t width, size_t height, size_t in_stride, size_t out_stride, const int16_t* in, int16_t* out)
+{
+	return sMemcpy2d(width, height, in_stride, out_stride, in, out);
+}
+
+template <>
+void Memcpy2d(size_t width, size_t height, size_t in_stride, size_t out_stride, const int32_t* in, int32_t* out)
+{
+	return sMemcpy2d(width, height, in_stride, out_stride, in, out);
 }
 
 
@@ -146,8 +107,7 @@ Endianness SystemEndianness()
 	return Endianness::Little;
 }
 
-
-uint32_t EndiannessReverseU32(uint32_t value)
+template <> uint32_t EndiannessReverse(uint32_t value)
 {
 	const auto b1 = static_cast<uint32_t>(value & 0xFF);
 	const auto b2 = static_cast<uint32_t>((value >> 8) & 0xFF);
@@ -158,53 +118,39 @@ uint32_t EndiannessReverseU32(uint32_t value)
 }
 
 
-Status ValidateCallbacks(const Callbacks& callbacks)
+template <> int16_t WrapSubtract(int16_t a, int16_t b)
 {
-	if (callbacks.malloc == nullptr || callbacks.realloc == nullptr || callbacks.free == nullptr)
-		return Status::InvalidCallbacks;
+	// This seems to be a non trivial problem: https://en.wikipedia.org/wiki/Modulo_operation
+	// In any case following formulas are reversible, in a defined way, in C and C++ compilers:
+	return static_cast<int16_t>((static_cast<int32_t>(a) - static_cast<int32_t>(b)) % 65536);
 
-	return Status::Ok;
+	// Also: https://bugzilla.mozilla.org/show_bug.cgi?id=1031653
+}
+
+template <> int16_t WrapAdd(int16_t a, int16_t b)
+{
+	return static_cast<int16_t>((static_cast<int32_t>(a) + static_cast<int32_t>(b)) % 65536);
+}
+
+template <> int32_t WrapSubtract(int32_t a, int32_t b)
+{
+	return static_cast<int32_t>((static_cast<int64_t>(a) - static_cast<int64_t>(b)) % 4294967296);
+}
+
+template <> int32_t WrapAdd(int32_t a, int32_t b)
+{
+	return static_cast<int16_t>((static_cast<int64_t>(a) + static_cast<int64_t>(b)) % 4294967296);
 }
 
 
-Status ValidateSettings(const Settings& settings)
+template <> int16_t SaturateToLower(int16_t v)
 {
-	if (settings.tiles_dimension != 0)
-	{
-		if (settings.tiles_dimension != NearPowerOfTwo(settings.tiles_dimension) ||
-		    settings.tiles_dimension > MAXIMUM_TILES_DIMENSION)
-			return Status::InvalidTilesDimension;
-	}
-
-	return Status::Ok;
+	return (Max<int16_t>(0, Min<int16_t>(v, 255)));
 }
 
-
-Status ValidateProperties(unsigned image_w, unsigned image_h, unsigned channels, unsigned depth)
+template <> int32_t SaturateToLower(int32_t v)
 {
-	// clang-format off
-	if (image_w > MAXIMUM_WIDTH)     { return Status::InvalidDimensions; }
-	if (image_h > MAXIMUM_HEIGHT)    { return Status::InvalidDimensions; }
-	if (image_w < MINIMUM_WIDTH)     { return Status::InvalidDimensions; }
-	if (image_h < MINIMUM_HEIGHT)    { return Status::InvalidDimensions; }
-
-	if (channels < MINIMUM_CHANNELS) { return Status::InvalidChannelsNo; }
-	if (channels > MAXIMUM_CHANNELS) { return Status::InvalidChannelsNo; }
-
-	if (depth < MINIMUM_DEPTH)       { return Status::InvalidDepth; }
-	if (depth > MAXIMUM_DEPTH)       { return Status::InvalidDepth; }
-	// clang-format on
-
-	return Status::Ok;
-}
-
-
-Status ValidateInput(const void* ptr, size_t input_size)
-{
-	if (ptr == nullptr || input_size == 0)
-		return Status::InvalidInput;
-
-	return Status::Ok;
+	return (Max<int32_t>(0, Min<int32_t>(v, 65535)));
 }
 
 } // namespace ako
