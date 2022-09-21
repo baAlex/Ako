@@ -43,7 +43,7 @@ static void sLift(const Wavelet& w, unsigned width, unsigned height, unsigned ch
 	unsigned hp_w = 0;
 	unsigned hp_h = 0;
 
-	const auto lifts_no = LiftsNo(width, height);
+	const auto lifts_no = LiftsNo(width, height); // May return zero, in such case bypass 'highpasses' below
 
 	// Highpasses
 	for (unsigned lift = 0; lift < lifts_no; lift += 1)
@@ -98,7 +98,7 @@ static void sLift(const Wavelet& w, unsigned width, unsigned height, unsigned ch
 		const auto current_stride = (lp_w + hp_w);
 		Memcpy2d(lp_w, lp_h, current_stride, lp_w, lp, out);
 
-		// printf("! \tLpCh%u = %i\n", ch, *lp);
+		// printf("! \tLpCh%u (%ux%u) = %i\n", ch, lp_w, lp_h, *lp);
 	}
 }
 

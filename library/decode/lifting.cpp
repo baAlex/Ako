@@ -40,8 +40,8 @@ static void sUnlift(const Wavelet& w, unsigned width, unsigned height, unsigned 
 	unsigned hp_w = 0;
 	unsigned hp_h = 0;
 
-	const auto lifts_no = LiftsNo(width, height);
-	LiftMeasures((lifts_no - 1), width, height, lp_w, lp_h, hp_w, hp_h);
+	const auto lifts_no = LiftsNo(width, height); // May return zero, in such case bypass 'highpasses' below
+	LiftMeasures((lifts_no - 1), width, height, lp_w, lp_h, hp_w, hp_h); // Don't worry, survives the '0 - 1'
 
 	// Lowpasses
 	for (unsigned ch = 0; ch < channels; ch += 1)
@@ -49,7 +49,7 @@ static void sUnlift(const Wavelet& w, unsigned width, unsigned height, unsigned 
 		auto lp = output + (width * height) * ch;
 		Memcpy2d(lp_w, lp_h, lp_w, lp_w, in, lp);
 
-		// printf("! \tLpCh%u = %i\n", ch, *lp);
+		// printf("! \tLpCh%u (%ux%u) = %i\n", ch, lp_w, lp_h, *lp);
 
 		in += (lp_w * lp_h); // Quadrant A
 	}

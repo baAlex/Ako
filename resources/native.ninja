@@ -78,7 +78,7 @@ build ./build/native-tools-common.a: Pack $
  ./build/native/tools/thirdparty/lodepng/lodepng.o $
  ./build/native/tools/thirdparty/CLI11/src/Precompile.o
 
-build ./build/native-test-forward-backward: Link $
+build ./build/native-forward-backward: Link $
  ./build/native/tests/forward-backward.o $
  ./build/native-libako-static.a
 

@@ -60,6 +60,6 @@ build ./build/sparc64-libako-static.a: Pack $
  ./build/sparc64/library/encode/haar.o $
  ./build/sparc64/library/encode/lifting.o
 
-build ./build/sparc64-test-forward-backward: Link $
+build ./build/sparc64-forward-backward: Link $
  ./build/sparc64/tests/forward-backward.o $
  ./build/sparc64-libako-static.a

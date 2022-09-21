@@ -81,7 +81,7 @@ void LiftMeasures(unsigned no, unsigned width, unsigned height, unsigned& out_lp
 	out_lp_w = HalfPlusOneRule(width);
 	out_lp_h = HalfPlusOneRule(height);
 
-	for (unsigned i = 0; i < no; i += 1)
+	for (unsigned i = 0; i < no && out_lp_w > 1 && out_lp_h > 1; i += 1)
 	{
 		out_hp_w = Half(out_lp_w);
 		out_hp_h = Half(out_lp_h);
