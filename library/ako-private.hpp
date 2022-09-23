@@ -112,6 +112,8 @@ void* Memcpy(void* output, const void* input, size_t size);
 template <typename T>
 void Memcpy2d(size_t width, size_t height, size_t in_stride, size_t out_stride, const T* in, T* out);
 
+template <typename T> void MemcpyReversingEndianness(size_t size, const T* input, void* output);
+
 Endianness SystemEndianness();
 template <typename T> T EndiannessReverse(T value);
 
@@ -119,6 +121,18 @@ template <typename T> T WrapSubtract(T a, T b);
 template <typename T> T WrapAdd(T a, T b);
 
 template <typename T> T SaturateToLower(T v);
+
+
+// decode/compression.cpp:
+// encode/compression.cpp:
+
+template <typename T>
+size_t Decompress(const Compression& compression_method, size_t compressed_size, unsigned width, unsigned height,
+                  unsigned channels, const void* input, T* output, Status&);
+
+template <typename T>
+size_t Compress(const Compression& compression_method, unsigned width, unsigned height, unsigned channels,
+                const T* input, void* output);
 
 
 // decode/format.cpp:
@@ -137,10 +151,12 @@ void FormatToInternal(const Color& color_transformation, bool discard, unsigned 
 // encode/lifting.cpp:
 
 template <typename T>
-void Unlift(const Wavelet& w, unsigned width, unsigned height, unsigned channels, T* input, T* output);
+void Unlift(const Wavelet& wavelet_transformation, unsigned width, unsigned height, unsigned channels, T* input,
+            T* output);
 
 template <typename T>
-void Lift(const Wavelet& w, unsigned width, unsigned height, unsigned channels, T* input, T* output);
+void Lift(const Wavelet& wavelet_transformation, unsigned width, unsigned height, unsigned channels, T* input,
+          T* output);
 
 
 // decode/haar.cpp:

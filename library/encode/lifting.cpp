@@ -29,9 +29,10 @@ namespace ako
 {
 
 template <typename T>
-static void sLift(const Wavelet& w, unsigned width, unsigned height, unsigned channels, T* input, T* output)
+static void sLift(const Wavelet& wavelet_transformation, unsigned width, unsigned height, unsigned channels, T* input,
+                  T* output)
 {
-	(void)w;
+	(void)wavelet_transformation;
 
 	// Everything here operates in reverse
 
@@ -104,15 +105,17 @@ static void sLift(const Wavelet& w, unsigned width, unsigned height, unsigned ch
 
 
 template <>
-void Lift(const Wavelet& w, unsigned width, unsigned height, unsigned channels, int16_t* input, int16_t* output)
+void Lift(const Wavelet& wavelet_transformation, unsigned width, unsigned height, unsigned channels, int16_t* input,
+          int16_t* output)
 {
-	sLift(w, width, height, channels, input, output);
+	sLift(wavelet_transformation, width, height, channels, input, output);
 }
 
 template <>
-void Lift(const Wavelet& w, unsigned width, unsigned height, unsigned channels, int32_t* input, int32_t* output)
+void Lift(const Wavelet& wavelet_transformation, unsigned width, unsigned height, unsigned channels, int32_t* input,
+          int32_t* output)
 {
-	sLift(w, width, height, channels, input, output);
+	sLift(wavelet_transformation, width, height, channels, input, output);
 }
 
 } // namespace ako

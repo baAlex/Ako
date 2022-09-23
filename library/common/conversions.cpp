@@ -47,6 +47,7 @@ const char* ToString(Status s)
 
 	case Status::TruncatedImageHead: return "Truncated data, near image head";
 	case Status::TruncatedTileHead: return "Truncated data, near a tile head";
+	case Status::TruncatedTileData: return "Truncated tile data";
 	case Status::NotAnAkoFile: return "Not an Ako file";
 	case Status::InvalidColor: return "Invalid color";
 	case Status::InvalidWavelet: return "Invalid wavelet";

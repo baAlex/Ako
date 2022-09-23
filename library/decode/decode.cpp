@@ -47,17 +47,17 @@ static Status sReadTileHead(const TileHead& head_raw, size_t& out_compressed_siz
 }
 
 
-template <typename TIn, typename TOut>
+template <typename TCoeff, typename TOut>
 static void* sDecodeInternal(const Callbacks& callbacks, const Settings& settings, unsigned image_w, unsigned image_h,
                              unsigned channels, unsigned depth, const void* input, const void* input_end,
                              Status& out_status)
 {
-	(void)depth; // Implicit in TIn and TOut
+	(void)depth; // Implicit in TCoeff and TOut
 
 	auto status = Status::Ok;
 
 	const unsigned tiles_no = TilesNo(settings.tiles_dimension, image_w, image_h);
-	const size_t workarea_size = WorkareaSize<TIn>(settings.tiles_dimension, image_w, image_h, channels);
+	const size_t workarea_size = WorkareaSize<TCoeff>(settings.tiles_dimension, image_w, image_h, channels);
 	const size_t workareas_no = 2;
 
 	void* workarea[workareas_no] = {nullptr, nullptr}; // Where work
@@ -87,7 +87,7 @@ static void* sDecodeInternal(const Callbacks& callbacks, const Settings& setting
 			}
 
 			// Developers, developers, developers
-			Memset(workarea[i], 0, workarea_size);
+			// Memset(workarea[i], 0, workarea_size);
 		}
 
 		if (tiles_no == 1)
@@ -114,7 +114,7 @@ static void* sDecodeInternal(const Callbacks& callbacks, const Settings& setting
 		size_t tile_data_size;
 
 		TileMeasures(t, settings.tiles_dimension, image_w, image_h, tile_w, tile_h, tile_x, tile_y);
-		tile_data_size = TileDataSize<TIn>(tile_w, tile_h, channels);
+		tile_data_size = TileDataSize<TCoeff>(tile_w, tile_h, channels);
 
 		// Feedback
 		if (callbacks.generic_event != nullptr)
@@ -143,8 +143,9 @@ static void* sDecodeInternal(const Callbacks& callbacks, const Settings& setting
 			if (callbacks.compression_event != nullptr)
 				callbacks.compression_event(settings.compression, t + 1, nullptr, callbacks.user_data);
 
-			auto out = reinterpret_cast<TIn*>(workarea[0]);
-			Memcpy(out, input, compressed_size);
+			if (Decompress(settings.compression, compressed_size, tile_w, tile_h, channels, input,
+			               reinterpret_cast<TCoeff*>(workarea[0]), status) == 0)
+				goto return_failure;
 
 			input = reinterpret_cast<const uint8_t*>(input) + compressed_size;
 
@@ -160,8 +161,8 @@ static void* sDecodeInternal(const Callbacks& callbacks, const Settings& setting
 			if (callbacks.lifting_event != nullptr)
 				callbacks.lifting_event(settings.wavelet, settings.wrap, t + 1, nullptr, callbacks.user_data);
 
-			Unlift(settings.wavelet, tile_w, tile_h, channels, reinterpret_cast<TIn*>(workarea[0]),
-			       reinterpret_cast<TIn*>(workarea[1]));
+			Unlift(settings.wavelet, tile_w, tile_h, channels, reinterpret_cast<TCoeff*>(workarea[0]),
+			       reinterpret_cast<TCoeff*>(workarea[1]));
 
 			if (callbacks.lifting_event != nullptr)
 				callbacks.lifting_event(settings.wavelet, settings.wrap, t + 1, workarea[1], callbacks.user_data);
@@ -172,7 +173,7 @@ static void* sDecodeInternal(const Callbacks& callbacks, const Settings& setting
 			if (callbacks.format_event != nullptr)
 				callbacks.format_event(settings.color, t + 1, nullptr, callbacks.user_data);
 
-			FormatToRgb(settings.color, tile_w, tile_h, channels, tile_w, reinterpret_cast<TIn*>(workarea[1]),
+			FormatToRgb(settings.color, tile_w, tile_h, channels, tile_w, reinterpret_cast<TCoeff*>(workarea[1]),
 			            reinterpret_cast<TOut*>(workarea[0]));
 
 			if (callbacks.format_event != nullptr)
@@ -182,14 +183,14 @@ static void* sDecodeInternal(const Callbacks& callbacks, const Settings& setting
 		// 5. Copy image data
 		if (tiles_no != 1) // TODO, Format() is capable of write directly to output
 		{
-			// auto out = reinterpret_cast<TOut*>(image) + (tile_x * channels) + (image_w * channels) * tile_y;
+			auto out = reinterpret_cast<TOut*>(image) + (tile_x * channels) + (image_w * channels) * tile_y;
 
-			// for (size_t row = 0; row < tile_h; row += 1)
-			// {
-			// 	for (size_t col = 0; col < (tile_w * channels); col += 1)
-			// 		out[col] = reinterpret_cast<TOut*>(workarea[1])[row * tile_w * channels + col];
-			// 	out += (image_w * channels);
-			// }
+			for (size_t row = 0; row < tile_h; row += 1)
+			{
+				Memcpy(out, reinterpret_cast<TOut*>(workarea[0]) + row * tile_w * channels,
+				       tile_w * channels * sizeof(TOut));
+				out += (image_w * channels);
+			}
 		}
 	}
 

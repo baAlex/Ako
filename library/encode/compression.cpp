@@ -24,3 +24,42 @@ SOFTWARE.
 */
 
 #include "ako-private.hpp"
+
+namespace ako
+{
+
+template <typename T>
+static size_t sCompress(const Compression& compression_method, unsigned width, unsigned height, unsigned channels,
+                        const T* input, void* output)
+{
+	(void)compression_method;
+
+	// No compression
+	{
+		const auto compressed_size = TileDataSize<T>(width, height, channels);
+
+		if (SystemEndianness() == Endianness::Little)
+			Memcpy(output, input, compressed_size);
+		else
+			MemcpyReversingEndianness(compressed_size, input, output);
+
+		return compressed_size;
+	}
+}
+
+
+template <>
+size_t Compress(const Compression& compression_method, unsigned width, unsigned height, unsigned channels,
+                const int16_t* input, void* output)
+{
+	return sCompress(compression_method, width, height, channels, input, output);
+}
+
+template <>
+size_t Compress(const Compression& compression_method, unsigned width, unsigned height, unsigned channels,
+                const int32_t* input, void* output)
+{
+	return sCompress(compression_method, width, height, channels, input, output);
+}
+
+} // namespace ako

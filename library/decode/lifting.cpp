@@ -29,19 +29,21 @@ namespace ako
 {
 
 template <typename T>
-static void sUnlift(const Wavelet& w, unsigned width, unsigned height, unsigned channels, T* input, T* output)
+static void sUnlift(const Wavelet& wavelet_transformation, unsigned width, unsigned height, unsigned channels, T* input,
+                    T* output)
 {
-	(void)w;
+	(void)wavelet_transformation;
 
 	auto in = input;
 
-	unsigned lp_w = 0;
-	unsigned lp_h = 0;
+	unsigned lp_w = width;
+	unsigned lp_h = height;
 	unsigned hp_w = 0;
 	unsigned hp_h = 0;
 
 	const auto lifts_no = LiftsNo(width, height); // May return zero, in such case 'highpasses' below is ignored
-	LiftMeasures((lifts_no - 1), width, height, lp_w, lp_h, hp_w, hp_h); // Don't worry, survives the '0 - 1'
+	if (lifts_no > 1)
+		LiftMeasures((lifts_no - 1), width, height, lp_w, lp_h, hp_w, hp_h);
 
 	// Lowpasses
 	for (unsigned ch = 0; ch < channels; ch += 1)
@@ -93,15 +95,17 @@ static void sUnlift(const Wavelet& w, unsigned width, unsigned height, unsigned 
 
 
 template <>
-void Unlift(const Wavelet& w, unsigned width, unsigned height, unsigned channels, int16_t* input, int16_t* output)
+void Unlift(const Wavelet& wavelet_transformation, unsigned width, unsigned height, unsigned channels, int16_t* input,
+            int16_t* output)
 {
-	sUnlift(w, width, height, channels, input, output);
+	sUnlift(wavelet_transformation, width, height, channels, input, output);
 }
 
 template <>
-void Unlift(const Wavelet& w, unsigned width, unsigned height, unsigned channels, int32_t* input, int32_t* output)
+void Unlift(const Wavelet& wavelet_transformation, unsigned width, unsigned height, unsigned channels, int32_t* input,
+            int32_t* output)
 {
-	sUnlift(w, width, height, channels, input, output);
+	sUnlift(wavelet_transformation, width, height, channels, input, output);
 }
 
 } // namespace ako

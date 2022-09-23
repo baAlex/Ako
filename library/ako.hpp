@@ -50,6 +50,7 @@ enum class Status
 
 	TruncatedImageHead,
 	TruncatedTileHead,
+	TruncatedTileData,
 	NotAnAkoFile,
 	InvalidColor,
 	InvalidWavelet,

@@ -86,14 +86,14 @@ static void sWriteTileHead(unsigned no, size_t compressed_size, TileHead& out)
 }
 
 
-template <typename TIn, typename TOut>
+template <typename TIn, typename TCoeff>
 static size_t sEncodeInternal(const Callbacks& callbacks, const Settings& settings, unsigned image_w, unsigned image_h,
                               unsigned channels, unsigned depth, const TIn* input, void** output, Status& out_status)
 {
 	auto status = Status::Ok;
 
 	const unsigned tiles_no = TilesNo(settings.tiles_dimension, image_w, image_h);
-	const size_t workarea_size = WorkareaSize<TOut>(settings.tiles_dimension, image_w, image_h, channels);
+	const size_t workarea_size = WorkareaSize<TCoeff>(settings.tiles_dimension, image_w, image_h, channels);
 	const size_t workareas_no = 2;
 
 	void* workarea[workareas_no] = {nullptr, nullptr}; // Where work
@@ -127,13 +127,13 @@ static size_t sEncodeInternal(const Callbacks& callbacks, const Settings& settin
 			}
 
 			// Developers, developers, developers
-			Memset(workarea[i], 0, workarea_size);
+			// Memset(workarea[i], 0, workarea_size);
 		}
 
 		if (tiles_no == 1)
 		{
-			blob = workarea[1];
-			workarea[1] = (reinterpret_cast<uint8_t*>(workarea[1]) + sizeof(ImageHead) + sizeof(TileHead)); // HACK
+			blob = workarea[0];
+			workarea[0] = (reinterpret_cast<uint8_t*>(workarea[0]) + sizeof(ImageHead) + sizeof(TileHead)); // HACK
 		}
 	}
 
@@ -160,7 +160,7 @@ static size_t sEncodeInternal(const Callbacks& callbacks, const Settings& settin
 		size_t tile_data_size;
 
 		TileMeasures(t, settings.tiles_dimension, image_w, image_h, tile_w, tile_h, tile_x, tile_y);
-		tile_data_size = TileDataSize<TOut>(tile_w, tile_h, channels);
+		tile_data_size = TileDataSize<TCoeff>(tile_w, tile_h, channels);
 
 		// Feedback
 		if (callbacks.generic_event != nullptr)
@@ -176,7 +176,7 @@ static size_t sEncodeInternal(const Callbacks& callbacks, const Settings& settin
 				callbacks.format_event(settings.color, t + 1, nullptr, callbacks.user_data);
 
 			FormatToInternal(settings.color, settings.discard, tile_w, tile_h, channels, image_w,
-			                 input + (tile_x + image_w * tile_y) * channels, reinterpret_cast<TOut*>(workarea[0]));
+			                 input + (tile_x + image_w * tile_y) * channels, reinterpret_cast<TCoeff*>(workarea[0]));
 
 			if (callbacks.format_event != nullptr)
 				callbacks.format_event(settings.color, t + 1, workarea[0], callbacks.user_data);
@@ -187,15 +187,27 @@ static size_t sEncodeInternal(const Callbacks& callbacks, const Settings& settin
 			if (callbacks.lifting_event != nullptr)
 				callbacks.lifting_event(settings.wavelet, settings.wrap, t + 1, nullptr, callbacks.user_data);
 
-			Lift(settings.wavelet, tile_w, tile_h, channels, reinterpret_cast<TOut*>(workarea[0]),
-			     reinterpret_cast<TOut*>(workarea[1]));
+			Lift(settings.wavelet, tile_w, tile_h, channels, reinterpret_cast<TCoeff*>(workarea[0]),
+			     reinterpret_cast<TCoeff*>(workarea[1]));
 
 			if (callbacks.lifting_event != nullptr)
 				callbacks.lifting_event(settings.wavelet, settings.wrap, t + 1, workarea[1], callbacks.user_data);
 		}
 
 		// 3. Compression
-		{}
+		{
+			if (callbacks.compression_event != nullptr)
+				callbacks.compression_event(settings.compression, t + 1, nullptr, callbacks.user_data);
+
+			tile_data_size = Compress(settings.compression, tile_w, tile_h, channels,
+			                          reinterpret_cast<TCoeff*>(workarea[1]), workarea[0]);
+
+			if (callbacks.compression_event != nullptr)
+				callbacks.compression_event(settings.compression, t + 1, workarea[0], callbacks.user_data);
+
+			// Developers, developers, developers
+			// printf("Hash: %8x \n", Adler32(workarea[0], tile_data_size));
+		}
 
 		// 4. Write tile head
 		{
@@ -220,21 +232,17 @@ static size_t sEncodeInternal(const Callbacks& callbacks, const Settings& settin
 
 			if (tiles_no != 1) // HACK
 			{
-				// auto out = reinterpret_cast<TOut*>(reinterpret_cast<uint8_t*>(blob) + blob_cursor);
-				// for (size_t i = 0; i < (tile_w * tile_h * channels); i += 1)
-				// 	out[i] = reinterpret_cast<TOut*>(workarea[1])[i];
+				auto out = reinterpret_cast<uint8_t*>(blob) + blob_cursor;
+				Memcpy(out, workarea[0], tile_data_size);
 			}
 
 			blob_cursor += tile_data_size;
-
-			// Developers, developers, developers
-			// printf("Hash: %8x \n", Adler32(workarea[1], tile_data_size));
 		}
 	}
 
 	// Bye!
 	if (tiles_no == 1)
-		workarea[1] = (reinterpret_cast<uint8_t*>(workarea[1]) - sizeof(ImageHead) - sizeof(TileHead)); // HACK
+		workarea[0] = (reinterpret_cast<uint8_t*>(workarea[0]) - sizeof(ImageHead) - sizeof(TileHead)); // HACK
 
 	for (size_t i = 0; i < workareas_no; i += 1)
 	{
@@ -255,7 +263,7 @@ static size_t sEncodeInternal(const Callbacks& callbacks, const Settings& settin
 
 return_failure:
 	if (tiles_no == 1)
-		workarea[1] = (reinterpret_cast<uint8_t*>(workarea[0]) - sizeof(ImageHead) - sizeof(TileHead)); // HACK
+		workarea[0] = (reinterpret_cast<uint8_t*>(workarea[0]) - sizeof(ImageHead) - sizeof(TileHead)); // HACK
 
 	for (size_t i = 0; i < workareas_no; i += 1)
 	{
