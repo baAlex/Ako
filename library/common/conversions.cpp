@@ -79,7 +79,6 @@ const char* ToString(Wavelet w)
 	case Wavelet::Dd137: return "DD137";
 	case Wavelet::Cdf53: return "CDF53";
 	case Wavelet::Haar: return "HAAR";
-	case Wavelet::None: return "NONE";
 	}
 
 	return "Api error";
@@ -131,7 +130,6 @@ uint32_t ToNumber(Wavelet w)
 	case Wavelet::Dd137: return 0;
 	case Wavelet::Cdf53: return 1;
 	case Wavelet::Haar: return 2;
-	case Wavelet::None: return 3;
 	}
 
 	return UINT8_MAX;
@@ -185,11 +183,10 @@ Wavelet ToWavelet(uint32_t number, Status& out_status)
 	case 0: return Wavelet::Dd137;
 	case 1: return Wavelet::Cdf53;
 	case 2: return Wavelet::Haar;
-	case 3: return Wavelet::None;
 	}
 
 	out_status = Status::InvalidColor;
-	return Wavelet::None;
+	return Wavelet::Haar;
 }
 
 Wrap ToWrap(uint32_t number, Status& out_status)

@@ -69,8 +69,7 @@ enum class Wavelet
 {
 	Dd137,
 	Cdf53,
-	Haar,
-	None,
+	Haar
 };
 
 enum class Wrap
