@@ -40,7 +40,7 @@ static void sUnlift(const Wavelet& w, unsigned width, unsigned height, unsigned 
 	unsigned hp_w = 0;
 	unsigned hp_h = 0;
 
-	const auto lifts_no = LiftsNo(width, height); // May return zero, in such case bypass 'highpasses' below
+	const auto lifts_no = LiftsNo(width, height); // May return zero, in such case 'highpasses' below is ignored
 	LiftMeasures((lifts_no - 1), width, height, lp_w, lp_h, hp_w, hp_h); // Don't worry, survives the '0 - 1'
 
 	// Lowpasses

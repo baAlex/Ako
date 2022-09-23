@@ -29,13 +29,13 @@ namespace ako
 {
 
 template <size_t channels, typename TIn, typename TOut>
-static inline void sInterleave(unsigned width, unsigned plane_offset, size_t output_stride, const TIn* in, TOut* out,
-                               const TOut* out_end)
+static void sInterleave(unsigned width, unsigned plane_offset, size_t output_stride, const TIn* in, TOut* out,
+                        const TOut* out_end)
 {
 	for (; out < out_end; out += output_stride, in += width)
-		for (unsigned col = 0; col < width; col++) // [B]
+		for (unsigned col = 0; col < width; col += 1) // [B]
 		{
-			for (unsigned ch = 0; ch < channels; ch++)
+			for (unsigned ch = 0; ch < channels; ch += 1)
 				out[col * channels + ch] = static_cast<TOut>(in[plane_offset * ch + col]); // [A]
 		}
 }
@@ -50,8 +50,8 @@ static void sFormatToRgb(const Color& color_transformation, unsigned width, unsi
 	// According to Perf lines [A] and [B] are the origin of 14% of cycles usage, 4% cache misses and
 	// 5% of branches misses of the entire decoding (at the time of writing this, there is no other
 	// decoding stage than this one), with honorable mentions to Min() and Max() functions.
-	// So, SIMD seems to be the only fix here, weird that C optimizes things different (and I too lazy
-	// to check the assembly)
+	// So, SIMD seems to be the only fix here, weird that C optimizes things different (and I'm too
+	// lazy to check the assembly)
 
 	output_stride = output_stride * channels;
 	const auto plane_offset = width * height;
@@ -111,7 +111,7 @@ static void sFormatToRgb(const Color& color_transformation, unsigned width, unsi
 		}
 	}
 
-	// Saturate
+	// Saturate remaining channels
 	if (channels != 3)
 	{
 		const unsigned from_channel = (channels < 3) ? 0 : 3;

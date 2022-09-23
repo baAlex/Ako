@@ -43,7 +43,7 @@ static void sLift(const Wavelet& w, unsigned width, unsigned height, unsigned ch
 	unsigned hp_w = 0;
 	unsigned hp_h = 0;
 
-	const auto lifts_no = LiftsNo(width, height); // May return zero, in such case bypass 'highpasses' below
+	const auto lifts_no = LiftsNo(width, height); // May return zero
 
 	// Highpasses
 	for (unsigned lift = 0; lift < lifts_no; lift += 1)

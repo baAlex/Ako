@@ -103,6 +103,7 @@ static size_t sEncodeInternal(const Callbacks& callbacks, const Settings& settin
 	size_t blob_size =
 	    (tiles_no == 1) ? workarea_size : 0; // With only one tile (the whole image) we can recycle memory
 
+	// Feedback
 	if (callbacks.generic_event != nullptr)
 	{
 		callbacks.generic_event(GenericEvent::ImageDimensions, image_w, image_h, 0, 0, callbacks.user_data);
@@ -161,6 +162,7 @@ static size_t sEncodeInternal(const Callbacks& callbacks, const Settings& settin
 		TileMeasures(t, settings.tiles_dimension, image_w, image_h, tile_w, tile_h, tile_x, tile_y);
 		tile_data_size = TileDataSize<TOut>(tile_w, tile_h, channels);
 
+		// Feedback
 		if (callbacks.generic_event != nullptr)
 		{
 			callbacks.generic_event(GenericEvent::TileDimensions, t + 1, tile_w, tile_h, 0, callbacks.user_data);

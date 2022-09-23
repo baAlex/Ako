@@ -63,6 +63,7 @@ static void* sDecodeInternal(const Callbacks& callbacks, const Settings& setting
 	void* workarea[workareas_no] = {nullptr, nullptr}; // Where work
 	void* image = nullptr;                             // Where output our work
 
+	// Feedback
 	if (callbacks.generic_event != nullptr)
 	{
 		callbacks.generic_event(GenericEvent::ImageDimensions, image_w, image_h, 0, 0, callbacks.user_data);
@@ -115,6 +116,7 @@ static void* sDecodeInternal(const Callbacks& callbacks, const Settings& setting
 		TileMeasures(t, settings.tiles_dimension, image_w, image_h, tile_w, tile_h, tile_x, tile_y);
 		tile_data_size = TileDataSize<TIn>(tile_w, tile_h, channels);
 
+		// Feedback
 		if (callbacks.generic_event != nullptr)
 		{
 			callbacks.generic_event(GenericEvent::TileDimensions, t + 1, tile_w, tile_h, 0, callbacks.user_data);
