@@ -48,40 +48,44 @@ static GatheredInfo s_encoded_info = {};
 static GatheredInfo s_decoded_info = {};
 
 
-static void sCallbackGenericEvent(ako::GenericEvent e, unsigned a, unsigned b, unsigned c, size_t d, void* user_data)
+static void sCallbackGenericEvent(ako::GenericEvent e, unsigned arg_a, unsigned arg_b, unsigned arg_c,
+                                  ako::GenericType arg_d, void* user_data)
 {
 	auto& data = *reinterpret_cast<GatheredInfo*>(user_data);
 
 	switch (e)
 	{
 	case ako::GenericEvent::ImageDimensions:
-		data.image_width = a;
-		data.image_height = b;
+		data.image_width = arg_a;
+		data.image_height = arg_b;
 		break;
 
-	case ako::GenericEvent::ImageChannels: data.channels = a; break;
-	case ako::GenericEvent::ImageDepth: data.depth = a; break;
-	case ako::GenericEvent::TilesNo: data.tiles_no = a; break;
-	case ako::GenericEvent::TilesDimension: data.tiles_dimension = a; break;
-	case ako::GenericEvent::WorkareaSize: data.workarea_size = d; break;
+	case ako::GenericEvent::ImageChannels: data.channels = arg_a; break;
+	case ako::GenericEvent::ImageDepth: data.depth = arg_a; break;
+	case ako::GenericEvent::TilesNo: data.tiles_no = arg_a; break;
+	case ako::GenericEvent::TilesDimension: data.tiles_dimension = arg_a; break;
+	case ako::GenericEvent::WorkareaSize: data.workarea_size = arg_d.u; break;
 
 	case ako::GenericEvent::TileDimensions:
-		assert(a < MAX_TILE_INFO);
-		data.max_tile_index = Max(data.max_tile_index, a);
-		data.tile[a].width = b;
-		data.tile[a].height = c;
+		assert(arg_a < MAX_TILE_INFO);
+		data.max_tile_index = Max(data.max_tile_index, arg_a);
+		data.tile[arg_a].width = arg_b;
+		data.tile[arg_a].height = arg_c;
 		break;
 	case ako::GenericEvent::TilePosition:
-		assert(a < MAX_TILE_INFO);
-		data.max_tile_index = Max(data.max_tile_index, a);
-		data.tile[a].x = b;
-		data.tile[a].y = c;
+		assert(arg_a < MAX_TILE_INFO);
+		data.max_tile_index = Max(data.max_tile_index, arg_a);
+		data.tile[arg_a].x = arg_b;
+		data.tile[arg_a].y = arg_c;
 		break;
 	case ako::GenericEvent::TileDataSize:
-		assert(a < MAX_TILE_INFO);
-		data.max_tile_index = Max(data.max_tile_index, a);
-		data.tile[a].data_size = d;
+		assert(arg_a < MAX_TILE_INFO);
+		data.max_tile_index = Max(data.max_tile_index, arg_a);
+		data.tile[arg_a].data_size = arg_d.u;
 		break;
+
+	case ako::GenericEvent::LiftLowpassDimensions: // fallthrough
+	case ako::GenericEvent::LiftHighpassesDimensions: break;
 	}
 }
 

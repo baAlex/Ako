@@ -151,12 +151,12 @@ void FormatToInternal(const Color& color_transformation, bool discard, unsigned 
 // encode/lifting.cpp:
 
 template <typename T>
-void Unlift(const Wavelet& wavelet_transformation, unsigned width, unsigned height, unsigned channels, T* input,
-            T* output);
+void Unlift(const Callbacks&, const Wavelet& wavelet_transformation, unsigned width, unsigned height, unsigned channels,
+            T* input, T* output);
 
 template <typename T>
-void Lift(const Wavelet& wavelet_transformation, unsigned width, unsigned height, unsigned channels, T* input,
-          T* output);
+void Lift(const Callbacks&, const Wavelet& wavelet_transformation, unsigned width, unsigned height, unsigned channels,
+          T* input, T* output);
 
 
 // decode/haar.cpp:
@@ -189,6 +189,13 @@ template <typename T> T Min(T a, T b)
 template <typename T> T Max(T a, T b)
 {
 	return (a > b) ? a : b;
+}
+
+inline GenericType CallbackGenericSigned(signed long v)
+{
+	union GenericType ret;
+	ret.s = v;
+	return ret;
 }
 
 } // namespace ako

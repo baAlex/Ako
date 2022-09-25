@@ -122,7 +122,7 @@ void SaveInterleavedPgm(unsigned tile_no, unsigned width, unsigned height, unsig
 struct CallbacksData
 {
 	bool print;
-	std::string prefix;
+	const char* prefix;
 
 	std::chrono::steady_clock::time_point clock;
 	std::chrono::microseconds format_duration;
@@ -151,7 +151,7 @@ struct CallbacksData
 	size_t tile_data_size;
 };
 
-void CallbackGenericEvent(ako::GenericEvent e, unsigned a, unsigned b, unsigned c, size_t d, void* user_data);
+void CallbackGenericEvent(ako::GenericEvent e, unsigned a, unsigned b, unsigned c, ako::GenericType d, void* user_data);
 
 void CallbackFormatEvent(ako::Color, unsigned tile_no, const void* image_data, void* user_data);
 void CallbackLiftingEvent(ako::Wavelet, ako::Wrap, unsigned tile_no, const void* image_data, void* user_data);

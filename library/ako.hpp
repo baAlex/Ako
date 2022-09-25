@@ -88,6 +88,12 @@ enum class Compression
 	None,
 };
 
+union GenericType // Like is the 80s again
+{
+	unsigned long u;
+	signed long s;
+};
+
 enum class GenericEvent
 {
 	ImageDimensions,
@@ -102,6 +108,9 @@ enum class GenericEvent
 	TileDimensions,
 	TilePosition,
 	TileDataSize,
+
+	LiftLowpassDimensions,
+	LiftHighpassesDimensions,
 };
 
 struct Callbacks
@@ -110,7 +119,7 @@ struct Callbacks
 	void* (*realloc)(void*, size_t);
 	void (*free)(void*);
 
-	void (*generic_event)(GenericEvent, unsigned, unsigned, unsigned, size_t, void* user_data);
+	void (*generic_event)(GenericEvent, unsigned, unsigned, unsigned, GenericType, void* user_data);
 
 	void (*format_event)(Color, unsigned tile_no, const void*, void* user_data);
 	void (*lifting_event)(Wavelet, Wrap, unsigned tile_no, const void*, void* user_data);

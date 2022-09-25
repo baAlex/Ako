@@ -66,14 +66,14 @@ static void* sDecodeInternal(const Callbacks& callbacks, const Settings& setting
 	// Feedback
 	if (callbacks.generic_event != nullptr)
 	{
-		callbacks.generic_event(GenericEvent::ImageDimensions, image_w, image_h, 0, 0, callbacks.user_data);
-		callbacks.generic_event(GenericEvent::ImageChannels, channels, 0, 0, 0, callbacks.user_data);
-		callbacks.generic_event(GenericEvent::ImageDepth, depth, 0, 0, 0, callbacks.user_data);
+		callbacks.generic_event(GenericEvent::ImageDimensions, image_w, image_h, 0, {0}, callbacks.user_data);
+		callbacks.generic_event(GenericEvent::ImageChannels, channels, 0, 0, {0}, callbacks.user_data);
+		callbacks.generic_event(GenericEvent::ImageDepth, depth, 0, 0, {0}, callbacks.user_data);
 
-		callbacks.generic_event(GenericEvent::TilesNo, tiles_no, 0, 0, 0, callbacks.user_data);
-		callbacks.generic_event(GenericEvent::TilesDimension, settings.tiles_dimension, 0, 0, 0, callbacks.user_data);
+		callbacks.generic_event(GenericEvent::TilesNo, tiles_no, 0, 0, {0}, callbacks.user_data);
+		callbacks.generic_event(GenericEvent::TilesDimension, settings.tiles_dimension, 0, 0, {0}, callbacks.user_data);
 
-		callbacks.generic_event(GenericEvent::WorkareaSize, 0, 0, 0, workarea_size, callbacks.user_data);
+		callbacks.generic_event(GenericEvent::WorkareaSize, 0, 0, 0, {workarea_size}, callbacks.user_data);
 	}
 
 	// Allocate memory
@@ -119,9 +119,9 @@ static void* sDecodeInternal(const Callbacks& callbacks, const Settings& setting
 		// Feedback
 		if (callbacks.generic_event != nullptr)
 		{
-			callbacks.generic_event(GenericEvent::TileDimensions, t + 1, tile_w, tile_h, 0, callbacks.user_data);
-			callbacks.generic_event(GenericEvent::TilePosition, t + 1, tile_x, tile_y, 0, callbacks.user_data);
-			callbacks.generic_event(GenericEvent::TileDataSize, t + 1, 0, 0, tile_data_size, callbacks.user_data);
+			callbacks.generic_event(GenericEvent::TileDimensions, t + 1, tile_w, tile_h, {0}, callbacks.user_data);
+			callbacks.generic_event(GenericEvent::TilePosition, t + 1, tile_x, tile_y, {0}, callbacks.user_data);
+			callbacks.generic_event(GenericEvent::TileDataSize, t + 1, 0, 0, {tile_data_size}, callbacks.user_data);
 		}
 
 		// 1. Read and validate tile head
@@ -161,7 +161,7 @@ static void* sDecodeInternal(const Callbacks& callbacks, const Settings& setting
 			if (callbacks.lifting_event != nullptr)
 				callbacks.lifting_event(settings.wavelet, settings.wrap, t + 1, nullptr, callbacks.user_data);
 
-			Unlift(settings.wavelet, tile_w, tile_h, channels, reinterpret_cast<TCoeff*>(workarea[0]),
+			Unlift(callbacks, settings.wavelet, tile_w, tile_h, channels, reinterpret_cast<TCoeff*>(workarea[0]),
 			       reinterpret_cast<TCoeff*>(workarea[1]));
 
 			if (callbacks.lifting_event != nullptr)

@@ -29,8 +29,8 @@ namespace ako
 {
 
 template <typename T>
-static void sUnlift(const Wavelet& wavelet_transformation, unsigned width, unsigned height, unsigned channels, T* input,
-                    T* output)
+static void sUnlift(const Callbacks& callbacks, const Wavelet& wavelet_transformation, unsigned width, unsigned height,
+                    unsigned channels, T* input, T* output)
 {
 	(void)wavelet_transformation;
 
@@ -38,8 +38,7 @@ static void sUnlift(const Wavelet& wavelet_transformation, unsigned width, unsig
 
 	unsigned lp_w = width;
 	unsigned lp_h = height;
-	unsigned hp_w = 0;
-	unsigned hp_h = 0;
+	unsigned hp_w, hp_h;
 
 	const auto lifts_no = LiftsNo(width, height); // May return zero, in such case 'highpasses' below is ignored
 	if (lifts_no > 1)
@@ -51,7 +50,9 @@ static void sUnlift(const Wavelet& wavelet_transformation, unsigned width, unsig
 		auto lp = output + (width * height) * ch;
 		Memcpy2d(lp_w, lp_h, lp_w, lp_w, in, lp);
 
-		// printf("! \tLpCh%u (%ux%u) = %i\n", ch, lp_w, lp_h, *lp);
+		if (callbacks.generic_event != nullptr)
+			callbacks.generic_event(GenericEvent::LiftLowpassDimensions, lp_w, lp_h, ch,
+			                        CallbackGenericSigned(static_cast<long>(*lp)), callbacks.user_data);
 
 		in += (lp_w * lp_h); // Quadrant A
 	}
@@ -60,7 +61,9 @@ static void sUnlift(const Wavelet& wavelet_transformation, unsigned width, unsig
 	for (unsigned lift = (lifts_no - 1); lift < lifts_no; lift -= 1) // Underflows
 	{
 		LiftMeasures(lift, width, height, lp_w, lp_h, hp_w, hp_h);
-		// printf("! \tUnlift, %ux%u <- lp: %ux%u, hp: %ux%u\n", lp_w + hp_w, lp_h + hp_h, lp_w, lp_h, hp_w, hp_h);
+
+		if (callbacks.generic_event != nullptr)
+			callbacks.generic_event(GenericEvent::LiftHighpassesDimensions, hp_w, hp_h, 0, {0}, callbacks.user_data);
 
 		// Iterate in Yuv order
 		for (unsigned ch = 0; ch < channels; ch += 1)
@@ -95,17 +98,17 @@ static void sUnlift(const Wavelet& wavelet_transformation, unsigned width, unsig
 
 
 template <>
-void Unlift(const Wavelet& wavelet_transformation, unsigned width, unsigned height, unsigned channels, int16_t* input,
-            int16_t* output)
+void Unlift(const Callbacks& callbacks, const Wavelet& wavelet_transformation, unsigned width, unsigned height,
+            unsigned channels, int16_t* input, int16_t* output)
 {
-	sUnlift(wavelet_transformation, width, height, channels, input, output);
+	sUnlift(callbacks, wavelet_transformation, width, height, channels, input, output);
 }
 
 template <>
-void Unlift(const Wavelet& wavelet_transformation, unsigned width, unsigned height, unsigned channels, int32_t* input,
-            int32_t* output)
+void Unlift(const Callbacks& callbacks, const Wavelet& wavelet_transformation, unsigned width, unsigned height,
+            unsigned channels, int32_t* input, int32_t* output)
 {
-	sUnlift(wavelet_transformation, width, height, channels, input, output);
+	sUnlift(callbacks, wavelet_transformation, width, height, channels, input, output);
 }
 
 } // namespace ako
