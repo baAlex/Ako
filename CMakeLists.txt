@@ -13,8 +13,13 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS True) # For Clangd
 set(CMAKE_CXX_STANDARD 11)
 
 
-set(CFLAGS -Werror -Wall -Wextra -Wconversion -pedantic -Wold-style-cast -Wstrict-aliasing=2)
+set(AKO_CFLAGS -Werror -Wall -Wextra -Wconversion -pedantic -Wold-style-cast -Wstrict-aliasing=2)
 
+
+if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
+	set(CMAKE_CXX_FLAGS_DEBUG    "${CMAKE_CXX_FLAGS_DEBUG}    -fsanitize=undefined -fno-omit-frame-pointer")
+	set(CMAKE_LINKER_FLAGS_DEBUG "${CMAKE_LINKER_FLAGS_DEBUG} -fsanitize=undefined -fno-omit-frame-pointer")
+endif ()
 
 if (MSVC)
 	add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
@@ -50,7 +55,7 @@ if (AKO_SHARED)
 	set_property(TARGET "ako" PROPERTY CXX_VISIBILITY_PRESET hidden)
 
 	if (NOT MSVC)
-		target_compile_options("ako" PRIVATE ${CFLAGS})
+		target_compile_options("ako" PRIVATE ${AKO_CFLAGS})
 	endif ()
 endif ()
 
@@ -62,7 +67,7 @@ if (AKO_STATIC)
 	set_property(TARGET "ako-static" PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
 
 	if (NOT MSVC)
-		target_compile_options("ako-static" PRIVATE ${CFLAGS})
+		target_compile_options("ako-static" PRIVATE ${AKO_CFLAGS})
 	endif ()
 endif ()
 
@@ -77,6 +82,9 @@ if (AKO_ENC OR AKODEC)
 	target_include_directories("tools-common" PRIVATE "./library/")
 	target_include_directories("tools-common" PRIVATE "./tools/thirdparty/CLI11/include/")
 	target_include_directories("tools-common" PRIVATE "./tools/thirdparty/lodepng/")
+
+	set_property(TARGET "tools-common" PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
+
 endif ()
 
 
@@ -91,9 +99,6 @@ if (AKO_DEC)
 
 	set_property(TARGET "akodec" PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
 
-	if (NOT MSVC)
-		# target_compile_options("akodec" PRIVATE ${CFLAGS})
-	endif ()
 endif ()
 
 
@@ -108,9 +113,6 @@ if (AKO_ENC)
 
 	set_property(TARGET "akoenc" PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
 
-	if (NOT MSVC)
-		# target_compile_options("akoenc" PRIVATE ${CFLAGS})
-	endif ()
 endif ()
 
 

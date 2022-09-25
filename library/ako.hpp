@@ -90,7 +90,7 @@ enum class Compression
 
 union GenericType // Like is the 80s again
 {
-	unsigned long u;
+	size_t u;
 	signed long s;
 };
 
