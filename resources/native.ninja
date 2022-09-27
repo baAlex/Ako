@@ -8,8 +8,8 @@ cpp = clang++-12
 ld = clang++-12 -fuse-ld=lld
 ar = llvm-ar-12
 
-cflags = -c -O3 -flto -I ./library/ -Werror -Wall -Wextra -Wconversion -pedantic -Wold-style-cast
-cflags_tools = -c -O3 -flto -I ./library/ -I ./tools/thirdparty/lodepng/ -I ./tools/thirdparty/CLI11/include/
+cflags = -c -g -O3 -flto -I ./library/ -Werror -Wall -Wextra -Wconversion -pedantic -Wold-style-cast
+cflags_tools = -c -g -O3 -flto -I ./library/ -I ./tools/thirdparty/lodepng/ -I ./tools/thirdparty/CLI11/include/
 
 
 rule Compile
@@ -29,17 +29,19 @@ build ./build/native/library/common/essentials.o:  Compile ./library/common/esse
 build ./build/native/library/common/utilities.o:   Compile ./library/common/utilities.cpp
 build ./build/native/library/common/version.o:     Compile ./library/common/version.cpp
 
-build ./build/native/library/decode/compression.o: Compile ./library/decode/compression.cpp
-build ./build/native/library/decode/decode.o:      Compile ./library/decode/decode.cpp
-build ./build/native/library/decode/format.o:      Compile ./library/decode/format.cpp
-build ./build/native/library/decode/haar.o:        Compile ./library/decode/haar.cpp
-build ./build/native/library/decode/lifting.o:     Compile ./library/decode/lifting.cpp
+build ./build/native/library/decode/compression.o:   Compile ./library/decode/compression.cpp
+build ./build/native/library/decode/decode.o:        Compile ./library/decode/decode.cpp
+build ./build/native/library/decode/format.o:        Compile ./library/decode/format.cpp
+build ./build/native/library/decode/lifting.o:       Compile ./library/decode/lifting.cpp
+build ./build/native/library/decode/wavelet-cdf53.o: Compile ./library/decode/wavelet-cdf53.cpp
+build ./build/native/library/decode/wavelet-haar.o:  Compile ./library/decode/wavelet-haar.cpp
 
-build ./build/native/library/encode/compression.o: Compile ./library/encode/compression.cpp
-build ./build/native/library/encode/encode.o:      Compile ./library/encode/encode.cpp
-build ./build/native/library/encode/format.o:      Compile ./library/encode/format.cpp
-build ./build/native/library/encode/haar.o:        Compile ./library/encode/haar.cpp
-build ./build/native/library/encode/lifting.o:     Compile ./library/encode/lifting.cpp
+build ./build/native/library/encode/compression.o:   Compile ./library/encode/compression.cpp
+build ./build/native/library/encode/encode.o:        Compile ./library/encode/encode.cpp
+build ./build/native/library/encode/format.o:        Compile ./library/encode/format.cpp
+build ./build/native/library/encode/lifting.o:       Compile ./library/encode/lifting.cpp
+build ./build/native/library/encode/wavelet-cdf53.o: Compile ./library/encode/wavelet-cdf53.cpp
+build ./build/native/library/encode/wavelet-haar.o:  Compile ./library/encode/wavelet-haar.cpp
 
 build ./build/native/tests/forward-backward.o: Compile ./tests/forward-backward.cpp
 
@@ -63,13 +65,15 @@ build ./build/native-libako-static.a: Pack $
  ./build/native/library/decode/compression.o $
  ./build/native/library/decode/decode.o $
  ./build/native/library/decode/format.o $
- ./build/native/library/decode/haar.o $
  ./build/native/library/decode/lifting.o $
+ ./build/native/library/decode/wavelet-cdf53.o $
+ ./build/native/library/decode/wavelet-haar.o $
  ./build/native/library/encode/compression.o $
  ./build/native/library/encode/encode.o $
  ./build/native/library/encode/format.o $
- ./build/native/library/encode/haar.o $
- ./build/native/library/encode/lifting.o
+ ./build/native/library/encode/lifting.o $
+ ./build/native/library/encode/wavelet-cdf53.o $
+ ./build/native/library/encode/wavelet-haar.o
 
 build ./build/native-tools-common.a: Pack $
  ./build/native/tools/callbacks.o $

@@ -34,7 +34,6 @@ static void sHaarHorizontalInverse(unsigned height, unsigned lp_w, unsigned hp_w
 {
 	for (unsigned row = 0; row < height; row += 1)
 	{
-		// Evens/Odds
 		for (unsigned col = 0; col < hp_w; col += 1)
 		{
 			const auto lp = lowpass[col];
@@ -50,7 +49,6 @@ static void sHaarHorizontalInverse(unsigned height, unsigned lp_w, unsigned hp_w
 			output[(col << 1) + 0] = lp;
 		}
 
-		// Next row
 		highpass += hp_w;
 		lowpass += lp_w;
 		output += out_stride;
@@ -62,34 +60,30 @@ template <typename T>
 static void sHaarInPlaceishVerticalInverse(unsigned width, unsigned lp_h, unsigned hp_h, const T* lowpass, T* highpass,
                                            T* out_lowpass)
 {
-	// Evens (consumes 'lowpass', outputs to 'out_lowpass')
 	for (unsigned row = 0; row < hp_h; row += 1)
 	{
-		const auto lp = lowpass + width * row;
-		auto out_lp = out_lowpass + width * row;
+		const auto lp = lowpass;
+		auto out_lp = out_lowpass;
+		auto hp = highpass;
 
 		for (unsigned col = 0; col < width; col += 1)
+		{
 			out_lp[col] = lp[col];
+			hp[col] = WrapSubtract(lp[col], hp[col]);
+		}
+
+		lowpass += width;
+		out_lowpass += width;
+		highpass += width;
 	}
 
 	if (lp_h != hp_h)
 	{
-		const auto row = hp_h;
-		const auto lp = lowpass + width * row;
-		auto out_lp = out_lowpass + width * row;
+		const auto lp = lowpass;
+		auto out_lp = out_lowpass;
 
 		for (unsigned col = 0; col < width; col += 1)
 			out_lp[col] = lp[col];
-	}
-
-	// Odds (consumes and output to 'highpass')
-	for (unsigned row = 0; row < hp_h; row += 1)
-	{
-		auto hp = highpass + width * row;
-		const auto even = out_lowpass + width * row;
-
-		for (unsigned col = 0; col < width; col += 1)
-			hp[col] = WrapSubtract(even[col], hp[col]);
 	}
 }
 

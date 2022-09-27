@@ -32,8 +32,6 @@ template <typename T>
 static void sLift(const Callbacks& callbacks, const Wavelet& wavelet_transformation, unsigned width, unsigned height,
                   unsigned channels, T* input, T* output)
 {
-	(void)wavelet_transformation;
-
 	// Everything here operates in reverse
 
 	auto out = reinterpret_cast<T*>(reinterpret_cast<uint8_t*>(output) +
@@ -71,8 +69,17 @@ static void sLift(const Callbacks& callbacks, const Wavelet& wavelet_transformat
 				aux = output;
 
 			// Wavelet transformation
-			HaarHorizontalForward(current_w, current_h, prev_stride, current_stride, inout, aux);
-			HaarVerticalForward(current_w, current_h, current_stride, current_stride, aux, inout);
+			if ((wavelet_transformation == Wavelet::Dd137 || wavelet_transformation == Wavelet::Cdf53) &&
+			    (current_w > 8 && current_h > 8)) // TODO, 8 isn't Cdf53 minimum
+			{
+				Cdf53HorizontalForward(current_w, current_h, prev_stride, current_stride, inout, aux);
+				Cdf53VerticalForward(current_w, current_h, current_stride, current_stride, aux, inout);
+			}
+			else
+			{
+				HaarHorizontalForward(current_w, current_h, prev_stride, current_stride, inout, aux);
+				HaarVerticalForward(current_w, current_h, current_stride, current_stride, aux, inout);
+			}
 
 			// Output highpasses
 			out -= (hp_w * hp_h);                      // Quadrant D

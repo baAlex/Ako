@@ -13,14 +13,16 @@ files="./library/common/adler32.cpp
        ./library/decode/compression.cpp
        ./library/decode/decode.cpp
        ./library/decode/format.cpp
-       ./library/decode/haar.cpp
        ./library/decode/lifting.cpp
+       ./library/decode/wavelet-cdf53.cpp
+       ./library/decode/wavelet-haar.cpp
 
        ./library/encode/compression.cpp
        ./library/encode/encode.cpp
        ./library/encode/format.cpp
-       ./library/encode/haar.cpp
        ./library/encode/lifting.cpp
+       ./library/encode/wavelet-cdf53.cpp
+       ./library/encode/wavelet-haar.cpp
 
        ./tests/forward-backward.cpp
 

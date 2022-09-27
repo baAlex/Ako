@@ -159,8 +159,28 @@ void Lift(const Callbacks&, const Wavelet& wavelet_transformation, unsigned widt
           T* input, T* output);
 
 
-// decode/haar.cpp:
-// encode/haar.cpp:
+// decode/wavelet-cdf53.cpp:
+// encode/wavelet-cdf53.cpp:
+
+template <typename T>
+void Cdf53HorizontalForward(unsigned width, unsigned height, unsigned input_stride, unsigned output_stride,
+                            const T* input, T* output);
+
+template <typename T>
+void Cdf53VerticalForward(unsigned width, unsigned height, unsigned input_stride, unsigned output_stride,
+                          const T* input, T* output);
+
+template <typename T>
+void Cdf53HorizontalInverse(unsigned height, unsigned lp_w, unsigned hp_w, unsigned out_stride, const T* lowpass,
+                            const T* highpass, T* output);
+
+template <typename T>
+void Cdf53InPlaceishVerticalInverse(unsigned width, unsigned lp_h, unsigned hp_h, const T* lowpass, T* highpass,
+                                    T* out_lowpass);
+
+
+// decode/wavelet-haar.cpp:
+// encode/wavelet-haar.cpp:
 
 template <typename T>
 void HaarHorizontalForward(unsigned width, unsigned height, unsigned input_stride, unsigned output_stride,

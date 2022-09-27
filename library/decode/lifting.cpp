@@ -32,8 +32,6 @@ template <typename T>
 static void sUnlift(const Callbacks& callbacks, const Wavelet& wavelet_transformation, unsigned width, unsigned height,
                     unsigned channels, T* input, T* output)
 {
-	(void)wavelet_transformation;
-
 	auto in = input;
 
 	unsigned lp_w = width;
@@ -87,11 +85,21 @@ static void sUnlift(const Callbacks& callbacks, const Wavelet& wavelet_transform
 			//       *hp_quad_d);
 
 			// Wavelet transformation
-			HaarInPlaceishVerticalInverse(lp_w, lp_h, hp_h, lp, hp_quad_c, aux);
-			HaarInPlaceishVerticalInverse(hp_w, lp_h, hp_h, hp_quad_b, hp_quad_d, hp_quad_b);
-
-			HaarHorizontalInverse(lp_h, lp_w, hp_w, (lp_w + hp_w) << 1, aux, hp_quad_b, lp);
-			HaarHorizontalInverse(hp_h, lp_w, hp_w, (lp_w + hp_w) << 1, hp_quad_c, hp_quad_d, lp + (lp_w + hp_w));
+			if ((wavelet_transformation == Wavelet::Dd137 || wavelet_transformation == Wavelet::Cdf53) &&
+			    ((lp_w + hp_w) > 8 && (lp_h + hp_h) > 8)) // TODO, I'm not really thinking here
+			{
+				Cdf53InPlaceishVerticalInverse(lp_w, lp_h, hp_h, lp, hp_quad_c, aux);
+				Cdf53InPlaceishVerticalInverse(hp_w, lp_h, hp_h, hp_quad_b, hp_quad_d, hp_quad_b);
+				Cdf53HorizontalInverse(lp_h, lp_w, hp_w, (lp_w + hp_w) << 1, aux, hp_quad_b, lp);
+				Cdf53HorizontalInverse(hp_h, lp_w, hp_w, (lp_w + hp_w) << 1, hp_quad_c, hp_quad_d, lp + (lp_w + hp_w));
+			}
+			else
+			{
+				HaarInPlaceishVerticalInverse(lp_w, lp_h, hp_h, lp, hp_quad_c, aux);
+				HaarInPlaceishVerticalInverse(hp_w, lp_h, hp_h, hp_quad_b, hp_quad_d, hp_quad_b);
+				HaarHorizontalInverse(lp_h, lp_w, hp_w, (lp_w + hp_w) << 1, aux, hp_quad_b, lp);
+				HaarHorizontalInverse(hp_h, lp_w, hp_w, (lp_w + hp_w) << 1, hp_quad_c, hp_quad_d, lp + (lp_w + hp_w));
+			}
 		}
 	}
 }
