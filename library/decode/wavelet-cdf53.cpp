@@ -32,13 +32,44 @@ template <typename T>
 static void sCdf53HorizontalInverse(unsigned height, unsigned lp_w, unsigned hp_w, unsigned out_stride,
                                     const T* lowpass, const T* highpass, T* output)
 {
-	(void)height;
-	(void)lp_w;
-	(void)hp_w;
-	(void)out_stride;
-	(void)lowpass;
-	(void)highpass;
-	(void)output;
+	for (unsigned row = 0; row < height; row += 1)
+	{
+		// Evens (length of 'lp_w')
+		for (unsigned col = 0; col < hp_w; col += 1)
+		{
+			const T lp = lowpass[col];
+			const T hp = highpass[col];
+			const T hp_l1 = (col > 0) ? highpass[col - 1] : hp; // Clamp
+
+			output[(col << 1) + 0] = WrapSubtract<T>(lp, WrapAdd(hp_l1, hp) / 4);
+		}
+
+		if (lp_w != hp_w) // Complete lowpass
+		{
+			const unsigned col = hp_w;
+
+			const T lp = lowpass[col];
+			const T hp = highpass[col - 1];
+			const T hp_l1 = highpass[col - 2]; // Clamp
+
+			output[(col << 1) + 0] = WrapSubtract<T>(lp, WrapAdd(hp_l1, hp) / 4);
+		}
+
+		// Odds (length of 'hp_w')
+		for (unsigned col = 0; col < hp_w; col += 1)
+		{
+			const T hp = highpass[col];
+			const T even = output[(col << 1) + 0];
+			const T even_p1 = (col < hp_w - 1) ? output[(col << 1) + 2] : even; // Clamp
+
+			output[(col << 1) + 1] = WrapAdd<T>(hp, WrapAdd(even, even_p1) / 2);
+		}
+
+		// Next row
+		highpass += hp_w;
+		lowpass += lp_w;
+		output += out_stride;
+	}
 }
 
 
@@ -46,12 +77,51 @@ template <typename T>
 static void sCdf53InPlaceishVerticalInverse(unsigned width, unsigned lp_h, unsigned hp_h, const T* lowpass, T* highpass,
                                             T* out_lowpass)
 {
-	(void)width;
-	(void)lp_h;
-	(void)hp_h;
-	(void)lowpass;
-	(void)highpass;
-	(void)out_lowpass;
+	// Evens (length of 'lp_h')
+	{
+		const T* lp = lowpass;
+		const T* hp = highpass;
+
+		T* out = out_lowpass;
+
+		for (unsigned row = 0; row < hp_h; row += 1)
+		{
+			const T* hp_l1 = (row > 0) ? (hp - width) : hp; // Clamp
+
+			for (unsigned col = 0; col < width; col += 1)
+				out[col] = WrapSubtract<T>(lp[col], WrapAdd(hp_l1[col], hp[col]) / 4);
+
+			lp += width;
+			hp += width;
+			out += width;
+		}
+
+		if (lp_h != hp_h) // Complete lowpass
+		{
+			hp -= width;                 // Looks hacky
+			const T* hp_l1 = hp - width; // Clamp
+
+			for (unsigned col = 0; col < width; col += 1)
+				out[col] = WrapSubtract<T>(lp[col], WrapAdd(hp_l1[col], hp[col]) / 4);
+		}
+	}
+
+	// Odds (length of 'hp_h')
+	{
+		const T* even = out_lowpass;
+		T* hp = highpass;
+
+		for (unsigned row = 0; row < hp_h; row += 1)
+		{
+			const T* even_p1 = (row < hp_h - 1) ? (even + width) : even; // Clamp
+
+			for (unsigned col = 0; col < width; col += 1)
+				hp[col] = WrapAdd<T>(hp[col], WrapAdd(even[col], even_p1[col]) / 2);
+
+			even += width;
+			hp += width;
+		}
+	}
 }
 
 
