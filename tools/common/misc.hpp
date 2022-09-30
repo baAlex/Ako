@@ -23,17 +23,14 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-#include <chrono>
+#ifndef MISC_HPP
+#define MISC_HPP
+
 #include <cstdio>
 #include <iostream>
-#include <string>
 #include <vector>
 
 #include "ako.hpp"
-
-
-#ifndef SHARED_HPP
-#define SHARED_HPP
 
 
 inline int ReadFile(const std::string& input_filename, std::vector<uint8_t>& out)
@@ -104,59 +101,5 @@ inline void PrintSettings(const ako::Settings& s, const std::string& side = "enc
 
 	std::cout << "]\n";
 }
-
-
-int DecodePng(size_t in_size, const void* in, unsigned& out_width, unsigned& out_height, unsigned& out_channels,
-              unsigned& out_depth, void** out_image);
-
-size_t EncodePng(int effort, unsigned width, unsigned height, unsigned channels, unsigned depth, const void* in,
-                 void** out_blob);
-
-void SavePlanarPgm(unsigned tile_no, unsigned width, unsigned height, unsigned channels, unsigned depth,
-                   unsigned in_stride, const void* in, const std::string& basename);
-
-void SaveInterleavedPgm(unsigned tile_no, unsigned width, unsigned height, unsigned channels, unsigned depth,
-                        unsigned in_stride, const void* in, const std::string& basename);
-
-
-struct CallbacksData
-{
-	bool print;
-	const char* prefix;
-
-	std::chrono::steady_clock::time_point clock;
-	std::chrono::microseconds format_duration;
-	std::chrono::microseconds lifting_duration;
-	std::chrono::microseconds compression_duration;
-	std::chrono::microseconds total_duration;
-
-	unsigned image_events;
-	unsigned image_width;
-	unsigned image_height;
-	unsigned channels;
-	unsigned depth;
-
-	unsigned tiles_events;
-	unsigned tiles_no;
-	unsigned tiles_dimension;
-
-	unsigned memory_events;
-	size_t workarea_size;
-
-	unsigned current_tile;
-	unsigned tile_width;
-	unsigned tile_height;
-	unsigned tile_x;
-	unsigned tile_y;
-	size_t tile_data_size;
-};
-
-void CallbackGenericEvent(ako::GenericEvent e, unsigned a, unsigned b, unsigned c, ako::GenericType d, void* user_data);
-
-void CallbackFormatEvent(ako::Color, unsigned tile_no, const void* image_data, void* user_data);
-void CallbackLiftingEvent(ako::Wavelet, ako::Wrap, unsigned tile_no, const void* image_data, void* user_data);
-void CallbackCompressionEvent(ako::Compression, unsigned tile_no, const void* data, void* user_data);
-
-uint32_t Adler32(const void* input, size_t input_size);
 
 #endif

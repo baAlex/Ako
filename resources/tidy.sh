@@ -25,11 +25,13 @@ files="./library/common/conversions.cpp
 
        ./tests/forward-backward.cpp
 
-       ./tools/adler32.cpp
        ./tools/akodec.cpp
        ./tools/akoenc.cpp
-       ./tools/callbacks.cpp
-       ./tools/developer.cpp
-       ./tools/png.cpp"
+       ./tools/akoview.cpp
+
+       ./tools/common/adler32.cpp
+       ./tools/common/callbacks.cpp
+       ./tools/common/developer.cpp
+       ./tools/common/png.cpp"
 
 clang-tidy-12 $files -- $flags

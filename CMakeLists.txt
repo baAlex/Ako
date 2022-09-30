@@ -7,6 +7,7 @@ option(AKO_SHARED "Build shared library" ON)
 option(AKO_STATIC "Build static library" ON)
 option(AKO_DEC    "Build decoding tool"  ON)
 option(AKO_ENC    "Build encoding tool"  ON)
+option(AKO_VIEW   "Build viewer tool"    ON)
 option(AKO_TESTS  "Build tests"          ON)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS True) # For Clangd
@@ -76,14 +77,15 @@ if (AKO_STATIC)
 endif ()
 
 
-if (AKO_ENC OR AKODEC)
+if (AKO_ENC OR AKODEC OR AKOVIEW)
 	add_library("tools-common" STATIC
+		"./tools/common/adler32.cpp"
+		"./tools/common/callbacks.cpp"
+		"./tools/common/developer.cpp"
+		"./tools/common/png.cpp"
 		"./tools/thirdparty/CLI11/src/Precompile.cpp"
-		"./tools/thirdparty/lodepng/lodepng.cpp"
-		"./tools/adler32.cpp"
-		"./tools/callbacks.cpp"
-		"./tools/developer.cpp"
-		"./tools/png.cpp")
+		"./tools/thirdparty/lodepng/lodepng.cpp")
+
 	target_include_directories("tools-common" PRIVATE "./library/")
 	target_include_directories("tools-common" PRIVATE "./tools/thirdparty/CLI11/include/")
 	target_include_directories("tools-common" PRIVATE "./tools/thirdparty/lodepng/")
@@ -121,6 +123,26 @@ if (AKO_ENC)
 	if (CMAKE_BUILD_TYPE STREQUAL "Release")
 		set_property(TARGET "akoenc" PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
 	endif ()
+endif ()
+
+
+if (AKO_VIEW)
+	add_executable("akoview" "./tools/akoview.cpp")
+	target_link_libraries("akoview" PRIVATE "ako-static")
+	target_link_libraries("akoview" PRIVATE "tools-common")
+
+	target_include_directories("akoview" PRIVATE "./library/")
+	target_include_directories("akoview" PRIVATE "./tools/thirdparty/CLI11/include/")
+	target_include_directories("akoview" PRIVATE "./tools/thirdparty/lodepng/")
+	target_include_directories("akoview" PRIVATE "./tools/thirdparty/glfw/include/")
+
+	if (CMAKE_BUILD_TYPE STREQUAL "Release")
+		set_property(TARGET "akoview" PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
+	endif ()
+
+	set(GLFW_LIBRARY_TYPE "STATIC")
+	add_subdirectory("./tools/thirdparty/glfw/")
+	target_link_libraries("akoview" PRIVATE "glfw")
 endif ()
 
 

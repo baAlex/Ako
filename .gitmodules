@@ -4,3 +4,6 @@
 [submodule "tools/thirdparty/lodepng"]
 	path = tools/thirdparty/lodepng
 	url = https://github.com/lvandeve/lodepng
+[submodule "tools/thirdparty/glfw"]
+	path = tools/thirdparty/glfw
+	url = https://github.com/glfw/glfw/

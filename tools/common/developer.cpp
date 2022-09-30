@@ -23,7 +23,10 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-#include "shared.hpp"
+#include <cstdint>
+#include <cstdio>
+
+#include "developer.hpp"
 
 
 template <typename T>

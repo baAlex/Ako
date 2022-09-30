@@ -30,7 +30,12 @@ SOFTWARE.
 #include <vector>
 
 #include "CLI/CLI.hpp"
-#include "shared.hpp"
+
+#include "common/adler32.hpp"
+#include "common/callbacks.hpp"
+#include "common/developer.hpp"
+#include "common/misc.hpp"
+#include "common/png.hpp"
 
 
 const static auto s_color_transformer = // NOLINT(cert-err58-cpp)

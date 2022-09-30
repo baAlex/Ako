@@ -23,12 +23,12 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-#include "shared.hpp"
+#include "adler32.hpp"
 
 
 uint32_t Adler32(const void* input, size_t input_size)
 {
-	// Function borrowed from LodePNG, modified.
+	// Borrowed from LodePNG, modified.
 
 	/*
 	Copyright (c) 2005-2018 Lode Vandevenne

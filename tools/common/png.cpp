@@ -23,8 +23,10 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
+#include <iostream>
+
 #include "lodepng.h"
-#include "shared.hpp"
+#include "png.hpp"
 
 
 // clang-format off
@@ -59,7 +61,7 @@ const static LodePNGFilterStrategy PNG_FILTER_PRESET[10] = {
 int DecodePng(size_t in_size, const void* in, unsigned& out_width, unsigned& out_height, unsigned& out_channels,
               unsigned& out_depth, void** out_image)
 {
-	LodePNGState state = {};
+	LodePNGState state;
 	lodepng_state_init(&state);
 
 	// Encode
@@ -109,13 +111,13 @@ return_failure:
 size_t EncodePng(int effort, unsigned width, unsigned height, unsigned channels, unsigned depth, const void* in,
                  void** out_blob)
 {
+	LodePNGState state;
+	lodepng_state_init(&state);
+
 	size_t blob_size = 0;
 
 	// Settings
-	LodePNGState state = {};
 	{
-		lodepng_state_init(&state);
-
 		if (depth == 8)
 			state.info_raw.bitdepth = 8;
 		else
