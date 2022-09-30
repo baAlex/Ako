@@ -26,7 +26,6 @@ endif ()
 
 
 set(AKO_SOURCES
-	"./library/common/adler32.cpp"
 	"./library/common/conversions.cpp"
 	"./library/common/defaults.cpp"
 	"./library/common/essentials.cpp"
@@ -81,6 +80,7 @@ if (AKO_ENC OR AKODEC)
 	add_library("tools-common" STATIC
 		"./tools/thirdparty/CLI11/src/Precompile.cpp"
 		"./tools/thirdparty/lodepng/lodepng.cpp"
+		"./tools/adler32.cpp"
 		"./tools/callbacks.cpp"
 		"./tools/developer.cpp"
 		"./tools/png.cpp")

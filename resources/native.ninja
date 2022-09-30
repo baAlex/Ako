@@ -22,7 +22,6 @@ rule Link
  command = $ld $in -o $out
 
 
-build ./build/native/library/common/adler32.o:     Compile ./library/common/adler32.cpp
 build ./build/native/library/common/conversions.o: Compile ./library/common/conversions.cpp
 build ./build/native/library/common/defaults.o:    Compile ./library/common/defaults.cpp
 build ./build/native/library/common/essentials.o:  Compile ./library/common/essentials.cpp
@@ -45,6 +44,7 @@ build ./build/native/library/encode/wavelet-haar.o:  Compile ./library/encode/wa
 
 build ./build/native/tests/forward-backward.o: Compile ./tests/forward-backward.cpp
 
+build ./build/native/tools/adler32.o:   CompileTool ./tools/adler32.cpp
 build ./build/native/tools/akodec.o:    CompileTool ./tools/akodec.cpp
 build ./build/native/tools/akoenc.o:    CompileTool ./tools/akoenc.cpp
 build ./build/native/tools/callbacks.o: CompileTool ./tools/callbacks.cpp
@@ -56,7 +56,6 @@ build ./build/native/tools/thirdparty/CLI11/src/Precompile.o: CompileTool ./tool
 
 
 build ./build/native-libako-static.a: Pack $
- ./build/native/library/common/adler32.o $
  ./build/native/library/common/conversions.o $
  ./build/native/library/common/defaults.o $
  ./build/native/library/common/essentials.o $
@@ -76,6 +75,7 @@ build ./build/native-libako-static.a: Pack $
  ./build/native/library/encode/wavelet-haar.o
 
 build ./build/native-tools-common.a: Pack $
+ ./build/native/tools/adler32.o $
  ./build/native/tools/callbacks.o $
  ./build/native/tools/developer.o $
  ./build/native/tools/png.o $

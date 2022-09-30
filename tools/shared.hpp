@@ -157,4 +157,6 @@ void CallbackFormatEvent(ako::Color, unsigned tile_no, const void* image_data, v
 void CallbackLiftingEvent(ako::Wavelet, ako::Wrap, unsigned tile_no, const void* image_data, void* user_data);
 void CallbackCompressionEvent(ako::Compression, unsigned tile_no, const void* data, void* user_data);
 
+uint32_t Adler32(const void* input, size_t input_size);
+
 #endif

@@ -154,8 +154,6 @@ AKO_EXPORT void* DecodeEx(const Callbacks&, size_t input_size, const void* input
 AKO_EXPORT Settings DefaultSettings();
 AKO_EXPORT Callbacks DefaultCallbacks();
 
-AKO_EXPORT uint32_t Adler32(const void* input, size_t input_size);
-
 AKO_EXPORT const char* ToString(Status);
 AKO_EXPORT const char* ToString(Color c);
 AKO_EXPORT const char* ToString(Wavelet w);

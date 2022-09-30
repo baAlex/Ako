@@ -23,10 +23,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-#include "ako-private.hpp"
+#include "shared.hpp"
 
-namespace ako
-{
 
 uint32_t Adler32(const void* input, size_t input_size)
 {
@@ -76,5 +74,3 @@ uint32_t Adler32(const void* input, size_t input_size)
 
 	return (s2 << 16) | s1;
 }
-
-} // namespace ako

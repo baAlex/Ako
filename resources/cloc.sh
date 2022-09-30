@@ -5,7 +5,6 @@ flags=""
 files="./library/ako.hpp
        ./library/ako-private.hpp
 
-       ./library/common/adler32.cpp
        ./library/common/defaults.cpp
        ./library/common/essentials.cpp
        ./library/common/utilities.cpp

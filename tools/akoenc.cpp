@@ -181,7 +181,7 @@ int main(int argc, const char* argv[])
 	uint32_t hash = 0;
 	if (checksum == true)
 	{
-		hash = ako::Adler32(input_image, (width * height * channels * (depth / 8)));
+		hash = Adler32(input_image, (width * height * channels * (depth / 8)));
 
 		if (quiet == false && verbose == true)
 			std::cout << "Input image hash: " << std::hex << hash << std::dec << " (Adler32)\n";

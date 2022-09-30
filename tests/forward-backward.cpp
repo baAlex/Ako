@@ -140,10 +140,6 @@ static void sTest(const char* out_filename, const Settings& settings, unsigned w
 		const auto n = fwrite(encoded_blob, encoded_blob_size, 1, fp);
 		assert(n == 1);
 		fclose(fp);
-
-		// Checksum
-		const auto hash = Adler32(encoded_blob, encoded_blob_size);
-		printf("     Encoded blob hash: 0x%08x\n", hash); // Faster than use an hex viewer
 	}
 #endif
 
