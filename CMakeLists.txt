@@ -158,23 +158,30 @@ endif ()
 
 
 if (AKO_TESTS)
-	add_executable("test-cdf53" "./tests/cdf53.cpp")
-	target_include_directories("test-cdf53" PRIVATE "./library/")
-	target_link_libraries("test-cdf53" PRIVATE "ako-static")
-	target_compile_options("test-cdf53" PRIVATE ${AKO_CFLAGS})
-
 	add_executable("test-forward-backward" "./tests/forward-backward.cpp")
 	target_include_directories("test-forward-backward" PRIVATE "./library/")
 	target_link_libraries("test-forward-backward" PRIVATE "ako-static")
 	target_compile_options("test-forward-backward" PRIVATE ${AKO_CFLAGS})
 
+	add_executable("test-wavelet-cdf53" "./tests/wavelet-cdf53.cpp")
+	target_include_directories("test-wavelet-cdf53" PRIVATE "./library/")
+	target_link_libraries("test-wavelet-cdf53" PRIVATE "ako-static")
+	target_compile_options("test-wavelet-cdf53" PRIVATE ${AKO_CFLAGS})
+
+	add_executable("test-wavelet-haar" "./tests/wavelet-haar.cpp")
+	target_include_directories("test-wavelet-haar" PRIVATE "./library/")
+	target_link_libraries("test-wavelet-haar" PRIVATE "ako-static")
+	target_compile_options("test-wavelet-haar" PRIVATE ${AKO_CFLAGS})
+
 	if (CMAKE_BUILD_TYPE STREQUAL "Release")
 		set_property(TARGET "test-forward-backward" PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
-		set_property(TARGET "test-cdf53" PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
+		set_property(TARGET "test-wavelet-cdf53" PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
+		set_property(TARGET "test-wavelet-haar" PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
 	endif ()
 
-	add_test(NAME "TestCdf53" COMMAND "test-cdf53")
 	add_test(NAME "TestForwardBackward" COMMAND "test-forward-backward")
+	add_test(NAME "TestWaveletCdf53" COMMAND "test-wavelet-cdf53")
+	add_test(NAME "TestWaveletHaar" COMMAND "test-wavelet-haar")
 
 	include(CTest)
 endif ()
