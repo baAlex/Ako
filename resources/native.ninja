@@ -31,6 +31,7 @@ build ./build/native/library/common/version.o:     Compile ./library/common/vers
 build ./build/native/library/decode/compression.o:   Compile ./library/decode/compression.cpp
 build ./build/native/library/decode/decode.o:        Compile ./library/decode/decode.cpp
 build ./build/native/library/decode/format.o:        Compile ./library/decode/format.cpp
+build ./build/native/library/decode/heads.o:         Compile ./library/decode/heads.cpp
 build ./build/native/library/decode/lifting.o:       Compile ./library/decode/lifting.cpp
 build ./build/native/library/decode/wavelet-cdf53.o: Compile ./library/decode/wavelet-cdf53.cpp
 build ./build/native/library/decode/wavelet-haar.o:  Compile ./library/decode/wavelet-haar.cpp
@@ -38,6 +39,7 @@ build ./build/native/library/decode/wavelet-haar.o:  Compile ./library/decode/wa
 build ./build/native/library/encode/compression.o:   Compile ./library/encode/compression.cpp
 build ./build/native/library/encode/encode.o:        Compile ./library/encode/encode.cpp
 build ./build/native/library/encode/format.o:        Compile ./library/encode/format.cpp
+build ./build/native/library/encode/heads.o:         Compile ./library/encode/heads.cpp
 build ./build/native/library/encode/lifting.o:       Compile ./library/encode/lifting.cpp
 build ./build/native/library/encode/wavelet-cdf53.o: Compile ./library/encode/wavelet-cdf53.cpp
 build ./build/native/library/encode/wavelet-haar.o:  Compile ./library/encode/wavelet-haar.cpp
@@ -66,12 +68,14 @@ build ./build/native-libako-static.a: Pack $
  ./build/native/library/decode/compression.o $
  ./build/native/library/decode/decode.o $
  ./build/native/library/decode/format.o $
+ ./build/native/library/decode/heads.o $
  ./build/native/library/decode/lifting.o $
  ./build/native/library/decode/wavelet-cdf53.o $
  ./build/native/library/decode/wavelet-haar.o $
  ./build/native/library/encode/compression.o $
  ./build/native/library/encode/encode.o $
  ./build/native/library/encode/format.o $
+ ./build/native/library/encode/heads.o $
  ./build/native/library/encode/lifting.o $
  ./build/native/library/encode/wavelet-cdf53.o $
  ./build/native/library/encode/wavelet-haar.o

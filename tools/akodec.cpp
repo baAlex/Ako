@@ -129,8 +129,8 @@ int main(int argc, const char* argv[])
 		ako::Settings s = {};
 		auto status = ako::Status::Error;
 
-		input_image =
-		    ako::DecodeEx(callbacks, input_blob.size(), input_blob.data(), width, height, channels, depth, &s, &status);
+		input_image = ako::DecodeEx(callbacks, input_blob.size(), input_blob.data(), &width, &height, &channels, &depth,
+		                            &s, &status);
 
 		if (status != ako::Status::Ok)
 		{

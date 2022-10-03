@@ -159,8 +159,8 @@ static void sTest(const char* out_filename, const ako::Settings& settings, unsig
 		unsigned decoded_channels = 0;
 		unsigned decoded_depth = 0;
 
-		decoded_data = DecodeEx(callbacks, encoded_blob_size, encoded_blob, decoded_width, decoded_height,
-		                        decoded_channels, decoded_depth, &decoded_settings, &status);
+		decoded_data = DecodeEx(callbacks, encoded_blob_size, encoded_blob, &decoded_width, &decoded_height,
+		                        &decoded_channels, &decoded_depth, &decoded_settings, &status);
 
 		if (decoded_data == nullptr)
 			printf("Ako decode error: '%s'\n", ToString(status));

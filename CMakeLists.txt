@@ -43,6 +43,7 @@ set(AKO_SOURCES
 	"./library/decode/compression.cpp"
 	"./library/decode/decode.cpp"
 	"./library/decode/format.cpp"
+	"./library/decode/heads.cpp"
 	"./library/decode/lifting.cpp"
 	"./library/decode/wavelet-cdf53.cpp"
 	"./library/decode/wavelet-haar.cpp"
@@ -50,6 +51,7 @@ set(AKO_SOURCES
 	"./library/encode/compression.cpp"
 	"./library/encode/encode.cpp"
 	"./library/encode/format.cpp"
+	"./library/encode/heads.cpp"
 	"./library/encode/lifting.cpp"
 	"./library/encode/wavelet-cdf53.cpp"
 	"./library/encode/wavelet-haar.cpp")

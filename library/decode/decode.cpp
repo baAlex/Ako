@@ -28,25 +28,6 @@ SOFTWARE.
 namespace ako
 {
 
-static Status sReadTileHead(const TileHead& head_raw, size_t& out_compressed_size)
-{
-	TileHead head = head_raw;
-
-	if (SystemEndianness() != Endianness::Little)
-	{
-		head.magic = EndiannessReverse(head.magic);
-		head.no = EndiannessReverse(head.no);
-		head.compressed_size = EndiannessReverse(head.compressed_size);
-	}
-
-	if (head.magic != TILE_HEAD_MAGIC || head.compressed_size == 0)
-		return Status::InvalidTileHead;
-
-	out_compressed_size = head.compressed_size;
-	return Status::Ok;
-}
-
-
 template <typename TCoeff, typename TOut>
 static void* sDecodeInternal(const Callbacks& callbacks, const Settings& settings, unsigned image_w, unsigned image_h,
                              unsigned channels, unsigned depth, const void* input, const void* input_end,
@@ -132,7 +113,7 @@ static void* sDecodeInternal(const Callbacks& callbacks, const Settings& setting
 				goto return_failure;
 			}
 
-			if ((status = sReadTileHead(*reinterpret_cast<const TileHead*>(input), compressed_size)) != Status::Ok)
+			if ((status = TileHeadRead(*reinterpret_cast<const TileHead*>(input), compressed_size)) != Status::Ok)
 				goto return_failure;
 
 			input = reinterpret_cast<const uint8_t*>(input) + sizeof(TileHead);
@@ -219,73 +200,12 @@ return_failure:
 }
 
 
-static Status sReadImageHead(const ImageHead& head_raw, Settings& out_settings, unsigned& out_width,
-                             unsigned& out_height, unsigned& out_channels, unsigned& out_depth)
-{
-	auto settings = DefaultSettings();
-	auto status = Status::Ok;
-
-	ImageHead head = head_raw;
-
-	if (SystemEndianness() != Endianness::Little)
-	{
-		head.magic = EndiannessReverse(head.magic);
-		head.a = EndiannessReverse(head.a);
-		head.b = EndiannessReverse(head.b);
-		head.c = EndiannessReverse(head.c);
-	}
-
-	if (head.magic != IMAGE_HEAD_MAGIC)
-		return Status::NotAnAkoFile;
-
-	const auto width = static_cast<unsigned>((head.a >> 6) & 0x3FFFFFF) + 1;  // 26 bits
-	const auto depth = static_cast<unsigned>((head.a >> 0) & 0x3F) + 1;       // 6 bits
-	const auto height = static_cast<unsigned>((head.b >> 6) & 0x3FFFFFF) + 1; // 26 bits
-	const auto channels = static_cast<unsigned>((head.c >> 12) & 0x1F) + 1;   // 5 bits
-	const auto td = static_cast<unsigned>((head.b >> 0) & 0x3F);              // 6 bits
-
-	settings.tiles_dimension = 0;
-	if (td != 0)
-		settings.tiles_dimension = 1 << td;
-
-	settings.color = ToColor(static_cast<uint32_t>((head.c >> 9) & 0x07), status); // 3 bits
-	if (status != Status::Ok)
-		return status;
-
-	settings.wavelet = ToWavelet(static_cast<uint32_t>((head.c >> 6) & 0x07), status); // 3 bits
-	if (status != Status::Ok)
-		return status;
-
-	settings.wrap = ToWrap(static_cast<uint32_t>((head.c >> 3) & 0x07), status); // 3 bits
-	if (status != Status::Ok)
-		return status;
-
-	settings.compression = ToCompression(static_cast<uint32_t>((head.c >> 0) & 0x07), status); // 3 bits
-	if (status != Status::Ok)
-		return status;
-
-	if ((status = ValidateProperties(width, height, channels, depth)) != Status::Ok ||
-	    (status = ValidateSettings(settings)) != Status::Ok)
-		return status;
-
-	// All validated, return what we have
-	out_settings = settings;
-	out_width = width;
-	out_height = height;
-	out_channels = channels;
-	out_depth = depth;
-
-	return status;
-}
-
-
-void* DecodeEx(const Callbacks& callbacks, size_t input_size, const void* input, unsigned& out_width,
-               unsigned& out_height, unsigned& out_channels, unsigned& out_depth, Settings* out_settings,
+void* DecodeEx(const Callbacks& callbacks, size_t input_size, const void* input, unsigned* out_width,
+               unsigned* out_height, unsigned* out_channels, unsigned* out_depth, Settings* out_settings,
                Status* out_status)
 {
 	auto settings = DefaultSettings();
 	auto status = Status::Ok;
-
 	void* image_data = nullptr;
 
 	// Checks
@@ -294,17 +214,22 @@ void* DecodeEx(const Callbacks& callbacks, size_t input_size, const void* input,
 		goto return_failure;
 
 	// Read image head
+	unsigned width;
+	unsigned height;
+	unsigned channels;
+	unsigned depth;
 	{
-		if (input_size < sizeof(ImageHead))
-		{
-			status = Status::TruncatedImageHead;
+		if ((status = DecodeHead(input_size, input, &width, &height, &channels, &depth, &settings)) != Status::Ok)
 			goto return_failure;
-		}
 
-		// Read, validate and set settings, width, height, etc
-		if ((status = sReadImageHead(*reinterpret_cast<const ImageHead*>(input), settings, out_width, out_height,
-		                             out_channels, out_depth)) != Status::Ok)
-			goto return_failure;
+		if (out_width != nullptr)
+			*out_width = width;
+		if (out_height != nullptr)
+			*out_height = height;
+		if (out_channels != nullptr)
+			*out_channels = channels;
+		if (out_depth != nullptr)
+			*out_depth = depth;
 	}
 
 	// Decode
@@ -312,15 +237,15 @@ void* DecodeEx(const Callbacks& callbacks, size_t input_size, const void* input,
 		auto input_end = reinterpret_cast<const void*>(reinterpret_cast<const uint8_t*>(input) + input_size);
 		input = reinterpret_cast<const void*>(reinterpret_cast<const uint8_t*>(input) + sizeof(ImageHead));
 
-		if (out_depth <= 8)
+		if (depth <= 8)
 		{
-			image_data = sDecodeInternal<int16_t, uint8_t>(callbacks, settings, out_width, out_height, out_channels,
-			                                               out_depth, input, input_end, status);
+			image_data = sDecodeInternal<int16_t, uint8_t>(callbacks, settings, width, height, channels, depth, input,
+			                                               input_end, status);
 		}
 		else
 		{
-			image_data = sDecodeInternal<int32_t, uint16_t>(callbacks, settings, out_width, out_height, out_channels,
-			                                                out_depth, input, input_end, status);
+			image_data = sDecodeInternal<int32_t, uint16_t>(callbacks, settings, width, height, channels, depth, input,
+			                                                input_end, status);
 		}
 	}
 

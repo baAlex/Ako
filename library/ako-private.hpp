@@ -42,12 +42,11 @@ const uint32_t TILE_HEAD_MAGIC = 0x03546B41;  // "AkT-0x03"
 
 struct ImageHead
 {
+	// Little endian:
 	uint32_t magic;
-
-	// Little endian, fields from most to least significant bits:
-	uint32_t a; // Width (26), Depth (6)
-	uint32_t b; // Height (26), Tiles dimension (6)
-	uint32_t c; // Channels (5), Color (3), Wavelet (3), Wrap (3), Compression (3)
+	uint32_t a; // Width (25), Depth (5), Color (2)
+	uint32_t b; // Height (25), Tiles dimension (5), Wavelet (2)
+	uint32_t c; // Channels (25), Wrap (2), Compression (2), Unused (3)
 };
 
 struct TileHead
@@ -145,6 +144,17 @@ void FormatToRgb(const Color& color_transformation, unsigned width, unsigned hei
 template <typename TIn, typename TOut>
 void FormatToInternal(const Color& color_transformation, bool discard, unsigned width, unsigned height,
                       unsigned channels, size_t input_stride, const TIn* input, TOut* output);
+
+
+// decode/headers.cpp
+// encode/header.cpp
+
+Status TileHeadRead(const TileHead& head_raw, size_t& out_compressed_size);
+
+void ImageHeadWrite(const Settings& settings, unsigned image_w, unsigned image_h, unsigned channels, unsigned depth,
+                    ImageHead& out);
+
+void TileHeadWrite(unsigned no, size_t compressed_size, TileHead& out);
 
 
 // decode/lifting.cpp:

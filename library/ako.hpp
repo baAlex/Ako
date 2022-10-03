@@ -21,9 +21,9 @@ const int VERSION_MINOR = 3;
 const int VERSION_PATCH = 0;
 const int FORMAT_VERSION = 3;
 
-const unsigned MAXIMUM_WIDTH = (1 << 25);
-const unsigned MAXIMUM_HEIGHT = (1 << 25);
-const unsigned MAXIMUM_CHANNELS = (1 << 4);
+const unsigned MAXIMUM_WIDTH = (1 << 24);
+const unsigned MAXIMUM_HEIGHT = (1 << 24);
+const unsigned MAXIMUM_CHANNELS = (1 << 24);
 const unsigned MAXIMUM_DEPTH = (1 << 4);
 
 const unsigned MINIMUM_WIDTH = 1;
@@ -31,7 +31,7 @@ const unsigned MINIMUM_HEIGHT = 1;
 const unsigned MINIMUM_CHANNELS = 1;
 const unsigned MINIMUM_DEPTH = 1;
 
-const unsigned MAXIMUM_TILES_DIMENSION = (1 << 25);
+const unsigned MAXIMUM_TILES_DIMENSION = (1 << 24);
 
 enum class Status
 {
@@ -147,18 +147,23 @@ struct Settings
 AKO_EXPORT size_t EncodeEx(const Callbacks&, const Settings&, unsigned width, unsigned height, unsigned channels,
                            unsigned depth, const void* input, void** output = nullptr, Status* out_status = nullptr);
 
-AKO_EXPORT void* DecodeEx(const Callbacks&, size_t input_size, const void* input, unsigned& out_width,
-                          unsigned& out_height, unsigned& out_channels, unsigned& out_depth,
-                          Settings* out_settings = nullptr, Status* out_status = nullptr);
+AKO_EXPORT void* DecodeEx(const Callbacks&, size_t input_size, const void* input, unsigned* out_width = nullptr,
+                          unsigned* out_height = nullptr, unsigned* out_channels = nullptr,
+                          unsigned* out_depth = nullptr, Settings* out_settings = nullptr,
+                          Status* out_status = nullptr);
+
+AKO_EXPORT Status DecodeHead(size_t input_size, const void* input, unsigned* out_width = nullptr,
+                             unsigned* out_height = nullptr, unsigned* out_channels = nullptr,
+                             unsigned* out_depth = nullptr, Settings* out_settings = nullptr);
 
 AKO_EXPORT Settings DefaultSettings();
 AKO_EXPORT Callbacks DefaultCallbacks();
 
 AKO_EXPORT const char* ToString(Status);
-AKO_EXPORT const char* ToString(Color c);
-AKO_EXPORT const char* ToString(Wavelet w);
-AKO_EXPORT const char* ToString(Wrap w);
-AKO_EXPORT const char* ToString(Compression c);
+AKO_EXPORT const char* ToString(Color);
+AKO_EXPORT const char* ToString(Wavelet);
+AKO_EXPORT const char* ToString(Wrap);
+AKO_EXPORT const char* ToString(Compression);
 
 AKO_EXPORT int VersionMajor();
 AKO_EXPORT int VersionMinor();
