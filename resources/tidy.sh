@@ -23,8 +23,9 @@ files="./library/common/conversions.cpp
        ./library/encode/wavelet-cdf53.cpp
        ./library/encode/wavelet-haar.cpp
 
-       ./tests/cdf53.cpp
        ./tests/forward-backward.cpp
+       ./tests/wavelet-cdf53.cpp
+       ./tests/wavelet-haar.cpp
 
        ./tools/akodec.cpp
        ./tools/akoenc.cpp
