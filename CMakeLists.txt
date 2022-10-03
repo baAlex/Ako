@@ -10,20 +10,27 @@ option(AKO_ENC    "Build encoding tool"  ON)
 option(AKO_VIEW   "Build viewer tool"    ON)
 option(AKO_TESTS  "Build tests"          ON)
 
-set(CMAKE_EXPORT_COMPILE_COMMANDS True) # For Clangd
+set(CMAKE_EXPORT_COMPILE_COMMANDS True)
 set(CMAKE_CXX_STANDARD 11)
 
 if (MSVC)
 	add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
 endif ()
 
-
-set(AKO_CFLAGS -Werror -Wall -Wextra -Wconversion -pedantic -Wold-style-cast -Wstrict-aliasing=2)
+# <optional flags>
+if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang" OR "${CMAKE_CXX_COMPILER_ID}" MATCHES "GNU")
+	set(AKO_CFLAGS       -Wall -Wextra -pedantic -Werror -Wconversion -Wold-style-cast)
+	set(AKO_TOOLS_CFLAGS -Wall -Wextra -pedantic)
+endif ()
 
 if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
 	set(CMAKE_CXX_FLAGS_DEBUG    "${CMAKE_CXX_FLAGS_DEBUG}    -fsanitize=undefined -fno-omit-frame-pointer")
 	set(CMAKE_LINKER_FLAGS_DEBUG "${CMAKE_LINKER_FLAGS_DEBUG} -fsanitize=undefined -fno-omit-frame-pointer")
 endif ()
+# </optional flags>
+
+
+####
 
 
 set(AKO_SOURCES
@@ -52,13 +59,11 @@ if (AKO_SHARED)
 	add_library("ako" SHARED ${AKO_SOURCES})
 	target_include_directories("ako" PRIVATE "./library/")
 
+	target_compile_options("ako" PRIVATE ${AKO_CFLAGS})
+
 	if (CMAKE_BUILD_TYPE STREQUAL "Release")
 		set_property(TARGET "ako" PROPERTY CXX_VISIBILITY_PRESET hidden)
 		set_property(TARGET "ako" PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
-	endif ()
-
-	if (NOT MSVC)
-		target_compile_options("ako" PRIVATE ${AKO_CFLAGS})
 	endif ()
 endif ()
 
@@ -67,12 +72,10 @@ if (AKO_STATIC)
 	add_library("ako-static" STATIC ${AKO_SOURCES})
 	target_include_directories("ako-static" PRIVATE "./library/")
 
+	target_compile_options("ako-static" PRIVATE ${AKO_CFLAGS})
+
 	if (CMAKE_BUILD_TYPE STREQUAL "Release")
 		set_property(TARGET "ako-static" PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
-	endif ()
-
-	if (NOT MSVC)
-		target_compile_options("ako-static" PRIVATE ${AKO_CFLAGS})
 	endif ()
 endif ()
 
@@ -90,6 +93,8 @@ if (AKO_ENC OR AKODEC OR AKOVIEW)
 	target_include_directories("tools-common" PRIVATE "./tools/thirdparty/CLI11/include/")
 	target_include_directories("tools-common" PRIVATE "./tools/thirdparty/lodepng/")
 
+	target_compile_options("tools-common" PRIVATE ${AKO_TOOLS_CFLAGS})
+
 	if (CMAKE_BUILD_TYPE STREQUAL "Release")
 		set_property(TARGET "tools-common" PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
 	endif ()
@@ -105,6 +110,8 @@ if (AKO_DEC)
 	target_include_directories("akodec" PRIVATE "./tools/thirdparty/CLI11/include/")
 	target_include_directories("akodec" PRIVATE "./tools/thirdparty/lodepng/")
 
+	target_compile_options("akodec" PRIVATE ${AKO_TOOLS_CFLAGS})
+
 	if (AKO_RELEASE)
 		set_property(TARGET "akodec" PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
 	endif ()
@@ -119,6 +126,8 @@ if (AKO_ENC)
 	target_include_directories("akoenc" PRIVATE "./library/")
 	target_include_directories("akoenc" PRIVATE "./tools/thirdparty/CLI11/include/")
 	target_include_directories("akoenc" PRIVATE "./tools/thirdparty/lodepng/")
+
+	target_compile_options("akoenc" PRIVATE ${AKO_TOOLS_CFLAGS})
 
 	if (CMAKE_BUILD_TYPE STREQUAL "Release")
 		set_property(TARGET "akoenc" PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
@@ -136,6 +145,8 @@ if (AKO_VIEW)
 	target_include_directories("akoview" PRIVATE "./tools/thirdparty/lodepng/")
 	target_include_directories("akoview" PRIVATE "./tools/thirdparty/glfw/include/")
 
+	target_compile_options("akoview" PRIVATE ${AKO_TOOLS_CFLAGS})
+
 	if (CMAKE_BUILD_TYPE STREQUAL "Release")
 		set_property(TARGET "akoview" PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
 	endif ()
@@ -147,15 +158,23 @@ endif ()
 
 
 if (AKO_TESTS)
-	add_executable("forward-backward" "./tests/forward-backward.cpp")
-	target_include_directories("forward-backward" PRIVATE "./library/")
-	target_link_libraries("forward-backward" PRIVATE "ako-static")
+	add_executable("test-cdf53" "./tests/cdf53.cpp")
+	target_include_directories("test-cdf53" PRIVATE "./library/")
+	target_link_libraries("test-cdf53" PRIVATE "ako-static")
+	target_compile_options("test-cdf53" PRIVATE ${AKO_CFLAGS})
+
+	add_executable("test-forward-backward" "./tests/forward-backward.cpp")
+	target_include_directories("test-forward-backward" PRIVATE "./library/")
+	target_link_libraries("test-forward-backward" PRIVATE "ako-static")
+	target_compile_options("test-forward-backward" PRIVATE ${AKO_CFLAGS})
 
 	if (CMAKE_BUILD_TYPE STREQUAL "Release")
-		set_property(TARGET "forward-backward" PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
+		set_property(TARGET "test-forward-backward" PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
+		set_property(TARGET "test-cdf53" PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
 	endif ()
 
-	add_test(NAME "ForwardBackward" COMMAND "forward-backward")
+	add_test(NAME "TestCdf53" COMMAND "test-cdf53")
+	add_test(NAME "TestForwardBackward" COMMAND "test-forward-backward")
 
 	include(CTest)
 endif ()

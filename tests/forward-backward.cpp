@@ -10,10 +10,8 @@
 #include "ako.hpp"
 
 
-using namespace ako;
+const unsigned MAX_TILE_INFO = 1024;
 
-
-#define MAX_TILE_INFO 1024
 
 struct GatheredTileInfo
 {
@@ -25,7 +23,7 @@ struct GatheredTileInfo
 	size_t data_size;
 };
 
-struct GatheredInfo
+struct GatheredGeneralInfo
 {
 	// Provided by the library
 	unsigned image_width;
@@ -44,14 +42,14 @@ struct GatheredInfo
 	unsigned max_tile_index;
 };
 
-static GatheredInfo s_encoded_info = {};
-static GatheredInfo s_decoded_info = {};
+static GatheredGeneralInfo s_encoded_info = {};
+static GatheredGeneralInfo s_decoded_info = {};
 
 
 static void sCallbackGenericEvent(ako::GenericEvent e, unsigned arg_a, unsigned arg_b, unsigned arg_c,
                                   ako::GenericType arg_d, void* user_data)
 {
-	auto& data = *reinterpret_cast<GatheredInfo*>(user_data);
+	auto& data = *reinterpret_cast<GatheredGeneralInfo*>(user_data);
 
 	switch (e)
 	{
@@ -68,19 +66,19 @@ static void sCallbackGenericEvent(ako::GenericEvent e, unsigned arg_a, unsigned 
 
 	case ako::GenericEvent::TileDimensions:
 		assert(arg_a < MAX_TILE_INFO);
-		data.max_tile_index = Max(data.max_tile_index, arg_a);
+		data.max_tile_index = ako::Max(data.max_tile_index, arg_a);
 		data.tile[arg_a].width = arg_b;
 		data.tile[arg_a].height = arg_c;
 		break;
 	case ako::GenericEvent::TilePosition:
 		assert(arg_a < MAX_TILE_INFO);
-		data.max_tile_index = Max(data.max_tile_index, arg_a);
+		data.max_tile_index = ako::Max(data.max_tile_index, arg_a);
 		data.tile[arg_a].x = arg_b;
 		data.tile[arg_a].y = arg_c;
 		break;
 	case ako::GenericEvent::TileDataSize:
 		assert(arg_a < MAX_TILE_INFO);
-		data.max_tile_index = Max(data.max_tile_index, arg_a);
+		data.max_tile_index = ako::Max(data.max_tile_index, arg_a);
 		data.tile[arg_a].data_size = arg_d.u;
 		break;
 
@@ -91,44 +89,48 @@ static void sCallbackGenericEvent(ako::GenericEvent e, unsigned arg_a, unsigned 
 
 
 template <typename T>
-static void sTest(const char* out_filename, const Settings& settings, unsigned width, unsigned height,
-                  unsigned channels, unsigned depth, T (*data_generator)(unsigned, uint32_t&))
+static void sTest(const char* out_filename, const ako::Settings& settings, unsigned width, unsigned height,
+                  unsigned channels, T (*data_generator)(unsigned, uint32_t&))
 {
-	printf(" - %ux%u px, %u channel(s), %u bpp\n", width, height, channels, depth);
+	const unsigned depth = sizeof(T) * 8; // Implicit
 
-	// Alloc data
-	const auto data_size = static_cast<size_t>(width) * static_cast<size_t>(height) * static_cast<size_t>(channels) *
-	                       ((depth <= 8) ? 1 : 2);
+	printf(" - %ux%u px, %u channel(s), %ux%u px tile(s), %u bpp\n", width, height, channels, settings.tiles_dimension,
+	       settings.tiles_dimension, depth);
 
-	auto data = reinterpret_cast<uint8_t*>(malloc(data_size));
-	assert(data != nullptr);
+	// Allocate data
+	T* data;
+	{
+		const auto data_size =
+		    static_cast<size_t>(width) * static_cast<size_t>(height) * static_cast<size_t>(channels) * sizeof(T);
+
+		data = reinterpret_cast<T*>(malloc(data_size));
+		assert(data != nullptr);
+	}
 
 	// Generate data
 	{
 		uint32_t generator_state = 1;
-		T* pixel_component = reinterpret_cast<T*>(data);
-
-		for (unsigned i = 0; i < (width * height * channels); i += 1, pixel_component += 1)
-			*pixel_component = data_generator(i, generator_state);
+		for (unsigned i = 0; i < (width * height * channels); i += 1)
+			data[i] = data_generator(i, generator_state);
 	}
 
 	// Encode
 	void* encoded_blob = nullptr;
 	size_t encoded_blob_size = 0;
 	{
-		auto callbacks = DefaultCallbacks();
+		auto callbacks = ako::DefaultCallbacks();
 		callbacks.generic_event = sCallbackGenericEvent;
 		callbacks.user_data = &s_encoded_info;
 
-		auto status = Status::Error; // Assume error
+		auto status = ako::Status::Error; // Assume error
 		encoded_blob_size = EncodeEx(callbacks, settings, width, height, channels, depth, data, &encoded_blob, &status);
 
 		if (encoded_blob_size == 0)
 			printf("Ako encode error: '%s'\n", ToString(status));
 
-		// Checks
+		// Simple checks
 		assert(encoded_blob_size != 0);
-		assert(status != Status::Error); // Library should never return it, too vague
+		assert(status != ako::Status::Error); // Library should never return it, too vague
 	}
 
 #if !defined(_WIN64) && !defined(_WIN32)
@@ -146,12 +148,12 @@ static void sTest(const char* out_filename, const Settings& settings, unsigned w
 	// Decode
 	void* decoded_data = nullptr;
 	{
-		auto callbacks = DefaultCallbacks();
+		auto callbacks = ako::DefaultCallbacks();
 		callbacks.generic_event = sCallbackGenericEvent;
 		callbacks.user_data = &s_decoded_info;
 
-		auto status = Status::Error; // Assume error
-		Settings decoded_settings = {};
+		auto status = ako::Status::Error; // Assume error
+		ako::Settings decoded_settings = {};
 		unsigned decoded_width = 0;
 		unsigned decoded_height = 0;
 		unsigned decoded_channels = 0;
@@ -163,9 +165,9 @@ static void sTest(const char* out_filename, const Settings& settings, unsigned w
 		if (decoded_data == nullptr)
 			printf("Ako decode error: '%s'\n", ToString(status));
 
-		// Checks
+		// Simple hecks
 		assert(decoded_data != nullptr);
-		assert(status != Status::Error);
+		assert(status != ako::Status::Error);
 
 		assert(decoded_width == width);
 		assert(decoded_height == height);
@@ -210,14 +212,21 @@ static void sTest(const char* out_filename, const Settings& settings, unsigned w
 		}
 	}
 
+	// Check data
+	{
+		uint32_t generator_state = 1;
+		for (unsigned i = 0; i < (width * height * channels); i += 1)
+			assert(reinterpret_cast<T*>(data)[i] == data_generator(i, generator_state));
+	}
+
 	// Bye!
-	DefaultCallbacks().free(encoded_blob);
-	DefaultCallbacks().free(decoded_data);
+	ako::DefaultCallbacks().free(encoded_blob);
+	ako::DefaultCallbacks().free(decoded_data);
 	free(data);
 }
 
 
-template <typename T> T DataGenerator(unsigned i, uint32_t& inout_state)
+template <typename T> static T sDataGenerator(unsigned i, uint32_t& inout_state)
 {
 	// https://en.wikipedia.org/wiki/Xorshift#Example_implementation
 	uint32_t x = inout_state;
@@ -226,36 +235,37 @@ template <typename T> T DataGenerator(unsigned i, uint32_t& inout_state)
 	x ^= static_cast<uint32_t>(x << 5);
 	inout_state = x;
 
-	return static_cast<T>((i + 1) * 10 + (inout_state & 16));
+	// return static_cast<T>((i + 1) * 10);
+	return static_cast<T>((i + 1) * 10 + (i % 10) + (inout_state & 16));
 }
 
 
 int main()
 {
-	printf("# ForwardBackward (Ako v%i.%i.%i, %s)\n", VersionMajor(), VersionMinor(), VersionPatch(),
-	       (SystemEndianness() == Endianness::Little) ? "little-endian" : "big-endian");
+	printf("# ForwardBackward Test (Ako v%i.%i.%i, %s)\n", ako::VersionMajor(), ako::VersionMinor(),
+	       ako::VersionPatch(), (ako::SystemEndianness() == ako::Endianness::Little) ? "little-endian" : "big-endian");
 
-	auto settings = DefaultSettings();
-	sTest("/tmp/1x1x1-8bpp.ako", settings, 1, 1, 1, 8, DataGenerator<uint8_t>);
-	sTest("/tmp/640x480x3-8bpp.ako", settings, 640, 480, 3, 8, DataGenerator<uint8_t>);
-	sTest("/tmp/1280x720x4-8bpp.ako", settings, 1280, 720, 4, 8, DataGenerator<uint8_t>);
+	auto settings = ako::DefaultSettings();
+	sTest("/tmp/1x1x1-8bpp.ako", settings, 1, 1, 1, sDataGenerator<uint8_t>);
+	sTest("/tmp/640x480x3-8bpp.ako", settings, 640, 480, 3, sDataGenerator<uint8_t>);
+	sTest("/tmp/1280x720x4-8bpp.ako", settings, 1280, 720, 4, sDataGenerator<uint8_t>);
 
-	sTest("/tmp/1x1x1-16bpp.ako", settings, 1, 1, 1, 16, DataGenerator<uint16_t>);
-	sTest("/tmp/640x480x3-16bpp.ako", settings, 640, 480, 3, 16, DataGenerator<uint16_t>);
-	sTest("/tmp/1280x720x4-16bpp.ako", settings, 1280, 720, 4, 16, DataGenerator<uint16_t>);
+	sTest("/tmp/1x1x1-16bpp.ako", settings, 1, 1, 1, sDataGenerator<uint16_t>);
+	sTest("/tmp/640x480x3-16bpp.ako", settings, 640, 480, 3, sDataGenerator<uint16_t>);
+	sTest("/tmp/1280x720x4-16bpp.ako", settings, 1280, 720, 4, sDataGenerator<uint16_t>);
 
-	/*settings.tiles_dimension = 256;
-	sTest("/tmp/out5.ako", settings, 128, 128, 1, 8);
-	sTest("/tmp/out6.ako", settings, 256, 256, 1, 8);
+	settings.tiles_dimension = 256;
+	sTest("/tmp/128x128x1-8bpp-256tiles.ako", settings, 128, 128, 1, sDataGenerator<uint8_t>);
+	sTest("/tmp/256x256x1-8bpp-256tiles.ako", settings, 256, 256, 1, sDataGenerator<uint8_t>);
 
 	settings.tiles_dimension = 1024;
-	sTest("/tmp/out7.ako", settings, 1490, 900, 2, 16);
+	sTest("/tmp/1490x900x2-8bpp-1024tiles.ako", settings, 1490, 900, 2, sDataGenerator<uint8_t>);
 	settings.tiles_dimension = 512;
-	sTest("/tmp/out8.ako", settings, 1490, 900, 2, 16);
+	sTest("/tmp/1490x900x2-8bpp-512tiles.ako", settings, 1490, 900, 2, sDataGenerator<uint8_t>);
 	settings.tiles_dimension = 256;
-	sTest("/tmp/out9.ako", settings, 1490, 900, 2, 16);
+	sTest("/tmp/1490x900x2-8bpp-256tiles.ako", settings, 1490, 900, 2, sDataGenerator<uint8_t>);
 	settings.tiles_dimension = 128;
-	sTest("/tmp/out10.ako", settings, 1490, 900, 2, 16);*/
+	sTest("/tmp/1490x900x2-8bpp-128tiles.ako", settings, 1490, 900, 2, sDataGenerator<uint8_t>);
 
 	return EXIT_SUCCESS;
 }

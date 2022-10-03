@@ -42,6 +42,7 @@ build ./build/native/library/encode/lifting.o:       Compile ./library/encode/li
 build ./build/native/library/encode/wavelet-cdf53.o: Compile ./library/encode/wavelet-cdf53.cpp
 build ./build/native/library/encode/wavelet-haar.o:  Compile ./library/encode/wavelet-haar.cpp
 
+build ./build/native/tests/cdf53.o:            Compile ./tests/cdf53.cpp
 build ./build/native/tests/forward-backward.o: Compile ./tests/forward-backward.cpp
 
 build ./build/native/tools/akodec.o:           CompileTool ./tools/akodec.cpp
@@ -82,7 +83,11 @@ build ./build/native-tools-common.a: Pack $
  ./build/native/tools/thirdparty/CLI11/src/Precompile.o $
  ./build/native/tools/thirdparty/lodepng/lodepng.o
 
-build ./build/native-forward-backward: Link $
+build ./build/native-test-cdf53: Link $
+ ./build/native/tests/cdf53.o $
+ ./build/native-libako-static.a
+
+build ./build/native-test-forward-backward: Link $
  ./build/native/tests/forward-backward.o $
  ./build/native-libako-static.a
 

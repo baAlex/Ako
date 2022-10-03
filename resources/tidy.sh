@@ -23,6 +23,7 @@ files="./library/common/conversions.cpp
        ./library/encode/wavelet-cdf53.cpp
        ./library/encode/wavelet-haar.cpp
 
+       ./tests/cdf53.cpp
        ./tests/forward-backward.cpp
 
        ./tools/akodec.cpp
