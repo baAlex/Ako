@@ -130,8 +130,7 @@ size_t Decompress(const Compression& compression_method, size_t compressed_size,
                   unsigned channels, const void* input, T* output, Status&);
 
 template <typename T>
-size_t Compress(const Compression& compression_method, unsigned width, unsigned height, unsigned channels,
-                const T* input, void* output);
+size_t Compress(const Settings&, unsigned width, unsigned height, unsigned channels, const T* input, void* output);
 
 
 // decode/format.cpp:
