@@ -28,39 +28,58 @@ SOFTWARE.
 namespace ako
 {
 
-
-// ----------------------------
-
-#define ALGO 3
-
-template <typename T> static void sQuantize(float step, unsigned w, unsigned h, const T* in, T* out)
+template <typename T> class Compressor
 {
-	// TODO, endianness
-	if (step > 1.0F && w > 4 && h > 4) // HARDCODED
-	{
-		for (unsigned i = 0; i < (w * h); i += 1)
-		{
+  private:
+	uint8_t* output;
+	size_t cursor; // Or 'compressed size'
 
-			if (in[i] > 0)
-				out[i] = static_cast<T>(__builtin_roundf(__builtin_fabsf(static_cast<float>(in[i]) / step)) * step);
-			else
-				out[i] = static_cast<T>(__builtin_roundf(__builtin_fabsf(static_cast<float>(in[i]) / step)) * step *
-				                        (-1.0F));
-		}
-	}
-	else
+  public:
+	Compressor(void* output)
 	{
-		for (unsigned i = 0; i < (w * h); i += 1)
-			out[i] = in[i];
+		this->output = reinterpret_cast<uint8_t*>(output);
+		this->cursor = 0;
 	}
+
+	int Step(T (*quantize)(float, T), float quantization, unsigned width, unsigned height, const T* in)
+	{
+		auto out = reinterpret_cast<T*>(output + cursor);
+
+		if (SystemEndianness() == Endianness::Little)
+		{
+			for (unsigned i = 0; i < (width * height); i += 1)
+				out[i] = quantize(quantization, in[i]);
+		}
+		else
+		{
+			for (unsigned i = 0; i < (width * height); i += 1)
+				out[i] = EndiannessReverse<T>(quantize(quantization, in[i]));
+		}
+
+		cursor += sizeof(T) * width * height;
+		return 0;
+	}
+
+	size_t Finish() const
+	{
+		return cursor;
+	}
+};
+
+
+template <typename T> static inline T sDummyQuantizer(float q, T value)
+{
+	if (value > 0)
+		return static_cast<T>(__builtin_roundf(__builtin_fabsf(static_cast<float>(value) / q)) * q);
+
+	return -static_cast<T>(__builtin_roundf(__builtin_fabsf(static_cast<float>(value) / q)) * q);
 }
 
-template <typename T>
-static size_t sKagari(unsigned quantization, unsigned chroma_loss, unsigned width, unsigned height, unsigned channels,
-                      const T* input, void* output)
-{
-	T* out = reinterpret_cast<T*>(output);
 
+template <typename T>
+static size_t sCompress(const Settings& settings, unsigned width, unsigned height, unsigned channels,
+                        Compressor<T>& compressor, const T* input)
+{
 	// Code suspiciously similar to Unlift()
 
 	auto in = input;
@@ -75,11 +94,10 @@ static size_t sKagari(unsigned quantization, unsigned chroma_loss, unsigned widt
 	// Lowpasses
 	for (unsigned ch = 0; ch < channels; ch += 1)
 	{
-		for (unsigned i = 0; i < lp_w * lp_h; i += 1)
-			out[i] = in[i];
+		if (compressor.Step(sDummyQuantizer, 1, lp_w, lp_h, in) != 0)
+			return 0;
 
 		in += (lp_w * lp_h); // Quadrant A
-		out += (lp_w * lp_h);
 	}
 
 	// Highpasses
@@ -88,68 +106,35 @@ static size_t sKagari(unsigned quantization, unsigned chroma_loss, unsigned widt
 		LiftMeasures(lift, width, height, lp_w, lp_h, hp_w, hp_h);
 
 		// Quantization step
-		const auto x = static_cast<float>(lifts_no - lift - 1);
-
-#if (ALGO == 0)
-		const auto q_step = (x * x) * (static_cast<float>(quantization) / 512.0F) + 1.0F;
-#elif (ALGO == 1)
-		const auto q_step = __builtin_powf(2.0F, x * (static_cast<float>(quantization) / 256.0F));
-#elif (ALGO == 2) // AkoV2'ish
-		const auto q_step =
-		    __builtin_powf(2.0F, x * (static_cast<float>(quantization) / 256.0F) * __builtin_powf(x / 8.0F, 1.0F));
-#elif (ALGO == 3) // Ditto, different curve
-		const auto q_step =
-		    __builtin_powf(2.0F, x * (static_cast<float>(quantization) / 300.0F) * __builtin_powf(x / 8.0F, 1.8F));
-#endif
+		const auto x = static_cast<float>(lifts_no - lift);
+		const auto q = __builtin_powf(2.0F, x * (static_cast<float>(settings.quantization) / 300.0F) *
+		                                        __builtin_powf(x / 8.0F, 1.8F));
+		const float q_diagonal = (settings.quantization != 0) ? 2.0F : 1.0F;
 
 		// Iterate in Yuv order
 		for (unsigned ch = 0; ch < channels; ch += 1)
 		{
-			const float chroma =
-			    (channels >= 3 && chroma_loss > 1 && (ch == 1 || ch == 2)) ? static_cast<float>(chroma_loss) : 1.0F;
-			const float diagonal = (quantization != 0) ? 2.0F : 1.0F;
-
 			// Quadrant C
-			sQuantize(q_step * chroma, lp_w, hp_h, in, out);
+			if (compressor.Step(sDummyQuantizer, (lp_w > 4 && hp_h > 4) ? q : 1.0F, lp_w, hp_h, in) != 0)
+				return 0;
+
 			in += (lp_w * hp_h);
-			out += (lp_w * hp_h);
 
 			// Quadrant B
-			sQuantize(q_step * chroma, hp_w, lp_h, in, out);
+			if (compressor.Step(sDummyQuantizer, (lp_w > 4 && hp_h > 4) ? q : 1.0F, hp_w, lp_h, in) != 0)
+				return 0;
+
 			in += (hp_w * lp_h);
-			out += (hp_w * lp_h);
 
 			// Quadrant D
-			sQuantize(q_step * chroma * diagonal, hp_w, hp_h, in, out);
+			if (compressor.Step(sDummyQuantizer, (lp_w > 4 && hp_h > 4) ? (q * q_diagonal) : 1.0F, hp_w, hp_h, in) != 0)
+				return 0;
+
 			in += (hp_w * hp_h);
-			out += (hp_w * hp_h);
 		}
 	}
 
-	return TileDataSize<T>(width, height, channels);
-}
-
-// ----------------------------
-
-
-template <typename T>
-static size_t sCompress(const Settings& settings, unsigned width, unsigned height, unsigned channels, const T* input,
-                        void* output)
-{
-	if (settings.compression == Compression::Kagari)
-		return sKagari(settings.quantization, settings.chroma_loss, width, height, channels, input, output);
-
-	// No compression
-	{
-		const auto compressed_size = TileDataSize<T>(width, height, channels);
-
-		if (SystemEndianness() == Endianness::Little)
-			Memcpy(output, input, compressed_size);
-		else
-			MemcpyReversingEndianness(compressed_size, input, output);
-
-		return compressed_size;
-	}
+	return compressor.Finish();
 }
 
 
@@ -157,14 +142,16 @@ template <>
 size_t Compress(const Settings& settings, unsigned width, unsigned height, unsigned channels, const int16_t* input,
                 void* output)
 {
-	return sCompress(settings, width, height, channels, input, output);
+	auto compressor = Compressor<int16_t>(output);
+	return sCompress(settings, width, height, channels, compressor, input);
 }
 
 template <>
 size_t Compress(const Settings& settings, unsigned width, unsigned height, unsigned channels, const int32_t* input,
                 void* output)
 {
-	return sCompress(settings, width, height, channels, input, output);
+	auto compressor = Compressor<int32_t>(output);
+	return sCompress(settings, width, height, channels, compressor, input);
 }
 
 } // namespace ako

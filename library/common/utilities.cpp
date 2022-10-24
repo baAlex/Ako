@@ -125,6 +125,24 @@ template <> uint32_t EndiannessReverse(uint32_t value)
 	return static_cast<uint32_t>((b1 << 24) | (b2 << 16) | (b3 << 8) | b4);
 }
 
+template <> int16_t EndiannessReverse(int16_t value)
+{
+	const auto b1 = static_cast<int16_t>(value & 0xFF);
+	const auto b2 = static_cast<int16_t>((value >> 8) & 0xFF);
+
+	return static_cast<int16_t>((b1 << 8) | b2);
+}
+
+template <> int32_t EndiannessReverse(int32_t value)
+{
+	const auto b1 = static_cast<int32_t>(value & 0xFF);
+	const auto b2 = static_cast<int32_t>((value >> 8) & 0xFF);
+	const auto b3 = static_cast<int32_t>((value >> 16) & 0xFF);
+	const auto b4 = static_cast<int32_t>((value >> 24) & 0xFF);
+
+	return static_cast<int32_t>((b1 << 24) | (b2 << 16) | (b3 << 8) | b4);
+}
+
 
 template <> void MemcpyReversingEndianness(size_t size, const int16_t* input, void* output)
 {
