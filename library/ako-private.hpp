@@ -30,6 +30,7 @@ SOFTWARE.
 
 #ifndef AKO_FREESTANDING
 #include <climits>
+#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #endif

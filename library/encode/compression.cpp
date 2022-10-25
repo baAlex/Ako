@@ -70,9 +70,9 @@ template <typename T> class Compressor
 template <typename T> static inline T sDummyQuantizer(float q, T value)
 {
 	if (value > 0)
-		return static_cast<T>(__builtin_roundf(__builtin_fabsf(static_cast<float>(value) / q)) * q);
+		return static_cast<T>(roundf(fabsf(static_cast<float>(value) / q)) * q);
 
-	return -static_cast<T>(__builtin_roundf(__builtin_fabsf(static_cast<float>(value) / q)) * q);
+	return static_cast<T>(roundf(fabsf(static_cast<float>(value) / q)) * (-q));
 }
 
 
@@ -94,7 +94,7 @@ static size_t sCompress(const Settings& settings, unsigned width, unsigned heigh
 	// Lowpasses
 	for (unsigned ch = 0; ch < channels; ch += 1)
 	{
-		if (compressor.Step(sDummyQuantizer, 1, lp_w, lp_h, in) != 0)
+		if (compressor.Step(sDummyQuantizer, 1.0F, lp_w, lp_h, in) != 0)
 			return 0;
 
 		in += (lp_w * lp_h); // Quadrant A
@@ -106,28 +106,37 @@ static size_t sCompress(const Settings& settings, unsigned width, unsigned heigh
 		LiftMeasures(lift, width, height, lp_w, lp_h, hp_w, hp_h);
 
 		// Quantization step
-		const auto x = static_cast<float>(lifts_no - lift);
-		const auto q = __builtin_powf(2.0F, x * (static_cast<float>(settings.quantization) / 300.0F) *
-		                                        __builtin_powf(x / 8.0F, 1.8F));
-		const float q_diagonal = (settings.quantization != 0) ? 2.0F : 1.0F;
+		const auto x = static_cast<float>(lifts_no) -
+		               static_cast<float>(lift + (lifts_no - 8)); // Limit quantization to the last 8 harmonics,
+		                                                          // for reference the DCT on JPEG produces 3 harmonics
+		                                                          // (ending up in a limit of blocks of 8 pixels)
+		                                                          // On J2K this is configurable, 8 harmonics being
+		                                                          // the default for quantization (I think)...
+		                                                          // TODO: revise this again with the compression
+		                                                          // stage working
+
+		const auto q = powf(2.0F, x * (settings.quantization / 100.0F) * powf(x / 8.0F, 1.8F));
+		const float q_diagonal = (settings.quantization > 0.0F) ? 2.0F : 1.0F;
+
+		// printf("%f %f\n", q, x);
 
 		// Iterate in Yuv order
 		for (unsigned ch = 0; ch < channels; ch += 1)
 		{
 			// Quadrant C
-			if (compressor.Step(sDummyQuantizer, (lp_w > 4 && hp_h > 4) ? q : 1.0F, lp_w, hp_h, in) != 0)
+			if (compressor.Step(sDummyQuantizer, (x > 0.0) ? q : 1.0F, lp_w, hp_h, in) != 0)
 				return 0;
 
 			in += (lp_w * hp_h);
 
 			// Quadrant B
-			if (compressor.Step(sDummyQuantizer, (lp_w > 4 && hp_h > 4) ? q : 1.0F, hp_w, lp_h, in) != 0)
+			if (compressor.Step(sDummyQuantizer, (x > 0.0) ? q : 1.0F, hp_w, lp_h, in) != 0)
 				return 0;
 
 			in += (hp_w * lp_h);
 
 			// Quadrant D
-			if (compressor.Step(sDummyQuantizer, (lp_w > 4 && hp_h > 4) ? (q * q_diagonal) : 1.0F, hp_w, hp_h, in) != 0)
+			if (compressor.Step(sDummyQuantizer, (x > 0.0) ? (q * q_diagonal) : 1.0F, hp_w, hp_h, in) != 0)
 				return 0;
 
 			in += (hp_w * hp_h);

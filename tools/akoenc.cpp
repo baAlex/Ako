@@ -148,6 +148,10 @@ int main(int argc, const char* argv[])
 		// clang-format on
 
 		CLI11_PARSE(app, argc, argv);
+
+		s.quantization = (s.quantization > 0.0F) ? s.quantization : 0.0F;
+		s.gate = (s.gate > 0.0F) ? s.gate : 0.0F;
+		s.chroma_loss = (s.chroma_loss > 0.0F) ? s.chroma_loss : 0.0F;
 	}
 
 	if (quiet == false && verbose == true)

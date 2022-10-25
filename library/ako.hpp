@@ -47,6 +47,7 @@ enum class Status
 	InvalidDimensions,
 	InvalidChannelsNo,
 	InvalidDepth,
+	InvalidSettings,
 
 	TruncatedImageHead,
 	TruncatedTileHead,
@@ -138,9 +139,9 @@ struct Settings
 	unsigned tiles_dimension;
 
 	// Non recoverable when decoding:
-	unsigned quantization;
-	unsigned gate;
-	unsigned chroma_loss;
+	float quantization;
+	float gate;
+	float chroma_loss;
 	bool discard;
 };
 

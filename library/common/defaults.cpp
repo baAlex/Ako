@@ -39,8 +39,10 @@ Settings DefaultSettings()
 
 	settings.tiles_dimension = 0;
 
-	settings.quantization = 4;
-	settings.gate = 0;
+	settings.quantization = 64.0F;
+	settings.gate = 0.0F;
+	settings.chroma_loss = 0.0F;
+	settings.discard = false;
 
 	return settings;
 }

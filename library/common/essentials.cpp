@@ -196,6 +196,9 @@ Status ValidateSettings(const Settings& settings)
 		if (settings.tiles_dimension != NearPowerOfTwo(settings.tiles_dimension) ||
 		    settings.tiles_dimension > MAXIMUM_TILES_DIMENSION)
 			return Status::InvalidTilesDimension;
+
+		if (settings.quantization < 0.0F || settings.gate < 0.0F || settings.chroma_loss < 0.0F)
+			return Status::InvalidSettings;
 	}
 
 	return Status::Ok;

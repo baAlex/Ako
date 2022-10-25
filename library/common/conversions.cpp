@@ -44,6 +44,7 @@ const char* ToString(Status s)
 	case Status::InvalidDimensions: return "Invalid image dimensions";
 	case Status::InvalidChannelsNo: return "Invalid number of channels";
 	case Status::InvalidDepth: return "Invalid depth";
+	case Status::InvalidSettings: return "Invalid settings";
 
 	case Status::TruncatedImageHead: return "Truncated data, near image head";
 	case Status::TruncatedTileHead: return "Truncated data, near a tile head";

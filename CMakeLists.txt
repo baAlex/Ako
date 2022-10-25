@@ -69,6 +69,10 @@ if (AKO_SHARED)
 		set_property(TARGET "ako" PROPERTY CXX_VISIBILITY_PRESET hidden)
 		set_property(TARGET "ako" PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
 	endif ()
+
+	if (!MSVC)
+		target_link_libraries("ako" PRIVATE "m")
+	endif ()
 endif ()
 
 
@@ -80,6 +84,10 @@ if (AKO_STATIC)
 
 	if (CMAKE_BUILD_TYPE STREQUAL "Release")
 		set_property(TARGET "ako-static" PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
+	endif ()
+
+	if (!MSVC)
+		target_link_libraries("ako-static" PRIVATE "m")
 	endif ()
 endif ()
 
