@@ -28,57 +28,55 @@ SOFTWARE.
 namespace ako
 {
 
-template <typename T> class Compressor
+template <typename T> class DummyCompressor : public Compressor<T>
 {
   private:
-	uint8_t* output;
-	size_t cursor; // Or 'compressed size'
+	T* output;
+	T* output_start;
 
   public:
-	Compressor(void* output)
+	DummyCompressor(void* output)
 	{
-		this->output = reinterpret_cast<uint8_t*>(output);
-		this->cursor = 0;
+		this->output = reinterpret_cast<T*>(output);
+		this->output_start = reinterpret_cast<T*>(output);
 	}
 
-	int Step(T (*quantize)(float, T), float quantization, unsigned width, unsigned height, const T* in)
+	size_t Step(T (*quantize)(float, T), float quantization, unsigned width, unsigned height, const T* in)
 	{
-		auto out = reinterpret_cast<T*>(output + cursor);
-
 		if (SystemEndianness() == Endianness::Little)
 		{
 			for (unsigned i = 0; i < (width * height); i += 1)
-				out[i] = quantize(quantization, in[i]);
+				output[i] = quantize(quantization, in[i]);
 		}
 		else
 		{
 			for (unsigned i = 0; i < (width * height); i += 1)
-				out[i] = EndiannessReverse<T>(quantize(quantization, in[i]));
+				output[i] = EndiannessReverse<T>(quantize(quantization, in[i]));
 		}
 
-		cursor += sizeof(T) * width * height;
-		return 0;
+		output += (width * height);
+		return (width * height) * sizeof(T);
 	}
 
 	size_t Finish() const
 	{
-		return cursor;
+		return static_cast<size_t>(output - output_start) * sizeof(T);
 	}
 };
 
 
-template <typename T> static inline T sDummyQuantizer(float q, T value)
+template <typename T> static inline T sQuantizer(float q, T value)
 {
 	if (value > 0)
 		return static_cast<T>(roundf(fabsf(static_cast<float>(value) / q)) * q);
 
-	return static_cast<T>(roundf(fabsf(static_cast<float>(value) / q)) * (-q));
+	return static_cast<T>(-roundf(fabsf(static_cast<float>(value) / q)) * q);
 }
 
 
 template <typename T>
-static size_t sCompress(const Settings& settings, unsigned width, unsigned height, unsigned channels,
-                        Compressor<T>& compressor, const T* input)
+static size_t sCompress(Compressor<T>& compressor, const Settings& settings, unsigned width, unsigned height,
+                        unsigned channels, const T* input)
 {
 	// Code suspiciously similar to Unlift()
 
@@ -94,7 +92,7 @@ static size_t sCompress(const Settings& settings, unsigned width, unsigned heigh
 	// Lowpasses
 	for (unsigned ch = 0; ch < channels; ch += 1)
 	{
-		if (compressor.Step(sDummyQuantizer, 1.0F, lp_w, lp_h, in) != 0)
+		if (compressor.Step(sQuantizer, 1.0F, lp_w, lp_h, in) == 0)
 			return 0;
 
 		in += (lp_w * lp_h); // Quadrant A
@@ -111,11 +109,11 @@ static size_t sCompress(const Settings& settings, unsigned width, unsigned heigh
 		                                                          // for reference the DCT on JPEG produces 3 harmonics
 		                                                          // (ending up in a limit of blocks of 8 pixels)
 		                                                          // On J2K this is configurable, 8 harmonics being
-		                                                          // the default for quantization (I think)...
+		                                                          // the default (I think)...
 		                                                          // TODO: revise this again with the compression
-		                                                          // stage working
+		                                                          // stage actually compressing
 
-		const auto q = powf(2.0F, x * (settings.quantization / 100.0F) * powf(x / 8.0F, 1.8F));
+		const auto q = powf(2.0F, x * (settings.quantization / 50.0F) * powf(x / 16.0F, 1.0F));
 		const float q_diagonal = (settings.quantization > 0.0F) ? 2.0F : 1.0F;
 
 		// printf("%f %f\n", q, x);
@@ -124,19 +122,19 @@ static size_t sCompress(const Settings& settings, unsigned width, unsigned heigh
 		for (unsigned ch = 0; ch < channels; ch += 1)
 		{
 			// Quadrant C
-			if (compressor.Step(sDummyQuantizer, (x > 0.0) ? q : 1.0F, lp_w, hp_h, in) != 0)
+			if (compressor.Step(sQuantizer, (x > 0.0) ? q : 1.0F, lp_w, hp_h, in) == 0)
 				return 0;
 
 			in += (lp_w * hp_h);
 
 			// Quadrant B
-			if (compressor.Step(sDummyQuantizer, (x > 0.0) ? q : 1.0F, hp_w, lp_h, in) != 0)
+			if (compressor.Step(sQuantizer, (x > 0.0) ? q : 1.0F, hp_w, lp_h, in) == 0)
 				return 0;
 
 			in += (hp_w * lp_h);
 
 			// Quadrant D
-			if (compressor.Step(sDummyQuantizer, (x > 0.0) ? (q * q_diagonal) : 1.0F, hp_w, hp_h, in) != 0)
+			if (compressor.Step(sQuantizer, (x > 0.0) ? (q * q_diagonal) : 1.0F, hp_w, hp_h, in) == 0)
 				return 0;
 
 			in += (hp_w * hp_h);
@@ -151,16 +149,40 @@ template <>
 size_t Compress(const Settings& settings, unsigned width, unsigned height, unsigned channels, const int16_t* input,
                 void* output)
 {
-	auto compressor = Compressor<int16_t>(output);
-	return sCompress(settings, width, height, channels, compressor, input);
+	size_t compressed_size = 0;
+
+	if (settings.compression == Compression::Kagari)
+	{
+		// TODO
+	}
+
+	// No compression (doesn't fail, so it is a fallback)
+	{
+		auto compressor = DummyCompressor<int16_t>(output);
+		compressed_size = sCompress(compressor, settings, width, height, channels, input);
+	}
+
+	return compressed_size;
 }
 
 template <>
 size_t Compress(const Settings& settings, unsigned width, unsigned height, unsigned channels, const int32_t* input,
                 void* output)
 {
-	auto compressor = Compressor<int32_t>(output);
-	return sCompress(settings, width, height, channels, compressor, input);
+	size_t compressed_size = 0;
+
+	if (settings.compression == Compression::Kagari)
+	{
+		// TODO
+	}
+
+	// No compression
+	{
+		auto compressor = DummyCompressor<int32_t>(output);
+		compressed_size = sCompress(compressor, settings, width, height, channels, input);
+	}
+
+	return compressed_size;
 }
 
 } // namespace ako

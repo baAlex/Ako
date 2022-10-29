@@ -64,6 +64,45 @@ enum class Endianness
 	Big
 };
 
+template <typename T> class Compressor
+{
+  public:
+	virtual size_t Step(T (*quantization_callback)(float, T), float quantization_step, unsigned width, unsigned height,
+	                    const T* in)
+	{
+		(void)quantization_callback;
+		(void)quantization_step;
+		(void)width;
+		(void)height;
+		(void)in;
+		return 0; // Error
+	};
+
+	virtual size_t Finish() const
+	{
+		return 0; // Error
+	};
+};
+
+template <typename T> class Decompressor
+{
+  public:
+	virtual size_t Step(unsigned width, unsigned height, T* out, Status& status)
+	{
+		(void)width;
+		(void)height;
+		(void)out;
+		status = Status::Error;
+		return 0; // Error
+	};
+
+	virtual size_t Finish(Status& status) const
+	{
+		status = Status::Error;
+		return 0; // Error
+	};
+};
+
 
 // common/conversions.cpp:
 
@@ -112,8 +151,6 @@ void* Memcpy(void* output, const void* input, size_t size);
 template <typename T>
 void Memcpy2d(size_t width, size_t height, size_t in_stride, size_t out_stride, const T* in, T* out);
 
-template <typename T> void MemcpyReversingEndianness(size_t size, const T* input, void* output);
-
 Endianness SystemEndianness();
 template <typename T> T EndiannessReverse(T value);
 
@@ -127,8 +164,8 @@ template <typename T> T SaturateToLower(T v);
 // encode/compression.cpp:
 
 template <typename T>
-size_t Decompress(const Compression& compression_method, size_t compressed_size, unsigned width, unsigned height,
-                  unsigned channels, const void* input, T* output, Status&);
+size_t Decompress(const Settings&, size_t compressed_size, unsigned width, unsigned height, unsigned channels,
+                  const void* input, T* output, Status&);
 
 template <typename T>
 size_t Compress(const Settings&, unsigned width, unsigned height, unsigned channels, const T* input, void* output);

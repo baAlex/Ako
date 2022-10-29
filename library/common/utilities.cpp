@@ -144,23 +144,6 @@ template <> int32_t EndiannessReverse(int32_t value)
 }
 
 
-template <> void MemcpyReversingEndianness(size_t size, const int16_t* input, void* output)
-{
-	auto in = reinterpret_cast<const uint16_t*>(input);
-	auto out = reinterpret_cast<uint16_t*>(output);
-	for (size_t i = 0; i < size; i += sizeof(uint16_t))
-		*out++ = EndiannessReverse(*in++);
-}
-
-template <> void MemcpyReversingEndianness(size_t size, const int32_t* input, void* output)
-{
-	auto in = reinterpret_cast<const uint32_t*>(input);
-	auto out = reinterpret_cast<uint32_t*>(output);
-	for (size_t i = 0; i < size; i += sizeof(uint32_t))
-		*out++ = EndiannessReverse(*in++);
-}
-
-
 template <> int16_t WrapSubtract(int16_t a, int16_t b)
 {
 	// This seems to be a non trivial problem: https://en.wikipedia.org/wiki/Modulo_operation
