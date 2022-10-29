@@ -17,6 +17,10 @@ if (MSVC)
 	add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
 endif ()
 
+if (CMAKE_BUILD_TYPE STREQUAL "Release" OR CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
+	set(AKO_RELEASE True)
+endif ()
+
 # <optional flags>
 if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang" OR "${CMAKE_CXX_COMPILER_ID}" MATCHES "GNU")
 	set(AKO_CFLAGS       -Wall -Wextra -pedantic -Werror -Wconversion -Wold-style-cast)
@@ -44,7 +48,6 @@ set(AKO_SOURCES
 	"./library/decode/decode.cpp"
 	"./library/decode/format.cpp"
 	"./library/decode/heads.cpp"
-	"./library/decode/kagari.cpp"
 	"./library/decode/lifting.cpp"
 	"./library/decode/wavelet-cdf53.cpp"
 	"./library/decode/wavelet-haar.cpp"
@@ -53,7 +56,6 @@ set(AKO_SOURCES
 	"./library/encode/encode.cpp"
 	"./library/encode/format.cpp"
 	"./library/encode/heads.cpp"
-	"./library/encode/kagari.cpp"
 	"./library/encode/lifting.cpp"
 	"./library/encode/wavelet-cdf53.cpp"
 	"./library/encode/wavelet-haar.cpp")
@@ -65,7 +67,7 @@ if (AKO_SHARED)
 
 	target_compile_options("ako" PRIVATE ${AKO_CFLAGS})
 
-	if (CMAKE_BUILD_TYPE STREQUAL "Release")
+	if (AKO_RELEASE)
 		set_property(TARGET "ako" PROPERTY CXX_VISIBILITY_PRESET hidden)
 		set_property(TARGET "ako" PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
 	endif ()
@@ -82,7 +84,7 @@ if (AKO_STATIC)
 
 	target_compile_options("ako-static" PRIVATE ${AKO_CFLAGS})
 
-	if (CMAKE_BUILD_TYPE STREQUAL "Release")
+	if (AKO_RELEASE)
 		set_property(TARGET "ako-static" PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
 	endif ()
 
@@ -107,7 +109,7 @@ if (AKO_ENC OR AKODEC OR AKOVIEW)
 
 	target_compile_options("tools-common" PRIVATE ${AKO_TOOLS_CFLAGS})
 
-	if (CMAKE_BUILD_TYPE STREQUAL "Release")
+	if (AKO_RELEASE)
 		set_property(TARGET "tools-common" PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
 	endif ()
 endif ()
@@ -141,7 +143,7 @@ if (AKO_ENC)
 
 	target_compile_options("akoenc" PRIVATE ${AKO_TOOLS_CFLAGS})
 
-	if (CMAKE_BUILD_TYPE STREQUAL "Release")
+	if (AKO_RELEASE)
 		set_property(TARGET "akoenc" PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
 	endif ()
 endif ()
@@ -159,7 +161,7 @@ if (AKO_VIEW)
 
 	target_compile_options("akoview" PRIVATE ${AKO_TOOLS_CFLAGS})
 
-	if (CMAKE_BUILD_TYPE STREQUAL "Release")
+	if (AKO_RELEASE)
 		set_property(TARGET "akoview" PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
 	endif ()
 
@@ -185,7 +187,7 @@ if (AKO_TESTS)
 	target_link_libraries("test-wavelet-haar" PRIVATE "ako-static")
 	target_compile_options("test-wavelet-haar" PRIVATE ${AKO_CFLAGS})
 
-	if (CMAKE_BUILD_TYPE STREQUAL "Release")
+	if (AKO_RELEASE)
 		set_property(TARGET "test-forward-backward" PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
 		set_property(TARGET "test-wavelet-cdf53" PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
 		set_property(TARGET "test-wavelet-haar" PROPERTY INTERPROCEDURAL_OPTIMIZATION True)

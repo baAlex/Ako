@@ -24,46 +24,11 @@ SOFTWARE.
 */
 
 #include "ako-private.hpp"
+#include "compression-kagari.hpp"
+#include "compression-none.hpp"
 
 namespace ako
 {
-
-template <typename T> class DummyCompressor : public Compressor<T>
-{
-  private:
-	T* output;
-	T* output_start;
-
-  public:
-	DummyCompressor(void* output)
-	{
-		this->output = reinterpret_cast<T*>(output);
-		this->output_start = reinterpret_cast<T*>(output);
-	}
-
-	size_t Step(T (*quantize)(float, T), float quantization, unsigned width, unsigned height, const T* in)
-	{
-		if (SystemEndianness() == Endianness::Little)
-		{
-			for (unsigned i = 0; i < (width * height); i += 1)
-				output[i] = quantize(quantization, in[i]);
-		}
-		else
-		{
-			for (unsigned i = 0; i < (width * height); i += 1)
-				output[i] = EndiannessReverse<T>(quantize(quantization, in[i]));
-		}
-
-		output += (width * height);
-		return (width * height) * sizeof(T);
-	}
-
-	size_t Finish() const
-	{
-		return static_cast<size_t>(output - output_start) * sizeof(T);
-	}
-};
-
 
 template <typename T> static inline T sQuantizer(float q, T value)
 {
@@ -158,7 +123,7 @@ size_t Compress(const Settings& settings, unsigned width, unsigned height, unsig
 
 	// No compression (doesn't fail, so it is a fallback)
 	{
-		auto compressor = DummyCompressor<int16_t>(output);
+		auto compressor = CompressorNone<int16_t>(output);
 		compressed_size = sCompress(compressor, settings, width, height, channels, input);
 	}
 
@@ -178,7 +143,7 @@ size_t Compress(const Settings& settings, unsigned width, unsigned height, unsig
 
 	// No compression
 	{
-		auto compressor = DummyCompressor<int32_t>(output);
+		auto compressor = CompressorNone<int32_t>(output);
 		compressed_size = sCompress(compressor, settings, width, height, channels, input);
 	}
 

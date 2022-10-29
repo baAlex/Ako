@@ -24,55 +24,11 @@ SOFTWARE.
 */
 
 #include "ako-private.hpp"
+#include "compression-kagari.hpp"
+#include "compression-none.hpp"
 
 namespace ako
 {
-
-template <typename T> class DummyDecompressor : public Decompressor<T>
-{
-  private:
-	const T* input;
-	const T* input_start;
-	const T* input_end;
-
-  public:
-	DummyDecompressor(const void* input, size_t input_size)
-	{
-		this->input = reinterpret_cast<const T*>(input);
-		this->input_start = reinterpret_cast<const T*>(input);
-		this->input_end = reinterpret_cast<const T*>(input) + input_size / sizeof(T);
-	}
-
-	size_t Step(unsigned width, unsigned height, T* out, Status& status)
-	{
-		if (input + (width * height) > this->input_end)
-		{
-			status = Status::TruncatedTileData;
-			return 0;
-		}
-
-		if (SystemEndianness() == Endianness::Little)
-		{
-			for (unsigned i = 0; i < (width * height); i += 1)
-				out[i] = input[i];
-		}
-		else
-		{
-			for (unsigned i = 0; i < (width * height); i += 1)
-				out[i] = EndiannessReverse<T>(input[i]);
-		}
-
-		input += (width * height);
-		return (width * height) * sizeof(T);
-	}
-
-	size_t Finish(Status& status) const
-	{
-		status = Status::Ok;
-		return static_cast<size_t>(input - input_start) * sizeof(T);
-	}
-};
-
 
 template <typename T>
 static size_t sDecompress(Decompressor<T>& decompressor, unsigned width, unsigned height, unsigned channels, T* output,
@@ -143,7 +99,7 @@ size_t Decompress(const Settings& settings, size_t compressed_size, unsigned wid
 
 	// No compression
 	{
-		auto decompressor = DummyDecompressor<int16_t>(input, compressed_size);
+		auto decompressor = DecompressorNone<int16_t>(input, compressed_size);
 		decompressed_size = sDecompress(decompressor, width, height, channels, output, status);
 	}
 
@@ -163,7 +119,7 @@ size_t Decompress(const Settings& settings, size_t compressed_size, unsigned wid
 
 	// No compression
 	{
-		auto decompressor = DummyDecompressor<int32_t>(input, compressed_size);
+		auto decompressor = DecompressorNone<int32_t>(input, compressed_size);
 		decompressed_size = sDecompress(decompressor, width, height, channels, output, status);
 	}
 
