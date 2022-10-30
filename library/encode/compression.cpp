@@ -118,11 +118,13 @@ size_t Compress(const Settings& settings, unsigned width, unsigned height, unsig
 
 	if (settings.compression == Compression::Kagari)
 	{
-		// TODO
+		auto compressor = CompressorKagari<int16_t>(output, sizeof(int16_t) * width * height * channels);
+		if ((compressed_size = sCompress(compressor, settings, width, height, channels, input)) == 0)
+			goto fallback;
 	}
-
-	// No compression (doesn't fail, so it is a fallback)
+	else // No compression
 	{
+	fallback:
 		auto compressor = CompressorNone<int16_t>(output);
 		compressed_size = sCompress(compressor, settings, width, height, channels, input);
 	}
@@ -138,11 +140,13 @@ size_t Compress(const Settings& settings, unsigned width, unsigned height, unsig
 
 	if (settings.compression == Compression::Kagari)
 	{
-		// TODO
+		auto compressor = CompressorKagari<int32_t>(output, sizeof(int32_t) * width * height * channels);
+		if ((compressed_size = sCompress(compressor, settings, width, height, channels, input)) == 0)
+			goto fallback;
 	}
-
-	// No compression
+	else // No compression
 	{
+	fallback:
 		auto compressor = CompressorNone<int32_t>(output);
 		compressed_size = sCompress(compressor, settings, width, height, channels, input);
 	}

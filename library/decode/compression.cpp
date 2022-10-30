@@ -94,11 +94,13 @@ size_t Decompress(const Settings& settings, size_t compressed_size, unsigned wid
 
 	if (settings.compression == Compression::Kagari)
 	{
-		// TODO
+		auto decompressor = DecompressorKagari<int16_t>(input, compressed_size);
+		if ((decompressed_size = sDecompress(decompressor, width, height, channels, output, status)) == 0)
+			goto fallback;
 	}
-
-	// No compression
+	else // No compression
 	{
+	fallback:
 		auto decompressor = DecompressorNone<int16_t>(input, compressed_size);
 		decompressed_size = sDecompress(decompressor, width, height, channels, output, status);
 	}
@@ -114,11 +116,13 @@ size_t Decompress(const Settings& settings, size_t compressed_size, unsigned wid
 
 	if (settings.compression == Compression::Kagari)
 	{
-		// TODO
+		auto decompressor = DecompressorKagari<int32_t>(input, compressed_size);
+		if ((decompressed_size = sDecompress(decompressor, width, height, channels, output, status)) == 0)
+			goto fallback;
 	}
-
-	// No compression
+	else // No compression
 	{
+	fallback:
 		auto decompressor = DecompressorNone<int32_t>(input, compressed_size);
 		decompressed_size = sDecompress(decompressor, width, height, channels, output, status);
 	}

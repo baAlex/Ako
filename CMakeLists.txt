@@ -17,7 +17,7 @@ if (MSVC)
 	add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
 endif ()
 
-if (CMAKE_BUILD_TYPE STREQUAL "Release" OR CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
+if (CMAKE_BUILD_TYPE STREQUAL "Release") # OR CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo"
 	set(AKO_RELEASE True)
 endif ()
 
@@ -177,6 +177,11 @@ if (AKO_TESTS)
 	target_link_libraries("test-forward-backward" PRIVATE "ako-static")
 	target_compile_options("test-forward-backward" PRIVATE ${AKO_CFLAGS})
 
+	add_executable("test-kagari" "./tests/kagari.cpp")
+	target_include_directories("test-kagari" PRIVATE "./library/")
+	target_link_libraries("test-kagari" PRIVATE "ako-static")
+	target_compile_options("test-kagari" PRIVATE ${AKO_CFLAGS})
+
 	add_executable("test-wavelet-cdf53" "./tests/wavelet-cdf53.cpp")
 	target_include_directories("test-wavelet-cdf53" PRIVATE "./library/")
 	target_link_libraries("test-wavelet-cdf53" PRIVATE "ako-static")
@@ -189,11 +194,13 @@ if (AKO_TESTS)
 
 	if (AKO_RELEASE)
 		set_property(TARGET "test-forward-backward" PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
+		set_property(TARGET "test-kagari" PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
 		set_property(TARGET "test-wavelet-cdf53" PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
 		set_property(TARGET "test-wavelet-haar" PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
 	endif ()
 
 	add_test(NAME "TestForwardBackward" COMMAND "test-forward-backward")
+	add_test(NAME "TestKagari" COMMAND "test-kagari")
 	add_test(NAME "TestWaveletCdf53" COMMAND "test-wavelet-cdf53")
 	add_test(NAME "TestWaveletHaar" COMMAND "test-wavelet-haar")
 

@@ -28,4 +28,42 @@ SOFTWARE.
 namespace ako
 {
 
+template <typename T> class CompressorKagari : public Compressor<T>
+{
+  private:
+	T* output;
+	T* output_start;
+	T* output_end;
+
+  public:
+	CompressorKagari(void* output, size_t max_output_size)
+	{
+		this->output = reinterpret_cast<T*>(output);
+		this->output_start = reinterpret_cast<T*>(output);
+		this->output_end = reinterpret_cast<T*>(output) + max_output_size / sizeof(T);
+	}
+
+	size_t Step(T (*quantize)(float, T), float quantization, unsigned width, unsigned height, const T* in)
+	{
+		if (SystemEndianness() == Endianness::Little)
+		{
+			for (unsigned i = 0; i < (width * height); i += 1)
+				output[i] = quantize(quantization, in[i]);
+		}
+		else
+		{
+			for (unsigned i = 0; i < (width * height); i += 1)
+				output[i] = EndiannessReverse<T>(quantize(quantization, in[i]));
+		}
+
+		output += (width * height);
+		return (width * height) * sizeof(T);
+	}
+
+	size_t Finish() const
+	{
+		return static_cast<size_t>(output - output_start) * sizeof(T);
+	}
+};
+
 } // namespace ako
