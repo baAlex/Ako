@@ -125,7 +125,7 @@ static void* sDecodeInternal(const Callbacks& callbacks, const Settings& setting
 				callbacks.compression_event(settings.compression, t + 1, nullptr, callbacks.user_data);
 
 			if (Decompress(settings, compressed_size, tile_w, tile_h, channels, input,
-			               reinterpret_cast<TCoeff*>(workarea[0]), status) != tile_data_size)
+			               reinterpret_cast<TCoeff*>(workarea[0]), status) != 0)
 				goto return_failure;
 
 			input = reinterpret_cast<const uint8_t*>(input) + compressed_size;

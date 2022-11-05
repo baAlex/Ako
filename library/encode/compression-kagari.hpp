@@ -28,41 +28,157 @@ SOFTWARE.
 namespace ako
 {
 
-template <typename T> class CompressorKagari : public Compressor<T>
+#define BLOCK_LEN 128
+#define RLE_TRIGGER 4
+
+
+template <typename TIn> // TODO, not optimal as the encoder will convert everything to u/int32
+class CompressorKagari : public Compressor<TIn>
 {
   private:
-	T* output;
-	T* output_start;
-	T* output_end;
+	uint32_t* output_start;
+	uint32_t* output_end;
+	uint32_t* output;
+
+	uint32_t* block_start;
+	uint32_t* block_end;
+	uint32_t* block;
+
+	uint32_t ZigZagEncode(int32_t in) const
+	{
+		return static_cast<uint32_t>((in << 1) ^ (in >> 31));
+	}
+
+	int32_t ZigZagDecode(uint32_t in) const
+	{
+		return static_cast<int32_t>((in >> 1) ^ (~(in & 1) + 1));
+	}
+
+	void EmitLiteral(unsigned length, const uint32_t* value)
+	{
+		// Developers, developers, developers
+		printf("\t[Lit, len: %u, v: '", length);
+		for (unsigned i = 0; i < length; i += 1)
+			printf("%c", static_cast<char>(ZigZagDecode(value[i])));
+		printf("']\n");
+
+		// Write to output
+		for (unsigned i = 0; i < length; i += 1)
+			*output++ = 1;
+	}
+
+	void EmitRle(unsigned length, uint32_t value)
+	{
+		// Developers, developers, developers
+		printf("\t[Rle, len: %u, v: '%c']\n", length, static_cast<char>(ZigZagDecode(value)));
+
+		// Write to output
+		*output++ = 1;
+	}
+
+	int Compress()
+	{
+		const auto block_len = static_cast<unsigned>(this->block - this->block_start);
+		if (block_len == 0)
+			return 0; // Not an error
+
+		this->block = this->block_start;
+		unsigned literal_len = 1;
+		unsigned rle_len = 0;
+
+		// Main loop
+		for (unsigned i = 1; i < block_len; i += 1)
+		{
+			if (this->block[i] != this->block[i - 1])
+			{
+				literal_len += 1;
+				literal_len += rle_len; // No enough Rle values, make them part of literals
+				rle_len = 0;
+			}
+			else
+			{
+				rle_len += 1;
+
+				// Enough Rle values, do something
+				if (rle_len == RLE_TRIGGER)
+				{
+					// Emit literals so far
+					EmitLiteral(literal_len, &this->block[i - RLE_TRIGGER - literal_len + 1]);
+					literal_len = 0;
+
+					// Find Rle end
+					for (unsigned u = i + 1; u < block_len && this->block[i] == this->block[u]; u += 1)
+						rle_len += 1;
+
+					// Emit Rle
+					EmitRle(rle_len, this->block[i]);
+					i += rle_len - RLE_TRIGGER;
+					rle_len = 0;
+				}
+			}
+		}
+
+		// Remainder
+		if (literal_len != 0 || rle_len != 0)
+		{
+			literal_len += rle_len;
+			EmitLiteral(literal_len, &this->block[block_len - literal_len]);
+		}
+
+		// Bye!
+		return 0;
+	}
 
   public:
 	CompressorKagari(void* output, size_t max_output_size)
 	{
-		this->output = reinterpret_cast<T*>(output);
-		this->output_start = reinterpret_cast<T*>(output);
-		this->output_end = reinterpret_cast<T*>(output) + max_output_size / sizeof(T);
+		this->output_start = reinterpret_cast<uint32_t*>(output);
+		this->output_end = reinterpret_cast<uint32_t*>(output) + max_output_size / sizeof(uint32_t);
+		this->output = reinterpret_cast<uint32_t*>(output);
+
+		this->block_start = reinterpret_cast<uint32_t*>(malloc(sizeof(uint32_t) * BLOCK_LEN));
+		this->block_end = this->block_start + BLOCK_LEN;
+		this->block = this->block_start;
 	}
 
-	size_t Step(T (*quantize)(float, T), float quantization, unsigned width, unsigned height, const T* in)
+	~CompressorKagari()
 	{
-		if (SystemEndianness() == Endianness::Little)
-		{
-			for (unsigned i = 0; i < (width * height); i += 1)
-				output[i] = quantize(quantization, in[i]);
-		}
-		else
-		{
-			for (unsigned i = 0; i < (width * height); i += 1)
-				output[i] = EndiannessReverse<T>(quantize(quantization, in[i]));
-		}
-
-		output += (width * height);
-		return (width * height) * sizeof(T);
+		free(this->block_start);
 	}
 
-	size_t Finish() const
+	int Step(TIn (*quantize)(float, TIn), float quantization, unsigned width, unsigned height, const TIn* in)
 	{
-		return static_cast<size_t>(output - output_start) * sizeof(T);
+		// Fill block
+		auto len = (width * height);
+		do
+		{
+			// Quantizing and converting values to unsigned
+			for (; len != 0 && this->block < this->block_end; len -= 1)
+			{
+				const auto v = static_cast<int32_t>(quantize(quantization, *in++));
+				*this->block++ = ZigZagEncode(v);
+			}
+
+			// No space, compress what we have so far
+			if (this->block == this->block_end)
+			{
+				printf("\t-- Block --\n");
+				if (Compress() != 0)
+					return 1;
+			}
+
+		} while (len != 0);
+
+		// Bye!
+		return 0;
+	}
+
+	size_t Finish()
+	{
+		if (Compress() != 0)
+			return 1;
+
+		return static_cast<size_t>(this->output - this->output_start) * sizeof(uint32_t);
 	}
 };
 

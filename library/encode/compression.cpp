@@ -57,7 +57,7 @@ static size_t sCompress(Compressor<T>& compressor, const Settings& settings, uns
 	// Lowpasses
 	for (unsigned ch = 0; ch < channels; ch += 1)
 	{
-		if (compressor.Step(sQuantizer, 1.0F, lp_w, lp_h, in) == 0)
+		if (compressor.Step(sQuantizer, 1.0F, lp_w, lp_h, in) != 0)
 			return 0;
 
 		in += (lp_w * lp_h); // Quadrant A
@@ -87,19 +87,19 @@ static size_t sCompress(Compressor<T>& compressor, const Settings& settings, uns
 		for (unsigned ch = 0; ch < channels; ch += 1)
 		{
 			// Quadrant C
-			if (compressor.Step(sQuantizer, (x > 0.0) ? q : 1.0F, lp_w, hp_h, in) == 0)
+			if (compressor.Step(sQuantizer, (x > 0.0) ? q : 1.0F, lp_w, hp_h, in) != 0)
 				return 0;
 
 			in += (lp_w * hp_h);
 
 			// Quadrant B
-			if (compressor.Step(sQuantizer, (x > 0.0) ? q : 1.0F, hp_w, lp_h, in) == 0)
+			if (compressor.Step(sQuantizer, (x > 0.0) ? q : 1.0F, hp_w, lp_h, in) != 0)
 				return 0;
 
 			in += (hp_w * lp_h);
 
 			// Quadrant D
-			if (compressor.Step(sQuantizer, (x > 0.0) ? (q * q_diagonal) : 1.0F, hp_w, hp_h, in) == 0)
+			if (compressor.Step(sQuantizer, (x > 0.0) ? (q * q_diagonal) : 1.0F, hp_w, hp_h, in) != 0)
 				return 0;
 
 			in += (hp_w * hp_h);
@@ -116,7 +116,7 @@ size_t Compress(const Settings& settings, unsigned width, unsigned height, unsig
 {
 	size_t compressed_size = 0;
 
-	if (settings.compression == Compression::Kagari)
+	/*if (settings.compression == Compression::Kagari)
 	{
 		auto compressor = CompressorKagari<int16_t>(output, sizeof(int16_t) * width * height * channels);
 		if ((compressed_size = sCompress(compressor, settings, width, height, channels, input)) == 0)
@@ -124,10 +124,10 @@ size_t Compress(const Settings& settings, unsigned width, unsigned height, unsig
 	}
 	else // No compression
 	{
-	fallback:
+	fallback:*/
 		auto compressor = CompressorNone<int16_t>(output);
 		compressed_size = sCompress(compressor, settings, width, height, channels, input);
-	}
+	//}
 
 	return compressed_size;
 }
@@ -138,7 +138,7 @@ size_t Compress(const Settings& settings, unsigned width, unsigned height, unsig
 {
 	size_t compressed_size = 0;
 
-	if (settings.compression == Compression::Kagari)
+	/*if (settings.compression == Compression::Kagari)
 	{
 		auto compressor = CompressorKagari<int32_t>(output, sizeof(int32_t) * width * height * channels);
 		if ((compressed_size = sCompress(compressor, settings, width, height, channels, input)) == 0)
@@ -146,10 +146,10 @@ size_t Compress(const Settings& settings, unsigned width, unsigned height, unsig
 	}
 	else // No compression
 	{
-	fallback:
+	fallback:*/
 		auto compressor = CompressorNone<int32_t>(output);
 		compressed_size = sCompress(compressor, settings, width, height, channels, input);
-	}
+	//}
 
 	return compressed_size;
 }

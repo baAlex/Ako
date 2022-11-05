@@ -31,36 +31,36 @@ namespace ako
 template <typename T> class CompressorNone : public Compressor<T>
 {
   private:
-	T* output;
 	T* output_start;
+	T* output;
 
   public:
 	CompressorNone(void* output)
 	{
-		this->output = reinterpret_cast<T*>(output);
 		this->output_start = reinterpret_cast<T*>(output);
+		this->output = reinterpret_cast<T*>(output);
 	}
 
-	size_t Step(T (*quantize)(float, T), float quantization, unsigned width, unsigned height, const T* in)
+	int Step(T (*quantize)(float, T), float quantization, unsigned width, unsigned height, const T* in)
 	{
 		if (SystemEndianness() == Endianness::Little)
 		{
 			for (unsigned i = 0; i < (width * height); i += 1)
-				output[i] = quantize(quantization, in[i]);
+				this->output[i] = quantize(quantization, in[i]);
 		}
 		else
 		{
 			for (unsigned i = 0; i < (width * height); i += 1)
-				output[i] = EndiannessReverse<T>(quantize(quantization, in[i]));
+				this->output[i] = EndiannessReverse<T>(quantize(quantization, in[i]));
 		}
 
-		output += (width * height);
-		return (width * height) * sizeof(T);
+		this->output += (width * height);
+		return 0;
 	}
 
-	size_t Finish() const
+	size_t Finish()
 	{
-		return static_cast<size_t>(output - output_start) * sizeof(T);
+		return static_cast<size_t>(this->output - this->output_start) * sizeof(T);
 	}
 };
 

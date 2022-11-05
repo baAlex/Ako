@@ -67,39 +67,37 @@ enum class Endianness
 template <typename T> class Compressor
 {
   public:
-	virtual size_t Step(T (*quantization_callback)(float, T), float quantization_step, unsigned width, unsigned height,
-	                    const T* in)
+	virtual int Step(T (*quantization_callback)(float, T), float quantization_step, unsigned width, unsigned height,
+	                 const T* in)
 	{
 		(void)quantization_callback;
 		(void)quantization_step;
 		(void)width;
 		(void)height;
 		(void)in;
-		return 0; // Error
+		return 1; // 0 = Success, >0 = Error
 	};
 
-	virtual size_t Finish() const
+	virtual size_t Finish()
 	{
-		return 0; // Error
+		return 0; // Compressed size, 0 = Error ("compressed to 0 bytes")
 	};
 };
 
 template <typename T> class Decompressor
 {
   public:
-	virtual size_t Step(unsigned width, unsigned height, T* out, Status& status)
+	virtual Status Step(unsigned width, unsigned height, T* out)
 	{
 		(void)width;
 		(void)height;
 		(void)out;
-		status = Status::Error;
-		return 0; // Error
+		return Status::Error;
 	};
 
-	virtual size_t Finish(Status& status) const
+	virtual Status Finish() const
 	{
-		status = Status::Error;
-		return 0; // Error
+		return Status::Error;
 	};
 };
 
@@ -164,8 +162,8 @@ template <typename T> T SaturateToLower(T v);
 // encode/compression.cpp:
 
 template <typename T>
-size_t Decompress(const Settings&, size_t compressed_size, unsigned width, unsigned height, unsigned channels,
-                  const void* input, T* output, Status&);
+int Decompress(const Settings&, size_t compressed_size, unsigned width, unsigned height, unsigned channels,
+               const void* input, T* output, Status&);
 
 template <typename T>
 size_t Compress(const Settings&, unsigned width, unsigned height, unsigned channels, const T* input, void* output);

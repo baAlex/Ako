@@ -47,7 +47,7 @@ void ImageHeadWrite(const Settings& settings, unsigned image_w, unsigned image_h
 
 	out.c = static_cast<uint32_t>((channels - 1) & 0xFFFFFF) << 7;             // Channels, 24 in 25 bits
 	out.c |= static_cast<uint32_t>(ToNumber(settings.wrap) & 0x3) << 5;        // Wrap, 2 in 2 bits
-	out.c |= static_cast<uint32_t>(ToNumber(settings.compression) & 0x3 << 3); // Compression, 2 in 2 bits
+	out.c |= static_cast<uint32_t>(ToNumber(settings.compression) & 0x3) << 3; // Compression, 2 in 2 bits
 	out.c |= static_cast<uint32_t>(0);                                         // Unused 3 bits
 
 	if (SystemEndianness() != Endianness::Little)

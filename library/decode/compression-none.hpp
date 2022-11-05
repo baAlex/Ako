@@ -31,45 +31,41 @@ namespace ako
 template <typename T> class DecompressorNone : public Decompressor<T>
 {
   private:
-	const T* input;
 	const T* input_start;
 	const T* input_end;
+	const T* input;
 
   public:
 	DecompressorNone(const void* input, size_t input_size)
 	{
-		this->input = reinterpret_cast<const T*>(input);
 		this->input_start = reinterpret_cast<const T*>(input);
 		this->input_end = reinterpret_cast<const T*>(input) + input_size / sizeof(T);
+		this->input = reinterpret_cast<const T*>(input);
 	}
 
-	size_t Step(unsigned width, unsigned height, T* out, Status& status)
+	Status Step(unsigned width, unsigned height, T* out)
 	{
-		if (input + (width * height) > this->input_end)
-		{
-			status = Status::TruncatedTileData;
-			return 0;
-		}
+		if (this->input + (width * height) > this->input_end)
+			return Status::TruncatedTileData;
 
 		if (SystemEndianness() == Endianness::Little)
 		{
 			for (unsigned i = 0; i < (width * height); i += 1)
-				out[i] = input[i];
+				out[i] = this->input[i];
 		}
 		else
 		{
 			for (unsigned i = 0; i < (width * height); i += 1)
-				out[i] = EndiannessReverse<T>(input[i]);
+				out[i] = EndiannessReverse<T>(this->input[i]);
 		}
 
-		input += (width * height);
-		return (width * height) * sizeof(T);
+		this->input += (width * height);
+		return Status::Ok;
 	}
 
-	size_t Finish(Status& status) const
+	Status Finish() const
 	{
-		status = Status::Ok;
-		return static_cast<size_t>(input - input_start) * sizeof(T);
+		return Status::Ok;
 	}
 };
 

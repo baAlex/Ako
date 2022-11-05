@@ -31,8 +31,8 @@ namespace ako
 {
 
 template <typename T>
-static size_t sDecompress(Decompressor<T>& decompressor, unsigned width, unsigned height, unsigned channels, T* output,
-                          Status& status)
+static int sDecompress(Decompressor<T>& decompressor, unsigned width, unsigned height, unsigned channels, T* output,
+                       Status& status)
 {
 	// Code suspiciously similar to Unlift()
 
@@ -48,8 +48,8 @@ static size_t sDecompress(Decompressor<T>& decompressor, unsigned width, unsigne
 	// Lowpasses
 	for (unsigned ch = 0; ch < channels; ch += 1)
 	{
-		if (decompressor.Step(lp_w, lp_h, out, status) == 0)
-			return 0;
+		if ((status = decompressor.Step(lp_w, lp_h, out)) != Status::Ok)
+			return 1;
 
 		out += (lp_w * lp_h); // Quadrant A
 	}
@@ -63,71 +63,57 @@ static size_t sDecompress(Decompressor<T>& decompressor, unsigned width, unsigne
 		for (unsigned ch = 0; ch < channels; ch += 1)
 		{
 			// Quadrant C
-			if (decompressor.Step(lp_w, hp_h, out, status) == 0)
-				return 0;
+			if ((status = decompressor.Step(lp_w, hp_h, out)) != Status::Ok)
+				return 1;
 
 			out += (lp_w * hp_h);
 
 			// Quadrant B
-			if (decompressor.Step(hp_w, lp_h, out, status) == 0)
-				return 0;
+			if ((status = decompressor.Step(hp_w, lp_h, out)) != Status::Ok)
+				return 1;
 
 			out += (hp_w * lp_h);
 
 			// Quadrant D
-			if (decompressor.Step(hp_w, hp_h, out, status) == 0)
-				return 0;
+			if ((status = decompressor.Step(hp_w, hp_h, out)) != Status::Ok)
+				return 1;
 
 			out += (hp_w * hp_h);
 		}
 	}
 
-	return decompressor.Finish(status);
+	return ((status = decompressor.Finish()) == Status::Ok) ? 0 : 1;
 }
 
 
 template <>
-size_t Decompress(const Settings& settings, size_t compressed_size, unsigned width, unsigned height, unsigned channels,
-                  const void* input, int16_t* output, Status& status)
+int Decompress(const Settings& settings, size_t compressed_size, unsigned width, unsigned height, unsigned channels,
+               const void* input, int16_t* output, Status& status)
 {
-	size_t decompressed_size = 0;
+	(void)settings;
+	// if (settings.compression == Compression::Kagari)
+	//{
+	//	auto decompressor = DecompressorKagari<int16_t>(input, compressed_size);
+	//	return sDecompress(decompressor, width, height, channels, output, status);
+	//}
 
-	if (settings.compression == Compression::Kagari)
-	{
-		auto decompressor = DecompressorKagari<int16_t>(input, compressed_size);
-		if ((decompressed_size = sDecompress(decompressor, width, height, channels, output, status)) == 0)
-			goto fallback;
-	}
-	else // No compression
-	{
-	fallback:
-		auto decompressor = DecompressorNone<int16_t>(input, compressed_size);
-		decompressed_size = sDecompress(decompressor, width, height, channels, output, status);
-	}
-
-	return decompressed_size;
+	auto decompressor = DecompressorNone<int16_t>(input, compressed_size);
+	return sDecompress(decompressor, width, height, channels, output, status);
 }
 
 template <>
-size_t Decompress(const Settings& settings, size_t compressed_size, unsigned width, unsigned height, unsigned channels,
-                  const void* input, int32_t* output, Status& status)
+int Decompress(const Settings& settings, size_t compressed_size, unsigned width, unsigned height, unsigned channels,
+               const void* input, int32_t* output, Status& status)
 {
-	size_t decompressed_size = 0;
+	(void)settings;
+	// if (settings.compression == Compression::Kagari)
+	//{
+	//	auto decompressor = DecompressorKagari<int32_t>(input, compressed_size);
+	//	return sDecompress(decompressor, width, height, channels, output, status);
+	//}
 
-	if (settings.compression == Compression::Kagari)
-	{
-		auto decompressor = DecompressorKagari<int32_t>(input, compressed_size);
-		if ((decompressed_size = sDecompress(decompressor, width, height, channels, output, status)) == 0)
-			goto fallback;
-	}
-	else // No compression
-	{
-	fallback:
-		auto decompressor = DecompressorNone<int32_t>(input, compressed_size);
-		decompressed_size = sDecompress(decompressor, width, height, channels, output, status);
-	}
-
-	return decompressed_size;
+	auto decompressor = DecompressorNone<int32_t>(input, compressed_size);
+	return sDecompress(decompressor, width, height, channels, output, status);
 }
 
 } // namespace ako
