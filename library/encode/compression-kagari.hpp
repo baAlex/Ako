@@ -28,14 +28,13 @@ SOFTWARE.
 namespace ako
 {
 
-#define BLOCK_LEN 128
-#define RLE_TRIGGER 4
-
-
-template <typename TIn> // TODO, not optimal as the encoder will convert everything to u/int32
+template <typename TIn> // TODO, not optimal as the encoder converts everything to uint32
 class CompressorKagari : public Compressor<TIn>
 {
   private:
+	static const size_t BLOCK_LEN = 25;
+	static const unsigned RLE_TRIGGER = 4;
+
 	uint32_t* output_start;
 	uint32_t* output_end;
 	uint32_t* output;
@@ -54,33 +53,42 @@ class CompressorKagari : public Compressor<TIn>
 		return static_cast<int32_t>((in >> 1) ^ (~(in & 1) + 1));
 	}
 
-	void EmitLiteral(unsigned length, const uint32_t* value)
+	int EmitLiteral(unsigned length, const uint32_t* value)
 	{
 		// Developers, developers, developers
-		printf("\t[Lit, len: %u, v: '", length);
+		printf("\tE [Lit, len: %u, v: '", length);
 		for (unsigned i = 0; i < length; i += 1)
 			printf("%c", static_cast<char>(ZigZagDecode(value[i])));
-		printf("']\n");
+		printf("'] (%li/%li)\n", output - output_start, output_end - output_start);
 
 		// Write to output
+		if (output + 1 + length > output_end)
+			return 1;
+
+		*output++ = length;
 		for (unsigned i = 0; i < length; i += 1)
-			*output++ = 1;
+			*output++ = *value++;
+
+		return 0;
 	}
 
-	void EmitRle(unsigned length, uint32_t value)
+	int EmitRle(unsigned length, uint32_t value)
 	{
 		// Developers, developers, developers
-		printf("\t[Rle, len: %u, v: '%c']\n", length, static_cast<char>(ZigZagDecode(value)));
+		printf("\tE [Rle, len: %u, v: '%c'] (%li/%li)\n", length, static_cast<char>(ZigZagDecode(value)),
+		       output - output_start, output_end - output_start);
 
 		// Write to output
-		*output++ = 1;
+		if (output + 1 > output_end)
+			return 1;
+
+		*output++ = length;
+		return 0;
 	}
 
 	int Compress()
 	{
 		const auto block_len = static_cast<unsigned>(this->block - this->block_start);
-		if (block_len == 0)
-			return 0; // Not an error
 
 		this->block = this->block_start;
 		unsigned literal_len = 1;
@@ -103,7 +111,9 @@ class CompressorKagari : public Compressor<TIn>
 				if (rle_len == RLE_TRIGGER)
 				{
 					// Emit literals so far
-					EmitLiteral(literal_len, &this->block[i - RLE_TRIGGER - literal_len + 1]);
+					if (EmitLiteral(literal_len, &this->block[i - RLE_TRIGGER - literal_len + 1]) != 0)
+						return 1;
+
 					literal_len = 0;
 
 					// Find Rle end
@@ -111,7 +121,9 @@ class CompressorKagari : public Compressor<TIn>
 						rle_len += 1;
 
 					// Emit Rle
-					EmitRle(rle_len, this->block[i]);
+					if (EmitRle(rle_len, this->block[i]) != 0)
+						return 1;
+
 					i += rle_len - RLE_TRIGGER;
 					rle_len = 0;
 				}
@@ -122,7 +134,8 @@ class CompressorKagari : public Compressor<TIn>
 		if (literal_len != 0 || rle_len != 0)
 		{
 			literal_len += rle_len;
-			EmitLiteral(literal_len, &this->block[block_len - literal_len]);
+			if (EmitLiteral(literal_len, &this->block[block_len - literal_len]) != 0)
+				return 1;
 		}
 
 		// Bye!
@@ -162,9 +175,9 @@ class CompressorKagari : public Compressor<TIn>
 			// No space, compress what we have so far
 			if (this->block == this->block_end)
 			{
-				printf("\t-- Block --\n");
 				if (Compress() != 0)
 					return 1;
+				printf("\tE -- Block --\n"); // Developers, developers, developers
 			}
 
 		} while (len != 0);
@@ -175,9 +188,11 @@ class CompressorKagari : public Compressor<TIn>
 
 	size_t Finish()
 	{
-		if (Compress() != 0)
-			return 1;
+		if (this->block - this->block_start > 0 && Compress() != 0)
+			return 0;
 
+		printf("\tE [Final (%li/%li)]\n", output - output_start,
+		       output_end - output_start); // Developers, developers, developers
 		return static_cast<size_t>(this->output - this->output_start) * sizeof(uint32_t);
 	}
 };

@@ -82,7 +82,7 @@ static int sDecompress(Decompressor<T>& decompressor, unsigned width, unsigned h
 		}
 	}
 
-	return ((status = decompressor.Finish()) == Status::Ok) ? 0 : 1;
+	return 0;
 }
 
 

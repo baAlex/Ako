@@ -94,11 +94,6 @@ template <typename T> class Decompressor
 		(void)out;
 		return Status::Error;
 	};
-
-	virtual Status Finish() const
-	{
-		return Status::Error;
-	};
 };
 
 

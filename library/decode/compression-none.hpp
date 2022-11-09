@@ -62,11 +62,6 @@ template <typename T> class DecompressorNone : public Decompressor<T>
 		this->input += (width * height);
 		return Status::Ok;
 	}
-
-	Status Finish() const
-	{
-		return Status::Ok;
-	}
 };
 
 } // namespace ako

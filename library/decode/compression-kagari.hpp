@@ -31,9 +31,16 @@ namespace ako
 template <typename T> class DecompressorKagari : public Decompressor<T>
 {
   private:
+	static const size_t BLOCK_LEN = 25;
+
 	const uint32_t* input_start;
 	const uint32_t* input_end;
 	const uint32_t* input;
+
+	int32_t ZigZagDecode(uint32_t in) const
+	{
+		return static_cast<int32_t>((in >> 1) ^ (~(in & 1) + 1));
+	}
 
   public:
 	DecompressorKagari(const void* input, size_t input_size)
@@ -45,15 +52,63 @@ template <typename T> class DecompressorKagari : public Decompressor<T>
 
 	Status Step(unsigned width, unsigned height, T* out)
 	{
-		(void)width;
-		(void)height;
-		(void)out;
-		return Status::Error;
-	}
+		const T* out_end = out + width * height;
 
-	Status Finish() const
-	{
-		return Status::Error;
+		while (out != out_end)
+		{
+			const T* out_block_end = Min<const T*>(out + BLOCK_LEN, out_end);
+
+			// Decompress block
+			while (out != out_block_end)
+			{
+				T last_value = 0;
+
+				// Literal
+				{
+					if (input == input_end)
+						return Status::Error;
+
+					const uint32_t length = *input++;
+
+					if (out + length > out_block_end || input + length > input_end)
+						return Status::Error;
+
+					for (uint32_t i = 0; i < length; i += 1)
+						*out++ = static_cast<T>(ZigZagDecode(*input++));
+
+					last_value = *(out - 1);
+
+					// Developers, developers, developers
+					printf("\tD [Lit, len: %u, v: '", length);
+					for (unsigned i = 0; i < length; i += 1)
+						printf("%c", static_cast<char>(ZigZagDecode((input - length)[i])));
+					printf("']\n");
+
+					// All done?
+					if (out == out_block_end)
+						break;
+				}
+
+				// Rle
+				{
+					if (input == input_end)
+						return Status::Error;
+
+					const uint32_t length = *input++;
+
+					if (out + length > out_block_end)
+						return Status::Error;
+
+					for (uint32_t i = 0; i < length; i += 1)
+						*out++ = last_value;
+
+					// Developers, developers, developers
+					printf("\tD [Rle, len: %u, v: '%c']\n", length, last_value);
+				}
+			}
+		}
+
+		return Status::Ok;
 	}
 };
 
