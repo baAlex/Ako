@@ -146,7 +146,7 @@ template <typename T> static void sTest(size_t block_size, const char* input)
 {
 	const size_t input_length = strlen(input);
 	const size_t buffer_size_a = input_length * sizeof(T);
-	const size_t buffer_size_b = (input_length + 1) * sizeof(uint32_t); // WARNING, uint32 is the encoder internal type
+	const size_t buffer_size_b = (input_length + 2) * sizeof(uint32_t); // WARNING, uint32 is the encoder internal type
 
 	printf(" - Rle Test, length: %zu, input: '%s'\n", input_length, input);
 
@@ -175,10 +175,12 @@ template <typename T> static void sTest(size_t block_size, const char* input)
 	// """"Decompress""""
 	{
 		auto decompressor = ako::DecompressorKagari<T>(block_size, buffer_b, compressed_size);
-
 		assert(decompressor.Step(static_cast<unsigned>(input_length), 1, buffer_a) == ako::Status::Ok);
-		// decompressor.Finish();
 	}
+
+	// Compare
+	for (size_t i = 0; i < input_length; i += 1)
+		assert(buffer_a[i] == static_cast<T>(static_cast<unsigned char>(input[i])));
 
 	// Bye!
 	free(buffer_a);
@@ -197,7 +199,7 @@ int main(int argc, const char* argv[])
 		return EXIT_SUCCESS;
 	}
 
-	const size_t BLOCK_SIZE = 25;
+	const size_t BLOCK_SIZE = 16;
 
 	sTest<int16_t>(BLOCK_SIZE, "123456");       // Literal only
 	sTest<int16_t>(BLOCK_SIZE, "111123456666"); // Literal only, since doesn't meets a minimum for a Rle

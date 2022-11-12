@@ -62,50 +62,28 @@ template <typename T> class DecompressorKagari : public Decompressor<T>
 			// Decompress block
 			while (out < out_block_end)
 			{
-				T last_value = 0;
+				if (this->input + 1 >= this->input_end)
+					return Status::Error;
 
-				// Literal
-				{
-					if (this->input == this->input_end)
-						return Status::Error;
+				const uint32_t literal_length = *this->input++;
+				const uint32_t rle_length = *this->input++;
 
-					const uint32_t length = *this->input++;
+				if (out + literal_length + rle_length > out_block_end || this->input + literal_length > this->input_end)
+					return Status::Error;
 
-					if (out + length > out_block_end || this->input + length > this->input_end)
-						return Status::Error;
+				for (uint32_t i = 0; i < literal_length; i += 1)
+					*out++ = static_cast<T>(ZigZagDecode(*this->input++));
 
-					for (uint32_t i = 0; i < length; i += 1)
-						*out++ = static_cast<T>(ZigZagDecode(*this->input++));
+				const T last_value = *(out - 1);
 
-					last_value = *(out - 1);
+				for (uint32_t i = 0; i < rle_length; i += 1)
+					*out++ = last_value;
 
-					// Developers, developers, developers
-					// printf("\tD [Lit, len: %u, v: '", length);
-					// for (unsigned i = 0; i < length; i += 1)
-					// 	printf("%c", static_cast<char>(ZigZagDecode((input - length)[i])));
-					// printf("']\n");
-
-					// All done?
-					if (out == out_block_end)
-						break;
-				}
-
-				// Rle
-				{
-					if (this->input == this->input_end)
-						return Status::Error;
-
-					const uint32_t length = *this->input++;
-
-					if (out + length > out_block_end)
-						return Status::Error;
-
-					for (uint32_t i = 0; i < length; i += 1)
-						*out++ = last_value;
-
-					// Developers, developers, developers
-					// printf("\tD [Rle, len: %u, v: '%c']\n", length, last_value);
-				}
+				// Developers, developers, developers
+				// printf("\tD [L: %u, R: %u, v: '", literal_length, rle_length);
+				// for (unsigned i = 0; i < literal_length; i += 1)
+				// 	printf("%c", static_cast<char>(ZigZagDecode((input - literal_length)[i])));
+				// printf("']\n");
 			}
 		}
 
