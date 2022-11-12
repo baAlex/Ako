@@ -32,7 +32,6 @@ template <typename TIn> // TODO, not optimal as the encoder converts everything 
 class CompressorKagari : public Compressor<TIn>
 {
   private:
-	static const size_t BLOCK_LEN = 25;
 	static const unsigned RLE_TRIGGER = 4;
 
 	uint32_t* output_start;
@@ -56,33 +55,34 @@ class CompressorKagari : public Compressor<TIn>
 	int EmitLiteral(unsigned length, const uint32_t* value)
 	{
 		// Developers, developers, developers
-		printf("\tE [Lit, len: %u, v: '", length);
-		for (unsigned i = 0; i < length; i += 1)
-			printf("%c", static_cast<char>(ZigZagDecode(value[i])));
-		printf("'] (%li/%li)\n", output - output_start, output_end - output_start);
+		// printf("\tE [Lit, len: %u, v: '", length);
+		// for (unsigned i = 0; i < length; i += 1)
+		// 	printf("%c", static_cast<char>(ZigZagDecode(value[i])));
+		// printf("'] (%li/%li)\n", output - output_start, output_end - output_start);
 
 		// Write to output
-		if (output + 1 + length > output_end)
+		if (this->output + 1 + length > this->output_end)
 			return 1;
 
-		*output++ = length;
+		*this->output++ = length;
 		for (unsigned i = 0; i < length; i += 1)
-			*output++ = *value++;
+			*this->output++ = *value++;
 
 		return 0;
 	}
 
 	int EmitRle(unsigned length, uint32_t value)
 	{
+		(void)value;
 		// Developers, developers, developers
-		printf("\tE [Rle, len: %u, v: '%c'] (%li/%li)\n", length, static_cast<char>(ZigZagDecode(value)),
-		       output - output_start, output_end - output_start);
+		// printf("\tE [Rle, len: %u, v: '%c'] (%li/%li)\n", length, static_cast<char>(ZigZagDecode(value)),
+		//        output - output_start, output_end - output_start);
 
 		// Write to output
-		if (output + 1 > output_end)
+		if (this->output + 1 > this->output_end)
 			return 1;
 
-		*output++ = length;
+		*this->output++ = length;
 		return 0;
 	}
 
@@ -143,14 +143,16 @@ class CompressorKagari : public Compressor<TIn>
 	}
 
   public:
-	CompressorKagari(void* output, size_t max_output_size)
+	CompressorKagari(size_t block_length, void* output, size_t max_output_size)
 	{
+		// this->block_length = block_length;
+
 		this->output_start = reinterpret_cast<uint32_t*>(output);
 		this->output_end = reinterpret_cast<uint32_t*>(output) + max_output_size / sizeof(uint32_t);
 		this->output = reinterpret_cast<uint32_t*>(output);
 
-		this->block_start = reinterpret_cast<uint32_t*>(malloc(sizeof(uint32_t) * BLOCK_LEN));
-		this->block_end = this->block_start + BLOCK_LEN;
+		this->block_start = reinterpret_cast<uint32_t*>(malloc(sizeof(uint32_t) * block_length));
+		this->block_end = this->block_start + block_length;
 		this->block = this->block_start;
 	}
 
@@ -177,7 +179,7 @@ class CompressorKagari : public Compressor<TIn>
 			{
 				if (Compress() != 0)
 					return 1;
-				printf("\tE -- Block --\n"); // Developers, developers, developers
+				// printf("\tE -- Block --\n"); // Developers, developers, developers
 			}
 
 		} while (len != 0);
@@ -191,8 +193,8 @@ class CompressorKagari : public Compressor<TIn>
 		if (this->block - this->block_start > 0 && Compress() != 0)
 			return 0;
 
-		printf("\tE [Final (%li/%li)]\n", output - output_start,
-		       output_end - output_start); // Developers, developers, developers
+		// printf("\tE [Final (%li/%li)]\n", output - output_start,
+		//        output_end - output_start); // Developers, developers, developers
 		return static_cast<size_t>(this->output - this->output_start) * sizeof(uint32_t);
 	}
 };

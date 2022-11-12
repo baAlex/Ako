@@ -31,7 +31,7 @@ namespace ako
 template <typename T> class DecompressorKagari : public Decompressor<T>
 {
   private:
-	static const size_t BLOCK_LEN = 25;
+	size_t block_length;
 
 	const uint32_t* input_start;
 	const uint32_t* input_end;
@@ -43,8 +43,9 @@ template <typename T> class DecompressorKagari : public Decompressor<T>
 	}
 
   public:
-	DecompressorKagari(const void* input, size_t input_size)
+	DecompressorKagari(size_t block_length, const void* input, size_t input_size)
 	{
+		this->block_length = block_length;
 		this->input_start = reinterpret_cast<const uint32_t*>(input);
 		this->input_end = reinterpret_cast<const uint32_t*>(input) + input_size / sizeof(uint32_t);
 		this->input = reinterpret_cast<const uint32_t*>(input);
@@ -54,35 +55,35 @@ template <typename T> class DecompressorKagari : public Decompressor<T>
 	{
 		const T* out_end = out + width * height;
 
-		while (out != out_end)
+		while (out < out_end)
 		{
-			const T* out_block_end = Min<const T*>(out + BLOCK_LEN, out_end);
+			const T* out_block_end = Min<const T*>(out + this->block_length, out_end);
 
 			// Decompress block
-			while (out != out_block_end)
+			while (out < out_block_end)
 			{
 				T last_value = 0;
 
 				// Literal
 				{
-					if (input == input_end)
+					if (this->input == this->input_end)
 						return Status::Error;
 
-					const uint32_t length = *input++;
+					const uint32_t length = *this->input++;
 
-					if (out + length > out_block_end || input + length > input_end)
+					if (out + length > out_block_end || this->input + length > this->input_end)
 						return Status::Error;
 
 					for (uint32_t i = 0; i < length; i += 1)
-						*out++ = static_cast<T>(ZigZagDecode(*input++));
+						*out++ = static_cast<T>(ZigZagDecode(*this->input++));
 
 					last_value = *(out - 1);
 
 					// Developers, developers, developers
-					printf("\tD [Lit, len: %u, v: '", length);
-					for (unsigned i = 0; i < length; i += 1)
-						printf("%c", static_cast<char>(ZigZagDecode((input - length)[i])));
-					printf("']\n");
+					// printf("\tD [Lit, len: %u, v: '", length);
+					// for (unsigned i = 0; i < length; i += 1)
+					// 	printf("%c", static_cast<char>(ZigZagDecode((input - length)[i])));
+					// printf("']\n");
 
 					// All done?
 					if (out == out_block_end)
@@ -91,10 +92,10 @@ template <typename T> class DecompressorKagari : public Decompressor<T>
 
 				// Rle
 				{
-					if (input == input_end)
+					if (this->input == this->input_end)
 						return Status::Error;
 
-					const uint32_t length = *input++;
+					const uint32_t length = *this->input++;
 
 					if (out + length > out_block_end)
 						return Status::Error;
@@ -103,7 +104,7 @@ template <typename T> class DecompressorKagari : public Decompressor<T>
 						*out++ = last_value;
 
 					// Developers, developers, developers
-					printf("\tD [Rle, len: %u, v: '%c']\n", length, last_value);
+					// printf("\tD [Rle, len: %u, v: '%c']\n", length, last_value);
 				}
 			}
 		}
