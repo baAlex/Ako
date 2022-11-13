@@ -28,8 +28,7 @@ SOFTWARE.
 namespace ako
 {
 
-template <typename TIn> // TODO, not optimal as the encoder converts everything to uint32
-class CompressorKagari : public Compressor<TIn>
+class CompressorKagari : public Compressor
 {
   private:
 	static const unsigned RLE_TRIGGER = 4;
@@ -124,24 +123,8 @@ class CompressorKagari : public Compressor<TIn>
 		return 0;
 	}
 
-  public:
-	CompressorKagari(size_t block_length, void* output, size_t max_output_size)
-	{
-		this->output_start = reinterpret_cast<uint32_t*>(output);
-		this->output_end = reinterpret_cast<uint32_t*>(output) + max_output_size / sizeof(uint32_t);
-		this->output = reinterpret_cast<uint32_t*>(output);
-
-		this->block_start = reinterpret_cast<uint32_t*>(malloc(sizeof(uint32_t) * block_length));
-		this->block_end = this->block_start + block_length;
-		this->block = this->block_start;
-	}
-
-	~CompressorKagari()
-	{
-		free(this->block_start);
-	}
-
-	int Step(TIn (*quantize)(float, TIn), float quantization, unsigned width, unsigned height, const TIn* in)
+	template <typename T>
+	int InternalStep(T (*quantize)(float, T), float quantization, unsigned width, unsigned height, const T* in)
 	{
 		// Fill block
 		auto len = (width * height);
@@ -165,6 +148,35 @@ class CompressorKagari : public Compressor<TIn>
 
 		// Bye!
 		return 0;
+	}
+
+  public:
+	CompressorKagari(size_t block_length, void* output, size_t max_output_size)
+	{
+		this->output_start = reinterpret_cast<uint32_t*>(output);
+		this->output_end = reinterpret_cast<uint32_t*>(output) + max_output_size / sizeof(uint32_t);
+		this->output = reinterpret_cast<uint32_t*>(output);
+
+		this->block_start = reinterpret_cast<uint32_t*>(malloc(sizeof(uint32_t) * block_length));
+		this->block_end = this->block_start + block_length;
+		this->block = this->block_start;
+	}
+
+	~CompressorKagari()
+	{
+		free(this->block_start);
+	}
+
+	int Step(int32_t (*quantize)(float, int32_t), float quantization, unsigned width, unsigned height,
+	         const int32_t* in)
+	{
+		return InternalStep(quantize, quantization, width, height, in);
+	}
+
+	int Step(int16_t (*quantize)(float, int16_t), float quantization, unsigned width, unsigned height,
+	         const int16_t* in)
+	{
+		return InternalStep(quantize, quantization, width, height, in);
 	}
 
 	size_t Finish()

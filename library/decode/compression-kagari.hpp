@@ -28,7 +28,7 @@ SOFTWARE.
 namespace ako
 {
 
-template <typename T> class DecompressorKagari : public Decompressor<T>
+class DecompressorKagari : public Decompressor
 {
   private:
 	size_t block_length;
@@ -42,16 +42,7 @@ template <typename T> class DecompressorKagari : public Decompressor<T>
 		return static_cast<int32_t>((in >> 1) ^ (~(in & 1) + 1));
 	}
 
-  public:
-	DecompressorKagari(size_t block_length, const void* input, size_t input_size)
-	{
-		this->block_length = block_length;
-		this->input_start = reinterpret_cast<const uint32_t*>(input);
-		this->input_end = reinterpret_cast<const uint32_t*>(input) + input_size / sizeof(uint32_t);
-		this->input = reinterpret_cast<const uint32_t*>(input);
-	}
-
-	Status Step(unsigned width, unsigned height, T* out)
+	template <typename T> Status InternalStep(unsigned width, unsigned height, T* out)
 	{
 		const T* out_end = out + width * height;
 
@@ -88,6 +79,25 @@ template <typename T> class DecompressorKagari : public Decompressor<T>
 		}
 
 		return Status::Ok;
+	}
+
+  public:
+	DecompressorKagari(size_t block_length, const void* input, size_t input_size)
+	{
+		this->block_length = block_length;
+		this->input_start = reinterpret_cast<const uint32_t*>(input);
+		this->input_end = reinterpret_cast<const uint32_t*>(input) + input_size / sizeof(uint32_t);
+		this->input = reinterpret_cast<const uint32_t*>(input);
+	}
+
+	Status Step(unsigned width, unsigned height, int16_t* out)
+	{
+		return InternalStep(width, height, out);
+	}
+
+	Status Step(unsigned width, unsigned height, int32_t* out)
+	{
+		return InternalStep(width, height, out);
 	}
 };
 

@@ -31,7 +31,7 @@ namespace ako
 {
 
 template <typename T>
-static int sDecompress(Decompressor<T>& decompressor, unsigned width, unsigned height, unsigned channels, T* output,
+static int sDecompress(Decompressor& decompressor, unsigned width, unsigned height, unsigned channels, T* output,
                        Status& status)
 {
 	// Code suspiciously similar to Unlift()
@@ -97,7 +97,7 @@ int Decompress(const Settings& settings, size_t compressed_size, unsigned width,
 	//	return sDecompress(decompressor, width, height, channels, output, status);
 	//}
 
-	auto decompressor = DecompressorNone<int16_t>(input, compressed_size);
+	auto decompressor = DecompressorNone(input, compressed_size);
 	return sDecompress(decompressor, width, height, channels, output, status);
 }
 
@@ -112,7 +112,7 @@ int Decompress(const Settings& settings, size_t compressed_size, unsigned width,
 	//	return sDecompress(decompressor, width, height, channels, output, status);
 	//}
 
-	auto decompressor = DecompressorNone<int32_t>(input, compressed_size);
+	auto decompressor = DecompressorNone(input, compressed_size);
 	return sDecompress(decompressor, width, height, channels, output, status);
 }
 

@@ -28,39 +28,51 @@ SOFTWARE.
 namespace ako
 {
 
-template <typename T> class DecompressorNone : public Decompressor<T>
+class DecompressorNone : public Decompressor
 {
   private:
-	const T* input_start;
-	const T* input_end;
-	const T* input;
+	const void* input_start;
+	const void* input_end;
+	const void* input;
 
-  public:
-	DecompressorNone(const void* input, size_t input_size)
+	template <typename T> Status InternalStep(unsigned width, unsigned height, T* out)
 	{
-		this->input_start = reinterpret_cast<const T*>(input);
-		this->input_end = reinterpret_cast<const T*>(input) + input_size / sizeof(T);
-		this->input = reinterpret_cast<const T*>(input);
-	}
+		const auto in = reinterpret_cast<const T*>(this->input);
 
-	Status Step(unsigned width, unsigned height, T* out)
-	{
-		if (this->input + (width * height) > this->input_end)
+		if (in + (width * height) > this->input_end)
 			return Status::TruncatedTileData;
 
 		if (SystemEndianness() == Endianness::Little)
 		{
 			for (unsigned i = 0; i < (width * height); i += 1)
-				out[i] = this->input[i];
+				out[i] = in[i];
 		}
 		else
 		{
 			for (unsigned i = 0; i < (width * height); i += 1)
-				out[i] = EndiannessReverse<T>(this->input[i]);
+				out[i] = EndiannessReverse<T>(in[i]);
 		}
 
-		this->input += (width * height);
+		this->input = in + (width * height);
 		return Status::Ok;
+	}
+
+  public:
+	DecompressorNone(const void* input, size_t input_size)
+	{
+		this->input_start = input;
+		this->input_end = reinterpret_cast<const uint8_t*>(input) + input_size;
+		this->input = input;
+	}
+
+	Status Step(unsigned width, unsigned height, int16_t* out)
+	{
+		return InternalStep(width, height, out);
+	}
+
+	Status Step(unsigned width, unsigned height, int32_t* out)
+	{
+		return InternalStep(width, height, out);
 	}
 };
 

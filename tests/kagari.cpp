@@ -92,7 +92,7 @@ static void sTestFile(const char* filename)
 	uint32_t input_data_hash = 0x87654321;
 	size_t compressed_size = 0;
 	{
-		auto compressor = ako::CompressorKagari<int16_t>(256, big_buffer, static_cast<size_t>(size));
+		auto compressor = ako::CompressorKagari(256, big_buffer, static_cast<size_t>(size));
 		size_t blocks_no = 0;
 		while (1)
 		{
@@ -120,7 +120,7 @@ static void sTestFile(const char* filename)
 	// Decompress, same intricacies
 	uint32_t decoded_data_hash = 0x87654321;
 	{
-		auto decompressor = ako::DecompressorKagari<int16_t>(256, big_buffer, compressed_size);
+		auto decompressor = ako::DecompressorKagari(256, big_buffer, compressed_size);
 		size_t blocks_no = 0;
 		while (1)
 		{
@@ -163,7 +163,7 @@ template <typename T> static void sTest(size_t block_size, const char* input)
 	// """"Compress""""
 	size_t compressed_size = 0;
 	{
-		auto compressor = ako::CompressorKagari<T>(block_size, buffer_b, buffer_size_b);
+		auto compressor = ako::CompressorKagari(block_size, buffer_b, buffer_size_b);
 
 		assert(compressor.Step(sQuantizer, 1.0F, static_cast<unsigned>(input_length), 1, buffer_a) == 0);
 		compressed_size = compressor.Finish();
@@ -174,7 +174,7 @@ template <typename T> static void sTest(size_t block_size, const char* input)
 
 	// """"Decompress""""
 	{
-		auto decompressor = ako::DecompressorKagari<T>(block_size, buffer_b, compressed_size);
+		auto decompressor = ako::DecompressorKagari(block_size, buffer_b, compressed_size);
 		assert(decompressor.Step(static_cast<unsigned>(input_length), 1, buffer_a) == ako::Status::Ok);
 	}
 

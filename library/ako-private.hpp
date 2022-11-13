@@ -64,36 +64,21 @@ enum class Endianness
 	Big
 };
 
-template <typename T> class Compressor
+class Compressor
 {
   public:
-	virtual int Step(T (*quantization_callback)(float, T), float quantization_step, unsigned width, unsigned height,
-	                 const T* in)
-	{
-		(void)quantization_callback;
-		(void)quantization_step;
-		(void)width;
-		(void)height;
-		(void)in;
-		return 1; // 0 = Success, >0 = Error
-	};
-
-	virtual size_t Finish()
-	{
-		return 0; // Compressed size, 0 = Error ("compressed to 0 bytes")
-	};
+	virtual int Step(int16_t (*quantization_callback)(float, int16_t), float quantization_step, unsigned width,
+	                 unsigned height, const int16_t* in) = 0;
+	virtual int Step(int32_t (*quantization_callback)(float, int32_t), float quantization_step, unsigned width,
+	                 unsigned height, const int32_t* in) = 0;
+	virtual size_t Finish() = 0;
 };
 
-template <typename T> class Decompressor
+class Decompressor
 {
   public:
-	virtual Status Step(unsigned width, unsigned height, T* out)
-	{
-		(void)width;
-		(void)height;
-		(void)out;
-		return Status::Error;
-	};
+	virtual Status Step(unsigned width, unsigned height, int16_t* out) = 0;
+	virtual Status Step(unsigned width, unsigned height, int32_t* out) = 0;
 };
 
 

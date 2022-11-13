@@ -40,7 +40,7 @@ template <typename T> static inline T sQuantizer(float q, T value)
 
 
 template <typename T>
-static size_t sCompress(Compressor<T>& compressor, const Settings& settings, unsigned width, unsigned height,
+static size_t sCompress(Compressor& compressor, const Settings& settings, unsigned width, unsigned height,
                         unsigned channels, const T* input)
 {
 	// Code suspiciously similar to Unlift()
@@ -118,15 +118,15 @@ size_t Compress(const Settings& settings, unsigned width, unsigned height, unsig
 
 	/*if (settings.compression == Compression::Kagari)
 	{
-		auto compressor = CompressorKagari<int16_t>(output, sizeof(int16_t) * width * height * channels);
-		if ((compressed_size = sCompress(compressor, settings, width, height, channels, input)) == 0)
-			goto fallback;
+	    auto compressor = CompressorKagari<int16_t>(output, sizeof(int16_t) * width * height * channels);
+	    if ((compressed_size = sCompress(compressor, settings, width, height, channels, input)) == 0)
+	        goto fallback;
 	}
 	else // No compression
 	{
 	fallback:*/
-		auto compressor = CompressorNone<int16_t>(output);
-		compressed_size = sCompress(compressor, settings, width, height, channels, input);
+	auto compressor = CompressorNone(output);
+	compressed_size = sCompress(compressor, settings, width, height, channels, input);
 	//}
 
 	return compressed_size;
@@ -140,15 +140,15 @@ size_t Compress(const Settings& settings, unsigned width, unsigned height, unsig
 
 	/*if (settings.compression == Compression::Kagari)
 	{
-		auto compressor = CompressorKagari<int32_t>(output, sizeof(int32_t) * width * height * channels);
-		if ((compressed_size = sCompress(compressor, settings, width, height, channels, input)) == 0)
-			goto fallback;
+	    auto compressor = CompressorKagari<int32_t>(output, sizeof(int32_t) * width * height * channels);
+	    if ((compressed_size = sCompress(compressor, settings, width, height, channels, input)) == 0)
+	        goto fallback;
 	}
 	else // No compression
 	{
 	fallback:*/
-		auto compressor = CompressorNone<int32_t>(output);
-		compressed_size = sCompress(compressor, settings, width, height, channels, input);
+	auto compressor = CompressorNone(output);
+	compressed_size = sCompress(compressor, settings, width, height, channels, input);
 	//}
 
 	return compressed_size;
