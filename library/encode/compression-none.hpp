@@ -28,52 +28,81 @@ SOFTWARE.
 namespace ako
 {
 
-class CompressorNone : public Compressor
+class CompressorNone final : public Compressor
 {
   private:
 	void* output_start;
 	void* output;
 
+	size_t buffer_size;
+	void* buffer;
+
 	template <typename T>
-	int InternalStep(T (*quantize)(float, T), float quantization, unsigned width, unsigned height, const T* in)
+	int InternalStep(QuantizationCallback<T> quantize, float quantization, unsigned width, unsigned height,
+	                 const T* input)
 	{
+		auto input_length = (width * height);
+		auto buffer = reinterpret_cast<T*>(this->buffer);
 		auto out = reinterpret_cast<T*>(this->output);
 
-		if (SystemEndianness() == Endianness::Little)
+		do
 		{
-			for (unsigned i = 0; i < (width * height); i += 1)
-				out[i] = quantize(quantization, in[i]);
-		}
-		else
-		{
-			for (unsigned i = 0; i < (width * height); i += 1)
-				out[i] = EndiannessReverse<T>(quantize(quantization, in[i]));
-		}
+			const auto len = Min(static_cast<unsigned>(this->buffer_size / sizeof(T)), input_length);
 
-		this->output = out + (width * height);
+			// Quantize input
+			quantize(quantization, len, input, buffer);
+			input_length -= len;
+			input += len;
+
+			// Write output
+			if (SystemEndianness() == Endianness::Little)
+			{
+				for (unsigned i = 0; i < len; i += 1)
+					out[i] = buffer[i];
+			}
+			else
+			{
+				for (unsigned i = 0; i < len; i += 1)
+					out[i] = EndiannessReverse(buffer[i]);
+			}
+
+			out += len;
+
+		} while (input_length != 0);
+
+		// Bye!
+		this->output = out;
 		return 0;
 	}
 
   public:
-	CompressorNone(void* output)
+	CompressorNone(size_t buffer_length, void* output)
 	{
 		this->output_start = output;
 		this->output = output;
+
+		this->buffer_size = buffer_length * sizeof(int32_t); // Int32 being a common case
+		this->buffer = malloc(this->buffer_size);
 	}
 
-	int Step(int32_t (*quantize)(float, int32_t), float quantization, unsigned width, unsigned height,
-	         const int32_t* in)
+	~CompressorNone()
+	{
+		free(this->buffer);
+	}
+
+	int Step(QuantizationCallback<int32_t> quantize, float quantization, unsigned width, unsigned height,
+	         const int32_t* in) override
 	{
 		return InternalStep(quantize, quantization, width, height, in);
 	}
 
-	int Step(int16_t (*quantize)(float, int16_t), float quantization, unsigned width, unsigned height,
-	         const int16_t* in)
+	int Step(QuantizationCallback<int16_t> quantize, float quantization, unsigned width, unsigned height,
+	         const int16_t* in) override
 	{
 		return InternalStep(quantize, quantization, width, height, in);
 	}
 
-	size_t Finish()
+	size_t Finish() override
 	{
 		return static_cast<size_t>(static_cast<uint8_t*>(this->output) - static_cast<uint8_t*>(this->output_start));
 	}

@@ -13,10 +13,11 @@
 #include "encode/compression-kagari.hpp"
 
 
-template <typename T> static inline T sQuantizer(float q, T value)
+template <typename T> static inline void sQuantizer(float q, unsigned length, const T* in, T* out)
 {
 	(void)q;
-	return value;
+	for (unsigned i = 0; i < length; i += 1)
+		out[i] = in[i];
 }
 
 

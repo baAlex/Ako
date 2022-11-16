@@ -28,7 +28,7 @@ SOFTWARE.
 namespace ako
 {
 
-class DecompressorNone : public Decompressor
+class DecompressorNone final : public Decompressor
 {
   private:
 	const void* input_start;
@@ -65,12 +65,12 @@ class DecompressorNone : public Decompressor
 		this->input = input;
 	}
 
-	Status Step(unsigned width, unsigned height, int16_t* out)
+	Status Step(unsigned width, unsigned height, int16_t* out) override
 	{
 		return InternalStep(width, height, out);
 	}
 
-	Status Step(unsigned width, unsigned height, int32_t* out)
+	Status Step(unsigned width, unsigned height, int32_t* out) override
 	{
 		return InternalStep(width, height, out);
 	}

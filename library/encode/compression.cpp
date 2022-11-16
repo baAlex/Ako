@@ -27,15 +27,28 @@ SOFTWARE.
 #include "compression-kagari.hpp"
 #include "compression-none.hpp"
 
+#include <cfloat>
+
 namespace ako
 {
 
-template <typename T> static inline T sQuantizer(float q, T value)
+template <typename T> static inline void sQuantizer(float q, unsigned length, const T* in, T* out)
 {
-	if (value > 0)
-		return static_cast<T>(roundf(fabsf(static_cast<float>(value) / q)) * q);
-
-	return static_cast<T>(-roundf(fabsf(static_cast<float>(value) / q)) * q);
+	if (std::isinf(q) == true)
+	{
+		for (unsigned i = 0; i < length; i += 1)
+			out[i] = 0;
+	}
+	else if (q > 1.0F)
+	{
+		for (unsigned i = 0; i < length; i += 1)
+			out[i] = static_cast<T>(std::roundf(static_cast<float>(in[i]) / q) * q);
+	}
+	else
+	{
+		for (unsigned i = 0; i < length; i += 1)
+			out[i] = in[i];
+	}
 }
 
 
@@ -81,7 +94,7 @@ static size_t sCompress(Compressor& compressor, const Settings& settings, unsign
 		const auto q = powf(2.0F, x * (settings.quantization / 50.0F) * powf(x / 16.0F, 1.0F));
 		const float q_diagonal = (settings.quantization > 0.0F) ? 2.0F : 1.0F;
 
-		// printf("%f %f\n", q, x);
+		// printf("x: %f, q: %f\n", x, (x > 0.0) ? q : 1.0F);
 
 		// Iterate in Yuv order
 		for (unsigned ch = 0; ch < channels; ch += 1)
@@ -125,7 +138,7 @@ size_t Compress(const Settings& settings, unsigned width, unsigned height, unsig
 	else // No compression
 	{
 	fallback:*/
-	auto compressor = CompressorNone(output);
+	auto compressor = CompressorNone(65536, output);
 	compressed_size = sCompress(compressor, settings, width, height, channels, input);
 	//}
 
@@ -147,7 +160,7 @@ size_t Compress(const Settings& settings, unsigned width, unsigned height, unsig
 	else // No compression
 	{
 	fallback:*/
-	auto compressor = CompressorNone(output);
+	auto compressor = CompressorNone(65536, output);
 	compressed_size = sCompress(compressor, settings, width, height, channels, input);
 	//}
 

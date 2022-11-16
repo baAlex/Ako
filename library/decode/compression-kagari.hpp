@@ -28,7 +28,7 @@ SOFTWARE.
 namespace ako
 {
 
-class DecompressorKagari : public Decompressor
+class DecompressorKagari final : public Decompressor
 {
   private:
 	size_t block_length;
@@ -90,12 +90,12 @@ class DecompressorKagari : public Decompressor
 		this->input = reinterpret_cast<const uint32_t*>(input);
 	}
 
-	Status Step(unsigned width, unsigned height, int16_t* out)
+	Status Step(unsigned width, unsigned height, int16_t* out) override
 	{
 		return InternalStep(width, height, out);
 	}
 
-	Status Step(unsigned width, unsigned height, int32_t* out)
+	Status Step(unsigned width, unsigned height, int32_t* out) override
 	{
 		return InternalStep(width, height, out);
 	}
