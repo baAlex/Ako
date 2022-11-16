@@ -11,6 +11,7 @@ files="./library/ako.hpp
 
        ./library/decode/compression-kagari.hpp
        ./library/decode/compression-none.hpp
+       ./library/decode/compression.cpp
        ./library/decode/decode.cpp
        ./library/decode/format.cpp
        ./library/decode/heads.cpp

@@ -187,7 +187,7 @@ Wavelet ToWavelet(uint32_t number, Status& out_status)
 	case 2: return Wavelet::Haar;
 	}
 
-	out_status = Status::InvalidColor;
+	out_status = Status::InvalidWavelet;
 	return Wavelet::Haar;
 }
 
@@ -202,7 +202,7 @@ Wrap ToWrap(uint32_t number, Status& out_status)
 	case 3: return Wrap::Zero;
 	}
 
-	out_status = Status::InvalidColor;
+	out_status = Status::InvalidWrap;
 	return Wrap::Zero;
 }
 
@@ -216,7 +216,7 @@ Compression ToCompression(uint32_t number, Status& out_status)
 	case 2: return Compression::None;
 	}
 
-	out_status = Status::InvalidColor;
+	out_status = Status::InvalidCompression;
 	return Compression::None;
 }
 

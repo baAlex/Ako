@@ -43,6 +43,7 @@ build ./build/sparc64/library/encode/wavelet-haar.o:  Compile ./library/encode/w
 build ./build/sparc64/library/encode/wavelet-cdf53.o: Compile ./library/encode/wavelet-cdf53.cpp
 
 build ./build/sparc64/tests/forward-backward.o: Compile ./tests/forward-backward.cpp
+build ./build/sparc64/tests/kagari.o:           Compile ./tests/kagari.cpp
 build ./build/sparc64/tests/wavelet-cdf53.o:    Compile ./tests/wavelet-cdf53.cpp
 build ./build/sparc64/tests/wavelet-haar.o:     Compile ./tests/wavelet-haar.cpp
 
@@ -70,6 +71,10 @@ build ./build/sparc64-libako-static.a: Pack $
 
 build ./build/sparc64-test-forward-backward: Link $
  ./build/sparc64/tests/forward-backward.o $
+ ./build/sparc64-libako-static.a
+
+build ./build/sparc64-test-kagari: Link $
+ ./build/sparc64/tests/kagari.o $
  ./build/sparc64-libako-static.a
 
 build ./build/sparc64-test-wavelet-cdf53: Link $

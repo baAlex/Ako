@@ -43,6 +43,7 @@ build ./build/native/library/encode/wavelet-haar.o:  Compile ./library/encode/wa
 build ./build/native/library/encode/wavelet-cdf53.o: Compile ./library/encode/wavelet-cdf53.cpp
 
 build ./build/native/tests/forward-backward.o: Compile ./tests/forward-backward.cpp
+build ./build/native/tests/kagari.o:           Compile ./tests/kagari.cpp
 build ./build/native/tests/wavelet-cdf53.o:    Compile ./tests/wavelet-cdf53.cpp
 build ./build/native/tests/wavelet-haar.o:     Compile ./tests/wavelet-haar.cpp
 
@@ -70,6 +71,10 @@ build ./build/native-libako-static.a: Pack $
 
 build ./build/native-test-forward-backward: Link $
  ./build/native/tests/forward-backward.o $
+ ./build/native-libako-static.a
+
+build ./build/native-test-kagari: Link $
+ ./build/native/tests/kagari.o $
  ./build/native-libako-static.a
 
 build ./build/native-test-wavelet-cdf53: Link $
