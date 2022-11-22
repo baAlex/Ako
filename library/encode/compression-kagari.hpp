@@ -41,6 +41,8 @@ class CompressorKagari final : public Compressor
 	uint32_t* buffer_end;
 	uint32_t* buffer;
 
+	void* q_buffer;
+
 	uint32_t ZigZagEncode(int32_t in) const
 	{
 		return static_cast<uint32_t>((in << 1) ^ (in >> 31));
@@ -77,6 +79,7 @@ class CompressorKagari final : public Compressor
 		const auto buffer_len = static_cast<unsigned>(this->buffer - this->buffer_start);
 
 		this->buffer = this->buffer_start;
+
 		unsigned literal_len = 1;
 		unsigned rle_len = 0;
 
@@ -124,19 +127,27 @@ class CompressorKagari final : public Compressor
 	}
 
 	template <typename T>
-	int InternalStep(QuantizationCallback<T> quantize, float quantization, unsigned width, unsigned height, const T* in)
+	int InternalStep(QuantizationCallback<T> quantize, float quantization, unsigned width, unsigned height,
+	                 const T* input)
 	{
-		(void)quantize;
-		(void)quantization;
+		auto input_length = (width * height);
 
 		// Fill buffer
-		auto len = (width * height);
 		do
 		{
-			// Quantizing and converting values to unsigned
-			for (; len != 0 && this->buffer < this->buffer_end; len -= 1)
+			auto q_buffer = reinterpret_cast<T*>(this->q_buffer);
+
+			// Quantize input
 			{
-				const auto v = static_cast<int32_t>(*in++);
+				const auto length = Min(static_cast<unsigned>(this->buffer_end - this->buffer), input_length);
+				quantize(quantization, length, input, q_buffer);
+				input += length;
+			}
+
+			// Convert values to Uint32
+			for (; input_length != 0 && this->buffer < this->buffer_end; input_length -= 1)
+			{
+				const auto v = static_cast<int32_t>(*q_buffer++);
 				*this->buffer++ = ZigZagEncode(v);
 			}
 
@@ -147,7 +158,7 @@ class CompressorKagari final : public Compressor
 					return 1;
 			}
 
-		} while (len != 0);
+		} while (input_length != 0);
 
 		// Bye!
 		return 0;
@@ -163,11 +174,14 @@ class CompressorKagari final : public Compressor
 		this->buffer_start = reinterpret_cast<uint32_t*>(malloc(sizeof(uint32_t) * buffer_length));
 		this->buffer_end = this->buffer_start + buffer_length;
 		this->buffer = this->buffer_start;
+
+		this->q_buffer = malloc(sizeof(int32_t) * buffer_length); // Int32 being a common case
 	}
 
 	~CompressorKagari()
 	{
 		free(this->buffer_start);
+		free(this->q_buffer);
 	}
 
 	int Step(QuantizationCallback<int32_t> quantize, float quantization, unsigned width, unsigned height,

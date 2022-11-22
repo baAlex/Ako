@@ -47,26 +47,26 @@ class CompressorNone final : public Compressor
 
 		do
 		{
-			const auto len = Min(static_cast<unsigned>(this->buffer_size / sizeof(T)), input_length);
+			const auto length = Min(static_cast<unsigned>(this->buffer_size / sizeof(T)), input_length);
 
 			// Quantize input
-			quantize(quantization, len, input, buffer);
-			input_length -= len;
-			input += len;
+			quantize(quantization, length, input, buffer);
+			input_length -= length;
+			input += length;
 
 			// Write output
 			if (SystemEndianness() == Endianness::Little)
 			{
-				for (unsigned i = 0; i < len; i += 1)
+				for (unsigned i = 0; i < length; i += 1)
 					out[i] = buffer[i];
 			}
 			else
 			{
-				for (unsigned i = 0; i < len; i += 1)
+				for (unsigned i = 0; i < length; i += 1)
 					out[i] = EndiannessReverse(buffer[i]);
 			}
 
-			out += len;
+			out += length;
 
 		} while (input_length != 0);
 
