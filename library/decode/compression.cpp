@@ -31,7 +31,7 @@ namespace ako
 {
 
 template <typename T>
-static int sDecompress(Decompressor& decompressor, unsigned width, unsigned height, unsigned channels, T* output,
+static int sDecompress(Decompressor<T>& decompressor, unsigned width, unsigned height, unsigned channels, T* output,
                        Status& status)
 {
 	// Code suspiciously similar to Unlift()
@@ -86,18 +86,19 @@ static int sDecompress(Decompressor& decompressor, unsigned width, unsigned heig
 }
 
 
+const unsigned BUFFER_SIZE = 512 * 512;
+
 template <>
 int Decompress(const Settings& settings, size_t compressed_size, unsigned width, unsigned height, unsigned channels,
                const void* input, int16_t* output, Status& status)
 {
-	(void)settings;
-	// if (settings.compression == Compression::Kagari)
-	//{
-	//	auto decompressor = DecompressorKagari<int16_t>(input, compressed_size);
-	//	return sDecompress(decompressor, width, height, channels, output, status);
-	//}
+	if (settings.compression == Compression::Kagari)
+	{
+		auto decompressor = DecompressorKagari<int16_t>(BUFFER_SIZE, compressed_size, input);
+		return sDecompress(decompressor, width, height, channels, output, status);
+	}
 
-	auto decompressor = DecompressorNone(input, compressed_size);
+	auto decompressor = DecompressorNone<int16_t>(compressed_size, input);
 	return sDecompress(decompressor, width, height, channels, output, status);
 }
 
@@ -105,14 +106,13 @@ template <>
 int Decompress(const Settings& settings, size_t compressed_size, unsigned width, unsigned height, unsigned channels,
                const void* input, int32_t* output, Status& status)
 {
-	(void)settings;
-	// if (settings.compression == Compression::Kagari)
-	//{
-	//	auto decompressor = DecompressorKagari<int32_t>(input, compressed_size);
-	//	return sDecompress(decompressor, width, height, channels, output, status);
-	//}
+	if (settings.compression == Compression::Kagari)
+	{
+		auto decompressor = DecompressorKagari<int32_t>(BUFFER_SIZE, compressed_size, input);
+		return sDecompress(decompressor, width, height, channels, output, status);
+	}
 
-	auto decompressor = DecompressorNone(input, compressed_size);
+	auto decompressor = DecompressorNone<int32_t>(compressed_size, input);
 	return sDecompress(decompressor, width, height, channels, output, status);
 }
 

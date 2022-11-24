@@ -28,49 +28,65 @@ SOFTWARE.
 namespace ako
 {
 
-class CompressorKagari final : public Compressor
+template <typename T> class CompressorKagari final : public Compressor<T>
 {
   private:
 	static const unsigned RLE_TRIGGER = 4;
 
-	uint32_t* output_start;
-	uint32_t* output_end;
-	uint32_t* output;
+	uint8_t* output_start;
+	uint8_t* output_end;
+	uint8_t* output;
 
-	uint32_t* buffer_start;
-	uint32_t* buffer_end;
-	uint32_t* buffer;
-
-	void* q_buffer;
+	T* buffer_start;
+	T* buffer_end;
+	T* buffer;
 
 	uint32_t ZigZagEncode(int32_t in) const
 	{
 		return static_cast<uint32_t>((in << 1) ^ (in >> 31));
 	}
 
-	int32_t ZigZagDecode(uint32_t in) const
+	uint16_t ZigZagEncode(int16_t in) const
 	{
-		return static_cast<int32_t>((in >> 1) ^ (~(in & 1) + 1));
+		return static_cast<uint16_t>((in << 1) ^ (in >> 15));
 	}
 
-	int Emit(unsigned literal_length, unsigned rle_length, const uint32_t* values)
+	uint16_t* FlipSignCast(int16_t* ptr)
+	{
+		return reinterpret_cast<uint16_t*>(ptr);
+	}
+
+	uint32_t* FlipSignCast(int32_t* ptr)
+	{
+		return reinterpret_cast<uint32_t*>(ptr);
+	}
+
+	int Emit(unsigned literal_length, unsigned rle_length, const T* values)
 	{
 		// Developers, developers, developers
 		// printf("\tE [L: %u, R: %u, v: '", literal_length, rle_length);
 		// for (unsigned i = 0; i < literal_length; i += 1)
-		// 	printf("%c", static_cast<char>(ZigZagDecode(values[i])));
-		// printf("'] (%li/%li)\n", output - output_start, output_end - output_start);
+		// 	printf("%c", static_cast<char>(values[i]));
+		// printf("']\n");
 
-		// Emit
-		if (this->output + 2 + literal_length > this->output_end)
+		// Check space in output
+		if (this->output + (sizeof(uint32_t) * 2) + (sizeof(T) * literal_length) > this->output_end)
 			return 1;
 
-		*this->output++ = literal_length;
-		*this->output++ = rle_length;
+		// Write literal and Rle lengths
+		auto out_u32 = reinterpret_cast<uint32_t*>(this->output);
+		*out_u32++ = literal_length;
+		*out_u32++ = rle_length;
 
+		// Write literal values
+		auto out_uT = FlipSignCast(reinterpret_cast<T*>(out_u32));
 		for (unsigned i = 0; i < literal_length; i += 1)
-			*this->output++ = *values++;
+			*out_uT++ = ZigZagEncode(*values++);
 
+		// Update pointer
+		this->output = reinterpret_cast<uint8_t*>(out_uT);
+
+		// Bye!
 		return 0;
 	}
 
@@ -126,36 +142,44 @@ class CompressorKagari final : public Compressor
 		return 0;
 	}
 
-	template <typename T>
-	int InternalStep(QuantizationCallback<T> quantize, float quantization, unsigned width, unsigned height,
-	                 const T* input)
+  public:
+	CompressorKagari(unsigned buffer_length, size_t output_size, void* output)
+	{
+		this->output_start = reinterpret_cast<uint8_t*>(output);
+		this->output_end = this->output_start + output_size;
+		this->output = this->output_start;
+
+		this->buffer_start = reinterpret_cast<T*>(malloc(buffer_length * sizeof(T)));
+		this->buffer_end = this->buffer_start + buffer_length;
+		this->buffer = this->buffer_start;
+	}
+
+	~CompressorKagari()
+	{
+		free(this->buffer_start);
+	}
+
+	int Step(QuantizationCallback<T> quantize, float quantization, unsigned width, unsigned height,
+	         const T* input) override
 	{
 		auto input_length = (width * height);
-
-		// Fill buffer
 		do
 		{
-			auto q_buffer = reinterpret_cast<T*>(this->q_buffer);
-
-			// Quantize input
-			{
-				const auto length = Min(static_cast<unsigned>(this->buffer_end - this->buffer), input_length);
-				quantize(quantization, length, input, q_buffer);
-				input += length;
-			}
-
-			// Convert values to Uint32
-			for (; input_length != 0 && this->buffer < this->buffer_end; input_length -= 1)
-			{
-				const auto v = static_cast<int32_t>(*q_buffer++);
-				*this->buffer++ = ZigZagEncode(v);
-			}
-
-			// No space, compress what we have so far
+			// No space in buffer, compress what we have so far
 			if (this->buffer == this->buffer_end)
 			{
 				if (Compress() != 0)
 					return 1;
+			}
+
+			// Quantize input
+			{
+				const auto length = Min(static_cast<unsigned>(this->buffer_end - this->buffer), input_length);
+
+				quantize(quantization, length, input, this->buffer);
+				this->buffer += length;
+				input_length -= length;
+				input += length;
 			}
 
 		} while (input_length != 0);
@@ -164,44 +188,15 @@ class CompressorKagari final : public Compressor
 		return 0;
 	}
 
-  public:
-	CompressorKagari(size_t buffer_length, void* output, size_t max_output_size)
-	{
-		this->output_start = reinterpret_cast<uint32_t*>(output);
-		this->output_end = reinterpret_cast<uint32_t*>(output) + max_output_size / sizeof(uint32_t);
-		this->output = reinterpret_cast<uint32_t*>(output);
-
-		this->buffer_start = reinterpret_cast<uint32_t*>(malloc(sizeof(uint32_t) * buffer_length));
-		this->buffer_end = this->buffer_start + buffer_length;
-		this->buffer = this->buffer_start;
-
-		this->q_buffer = malloc(sizeof(int32_t) * buffer_length); // Int32 being a common case
-	}
-
-	~CompressorKagari()
-	{
-		free(this->buffer_start);
-		free(this->q_buffer);
-	}
-
-	int Step(QuantizationCallback<int32_t> quantize, float quantization, unsigned width, unsigned height,
-	         const int32_t* in) override
-	{
-		return InternalStep(quantize, quantization, width, height, in);
-	}
-
-	int Step(QuantizationCallback<int16_t> quantize, float quantization, unsigned width, unsigned height,
-	         const int16_t* in) override
-	{
-		return InternalStep(quantize, quantization, width, height, in);
-	}
-
 	size_t Finish() override
 	{
-		if (this->buffer - this->buffer_start > 0 && Compress() != 0)
-			return 0;
+		if (this->buffer - this->buffer_start > 0)
+		{
+			if (Compress() != 0)
+				return 0;
+		}
 
-		return static_cast<size_t>(this->output - this->output_start) * sizeof(uint32_t);
+		return static_cast<size_t>(this->output - this->output_start);
 	}
 };
 

@@ -21,6 +21,7 @@ template <typename T> static inline void sQuantizer(float q, unsigned length, co
 }
 
 
+#if 0
 static uint32_t sAdler32(const void* input, size_t input_size)
 {
 	// Borrowed from LodePNG, modified.
@@ -73,6 +74,8 @@ static uint32_t sAdler32(const void* input, size_t input_size)
 
 static void sTestFile(const char* filename)
 {
+	const size_t KAGARI_BUFFER_LENGTH = 256 * 256;
+
 	printf(" - File Test, filename '%s'\n", filename);
 
 	FILE* fp = fopen(filename, "rb");
@@ -85,7 +88,7 @@ static void sTestFile(const char* filename)
 
 	// Allocate buffers
 	void* big_buffer = malloc(static_cast<size_t>(size));
-	void* tiny_buffer = malloc(sizeof(int16_t) * 256);
+	void* tiny_buffer = malloc(sizeof(int16_t) * KAGARI_BUFFER_LENGTH);
 	assert(big_buffer != nullptr);
 	assert(tiny_buffer != nullptr);
 
@@ -93,12 +96,12 @@ static void sTestFile(const char* filename)
 	uint32_t input_data_hash = 0x87654321;
 	size_t compressed_size = 0;
 	{
-		auto compressor = ako::CompressorKagari(256, big_buffer, static_cast<size_t>(size));
+		auto compressor = ako::CompressorKagari(KAGARI_BUFFER_LENGTH, big_buffer, static_cast<size_t>(size));
 		size_t blocks_no = 0;
 		while (1)
 		{
-			const auto read_length = fread(tiny_buffer, sizeof(int16_t), 256, fp);
-			if (read_length != 256) // Stop here, so no read is <256 length
+			const auto read_length = fread(tiny_buffer, sizeof(int16_t), KAGARI_BUFFER_LENGTH, fp);
+			if (read_length != KAGARI_BUFFER_LENGTH) // Stop here
 				break;
 
 			if (compressor.Step(sQuantizer, 1.0F, static_cast<unsigned>(read_length), 1,
@@ -121,14 +124,14 @@ static void sTestFile(const char* filename)
 	// Decompress, same intricacies
 	uint32_t decoded_data_hash = 0x87654321;
 	{
-		auto decompressor = ako::DecompressorKagari(256, big_buffer, compressed_size);
+		auto decompressor = ako::DecompressorKagari(KAGARI_BUFFER_LENGTH, big_buffer, compressed_size);
 		size_t blocks_no = 0;
 		while (1)
 		{
-			if (decompressor.Step(256, 1, reinterpret_cast<int16_t*>(tiny_buffer)) != ako::Status::Ok)
+			if (decompressor.Step(KAGARI_BUFFER_LENGTH, 1, reinterpret_cast<int16_t*>(tiny_buffer)) != ako::Status::Ok)
 				break;
 
-			decoded_data_hash ^= sAdler32(tiny_buffer, sizeof(int16_t) * 256);
+			decoded_data_hash ^= sAdler32(tiny_buffer, sizeof(int16_t) * KAGARI_BUFFER_LENGTH);
 			blocks_no++;
 		}
 
@@ -141,13 +144,14 @@ static void sTestFile(const char* filename)
 	free(big_buffer);
 	free(tiny_buffer);
 }
+#endif
 
 
-template <typename T> static void sTest(size_t block_size, const char* input)
+template <typename T> static void sTest(unsigned buffer_length, const char* input)
 {
 	const size_t input_length = strlen(input);
 	const size_t buffer_size_a = input_length * sizeof(T);
-	const size_t buffer_size_b = (input_length + 2) * sizeof(uint32_t); // WARNING, uint32 is the encoder internal type
+	const size_t buffer_size_b = buffer_size_a * 2; // x2 since compression can inflate size
 
 	printf(" - Rle Test, length: %zu, input: '%s'\n", input_length, input);
 
@@ -161,10 +165,10 @@ template <typename T> static void sTest(size_t block_size, const char* input)
 	for (size_t i = 0; i < input_length; i += 1)
 		buffer_a[i] = static_cast<T>(static_cast<unsigned char>(input[i]));
 
-	// """"Compress""""
+	// Compress
 	size_t compressed_size = 0;
 	{
-		auto compressor = ako::CompressorKagari(block_size, buffer_b, buffer_size_b);
+		auto compressor = ako::CompressorKagari<T>(buffer_length, buffer_size_b, buffer_b);
 
 		assert(compressor.Step(sQuantizer, 1.0F, static_cast<unsigned>(input_length), 1, buffer_a) == 0);
 		compressed_size = compressor.Finish();
@@ -173,9 +177,9 @@ template <typename T> static void sTest(size_t block_size, const char* input)
 		memset(buffer_a, 0, buffer_size_a);
 	}
 
-	// """"Decompress""""
+	// Decompress
 	{
-		auto decompressor = ako::DecompressorKagari(block_size, buffer_b, compressed_size);
+		auto decompressor = ako::DecompressorKagari<T>(buffer_length, compressed_size, buffer_b);
 		assert(decompressor.Step(static_cast<unsigned>(input_length), 1, buffer_a) == ako::Status::Ok);
 	}
 
@@ -191,14 +195,17 @@ template <typename T> static void sTest(size_t block_size, const char* input)
 
 int main(int argc, const char* argv[])
 {
+	(void)argc;
+	(void)argv;
+
 	printf("# Kagari Test (Ako v%i.%i.%i, %s)\n", ako::VersionMajor(), ako::VersionMinor(), ako::VersionPatch(),
 	       (ako::SystemEndianness() == ako::Endianness::Little) ? "little-endian" : "big-endian");
 
-	if (argc > 1)
-	{
-		sTestFile(argv[1]);
-		return EXIT_SUCCESS;
-	}
+	// if (argc > 1)
+	//{
+	//	sTestFile(argv[1]);
+	//	return EXIT_SUCCESS;
+	//}
 
 	const size_t BLOCK_SIZE = 16;
 

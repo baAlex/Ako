@@ -28,76 +28,134 @@ SOFTWARE.
 namespace ako
 {
 
-class DecompressorKagari final : public Decompressor
+template <typename T> class DecompressorKagari final : public Decompressor<T>
 {
   private:
-	size_t block_length;
+	const uint8_t* input_end;
+	const uint8_t* input;
 
-	const uint32_t* input_start;
-	const uint32_t* input_end;
-	const uint32_t* input;
+	T* buffer_start;
+	T* buffer_end;
+
+	unsigned buffer_usage;
+	T* buffer;
 
 	int32_t ZigZagDecode(uint32_t in) const
 	{
 		return static_cast<int32_t>((in >> 1) ^ (~(in & 1) + 1));
 	}
 
-	template <typename T> Status InternalStep(unsigned width, unsigned height, T* out)
+	int16_t ZigZagDecode(uint16_t in) const
 	{
-		const T* out_end = out + width * height;
+		return static_cast<int16_t>((in >> 1) ^ (~(in & 1) + 1));
+	}
+
+	const uint16_t* FlipSignCast(const int16_t* ptr)
+	{
+		return reinterpret_cast<const uint16_t*>(ptr);
+	}
+
+	const uint32_t* FlipSignCast(const int32_t* ptr)
+	{
+		return reinterpret_cast<const uint32_t*>(ptr);
+	}
+
+	int Decompress()
+	{
+		this->buffer = this->buffer_start; // We always decompress an entire buffer (as the encoder do)
+
+		auto out_end = this->buffer_end;
+		auto out = this->buffer_start;
 
 		while (out < out_end)
 		{
-			const T* out_block_end = Min<const T*>(out + this->block_length, out_end);
+			// Read literal and Rle lengths
+			if (this->input + (sizeof(uint32_t) * 2) > this->input_end) // End reached, not an error
+				break;
 
-			// Decompress block
-			while (out < out_block_end)
-			{
-				if (this->input + 1 >= this->input_end)
-					return Status::Error;
+			auto in_u32 = reinterpret_cast<const uint32_t*>(this->input);
+			const uint32_t literal_length = *in_u32++;
+			const uint32_t rle_length = *in_u32++;
 
-				const uint32_t literal_length = *this->input++;
-				const uint32_t rle_length = *this->input++;
+			// Checks
+			if (out + literal_length + rle_length > out_end ||
+			    this->input + (sizeof(uint32_t) * 2) + (sizeof(T) * literal_length) > this->input_end)
+				return 1;
 
-				if (out + literal_length + rle_length > out_block_end || this->input + literal_length > this->input_end)
-					return Status::Error;
+			// Write literal values
+			auto in_uT = FlipSignCast(reinterpret_cast<const T*>(in_u32));
+			for (uint32_t i = 0; i < literal_length; i += 1)
+				*out++ = ZigZagDecode(*in_uT++);
 
-				for (uint32_t i = 0; i < literal_length; i += 1)
-					*out++ = static_cast<T>(ZigZagDecode(*this->input++));
+			// Write Rle values
+			const T last_value = *(out - 1);
+			for (uint32_t i = 0; i < rle_length; i += 1)
+				*out++ = last_value;
 
-				const T last_value = *(out - 1);
+			// Update pointer
+			this->input = reinterpret_cast<const uint8_t*>(in_uT);
 
-				for (uint32_t i = 0; i < rle_length; i += 1)
-					*out++ = last_value;
-
-				// Developers, developers, developers
-				// printf("\tD [L: %u, R: %u, v: '", literal_length, rle_length);
-				// for (unsigned i = 0; i < literal_length; i += 1)
-				// 	printf("%c", static_cast<char>(ZigZagDecode((input - literal_length)[i])));
-				// printf("']\n");
-			}
+			// Developers, developers, developers
+			// printf("\tD [L: %u, R: %u, v: '", literal_length, rle_length);
+			// for (unsigned i = 0; i < literal_length; i += 1)
+			// 	printf("%c", static_cast<char>(*(out - rle_length - literal_length + i)));
+			// printf("']\n");
 		}
 
-		return Status::Ok;
+		// Bye!
+		this->buffer_usage = static_cast<unsigned>(out - this->buffer_start);
+		return 0;
 	}
 
   public:
-	DecompressorKagari(size_t block_length, const void* input, size_t input_size)
+	DecompressorKagari(unsigned buffer_length, size_t input_size, const void* input)
 	{
-		this->block_length = block_length;
-		this->input_start = reinterpret_cast<const uint32_t*>(input);
-		this->input_end = reinterpret_cast<const uint32_t*>(input) + input_size / sizeof(uint32_t);
-		this->input = reinterpret_cast<const uint32_t*>(input);
+		this->input_end = reinterpret_cast<const uint8_t*>(input) + input_size;
+		this->input = reinterpret_cast<const uint8_t*>(input);
+
+		this->buffer_start = reinterpret_cast<T*>(malloc(buffer_length * sizeof(T)));
+		this->buffer_end = this->buffer_start + buffer_length;
+
+		this->buffer_usage = 0;
+		this->buffer = this->buffer_start;
 	}
 
-	Status Step(unsigned width, unsigned height, int16_t* out) override
+	~DecompressorKagari()
 	{
-		return InternalStep(width, height, out);
+		free(this->buffer_start);
 	}
 
-	Status Step(unsigned width, unsigned height, int32_t* out) override
+	Status Step(unsigned width, unsigned height, T* out) override
 	{
-		return InternalStep(width, height, out);
+		auto output_length = (width * height);
+
+		while (output_length != 0)
+		{
+			// If needed, decompress an entire buffer
+			if (this->buffer_usage == 0)
+			{
+				if (Decompress() != 0)
+					return Status::Error;
+				if (this->buffer_usage == 0)
+					return Status::Error;
+			}
+
+			// Move values that this buffer can provide
+			{
+				const auto length = Min(this->buffer_usage, output_length);
+
+				for (unsigned i = 0; i < length; i += 1)
+					out[i] = this->buffer[i];
+
+				this->buffer_usage -= length;
+				this->buffer += length;
+				output_length -= length;
+				out += length;
+			}
+		}
+
+		// Bye!
+		return Status::Ok;
 	}
 };
 

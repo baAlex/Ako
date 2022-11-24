@@ -66,21 +66,18 @@ enum class Endianness
 
 template <typename T> using QuantizationCallback = void (*)(float, unsigned, const T*, T*);
 
-class Compressor
+template <typename T> class Compressor
 {
   public:
-	virtual int Step(QuantizationCallback<int16_t>, float quantization_step, unsigned width, unsigned height,
-	                 const int16_t* in) = 0;
-	virtual int Step(QuantizationCallback<int32_t>, float quantization_step, unsigned width, unsigned height,
-	                 const int32_t* in) = 0;
+	virtual int Step(QuantizationCallback<T>, float quantization_step, unsigned width, unsigned height,
+	                 const T* in) = 0;
 	virtual size_t Finish() = 0;
 };
 
-class Decompressor
+template <typename T> class Decompressor
 {
   public:
-	virtual Status Step(unsigned width, unsigned height, int16_t* out) = 0;
-	virtual Status Step(unsigned width, unsigned height, int32_t* out) = 0;
+	virtual Status Step(unsigned width, unsigned height, T* out) = 0;
 };
 
 

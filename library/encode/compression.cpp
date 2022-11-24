@@ -53,7 +53,7 @@ template <typename T> static inline void sQuantizer(float q, unsigned length, co
 
 
 template <typename T>
-static size_t sCompress(Compressor& compressor, const Settings& settings, unsigned width, unsigned height,
+static size_t sCompress(Compressor<T>& compressor, const Settings& settings, unsigned width, unsigned height,
                         unsigned channels, const T* input)
 {
 	// Code suspiciously similar to Unlift()
@@ -82,16 +82,8 @@ static size_t sCompress(Compressor& compressor, const Settings& settings, unsign
 		LiftMeasures(lift, width, height, lp_w, lp_h, hp_w, hp_h);
 
 		// Quantization step
-		const auto x = static_cast<float>(lifts_no) -
-		               static_cast<float>(lift + (lifts_no - 8)); // Limit quantization to the last 8 harmonics,
-		                                                          // for reference the DCT on JPEG produces 3 harmonics
-		                                                          // (ending up in a limit of blocks of 8 pixels)
-		                                                          // On J2K this is configurable, 8 harmonics being
-		                                                          // the default (I think)...
-		                                                          // TODO: revise this again with the compression
-		                                                          // stage actually compressing
-
-		const auto q = powf(2.0F, x * (settings.quantization / 50.0F) * powf(x / 16.0F, 1.0F));
+		const auto x = (static_cast<float>(lifts_no) - static_cast<float>(lift + 1)) / static_cast<float>(lifts_no - 1);
+		const auto q = powf(2.0F, x * (settings.quantization / 5.0F) * powf(x / 16.0F, 1.0F));
 		const float q_diagonal = (settings.quantization > 0.0F) ? 2.0F : 1.0F;
 
 		// printf("x: %f, q: %f\n", x, (x > 0.0) ? q : 1.0F);
@@ -123,24 +115,30 @@ static size_t sCompress(Compressor& compressor, const Settings& settings, unsign
 }
 
 
+const unsigned BUFFER_SIZE = 512 * 512;
+
 template <>
 size_t Compress(const Settings& settings, unsigned width, unsigned height, unsigned channels, const int16_t* input,
                 void* output)
 {
 	size_t compressed_size = 0;
 
-	/*if (settings.compression == Compression::Kagari)
+	if (settings.compression == Compression::Kagari)
 	{
-	    auto compressor = CompressorKagari<int16_t>(output, sizeof(int16_t) * width * height * channels);
-	    if ((compressed_size = sCompress(compressor, settings, width, height, channels, input)) == 0)
-	        goto fallback;
+		auto compressor = CompressorKagari<int16_t>(BUFFER_SIZE, sizeof(int16_t) * width * height * channels, output);
+
+		if (sCompress(compressor, settings, width, height, channels, input) == 0)
+			goto fallback;
+		if ((compressed_size = compressor.Finish()) == 0)
+			goto fallback;
 	}
 	else // No compression
 	{
-	fallback:*/
-	auto compressor = CompressorNone(65536, output);
-	compressed_size = sCompress(compressor, settings, width, height, channels, input);
-	//}
+	fallback:
+		auto compressor = CompressorNone<int16_t>(BUFFER_SIZE, output);
+		sCompress(compressor, settings, width, height, channels, input);
+		compressed_size = compressor.Finish();
+	}
 
 	return compressed_size;
 }
@@ -151,18 +149,22 @@ size_t Compress(const Settings& settings, unsigned width, unsigned height, unsig
 {
 	size_t compressed_size = 0;
 
-	/*if (settings.compression == Compression::Kagari)
+	if (settings.compression == Compression::Kagari)
 	{
-	    auto compressor = CompressorKagari<int32_t>(output, sizeof(int32_t) * width * height * channels);
-	    if ((compressed_size = sCompress(compressor, settings, width, height, channels, input)) == 0)
-	        goto fallback;
+		auto compressor = CompressorKagari<int32_t>(BUFFER_SIZE, sizeof(int32_t) * width * height * channels, output);
+
+		if (sCompress(compressor, settings, width, height, channels, input) == 0)
+			goto fallback;
+		if ((compressed_size = compressor.Finish()) == 0)
+			goto fallback;
 	}
 	else // No compression
 	{
-	fallback:*/
-	auto compressor = CompressorNone(65536, output);
-	compressed_size = sCompress(compressor, settings, width, height, channels, input);
-	//}
+	fallback:
+		auto compressor = CompressorNone<int32_t>(BUFFER_SIZE, output);
+		sCompress(compressor, settings, width, height, channels, input);
+		compressed_size = compressor.Finish();
+	}
 
 	return compressed_size;
 }
