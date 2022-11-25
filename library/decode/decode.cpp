@@ -92,6 +92,8 @@ static void* sDecodeInternal(const Callbacks& callbacks, const Settings& setting
 		unsigned tile_h = 0;
 		unsigned tile_x = 0;
 		unsigned tile_y = 0;
+
+		Compression tile_compression;
 		size_t tile_data_size;
 
 		TileMeasures(t, settings.tiles_dimension, image_w, image_h, tile_w, tile_h, tile_x, tile_y);
@@ -100,9 +102,9 @@ static void* sDecodeInternal(const Callbacks& callbacks, const Settings& setting
 		// Feedback
 		if (callbacks.generic_event != nullptr)
 		{
-			callbacks.generic_event(GenericEvent::TileDimensions, t + 1, tile_w, tile_h, {0}, callbacks.user_data);
-			callbacks.generic_event(GenericEvent::TilePosition, t + 1, tile_x, tile_y, {0}, callbacks.user_data);
-			callbacks.generic_event(GenericEvent::TileDataSize, t + 1, 0, 0, {tile_data_size}, callbacks.user_data);
+			callbacks.generic_event(GenericEvent::TileDimensions, t, tile_w, tile_h, {0}, callbacks.user_data);
+			callbacks.generic_event(GenericEvent::TilePosition, t, tile_x, tile_y, {0}, callbacks.user_data);
+			callbacks.generic_event(GenericEvent::TileDataSize, t, 0, 0, {tile_data_size}, callbacks.user_data);
 		}
 
 		// 1. Read and validate tile head
@@ -113,7 +115,8 @@ static void* sDecodeInternal(const Callbacks& callbacks, const Settings& setting
 				goto return_failure;
 			}
 
-			if ((status = TileHeadRead(*reinterpret_cast<const TileHead*>(input), compressed_size)) != Status::Ok)
+			if ((status = TileHeadRead(*reinterpret_cast<const TileHead*>(input), tile_compression, compressed_size)) !=
+			    Status::Ok)
 				goto return_failure;
 
 			input = reinterpret_cast<const uint8_t*>(input) + sizeof(TileHead);
@@ -122,16 +125,16 @@ static void* sDecodeInternal(const Callbacks& callbacks, const Settings& setting
 		// 2. Decompression
 		{
 			if (callbacks.compression_event != nullptr)
-				callbacks.compression_event(settings.compression, t + 1, nullptr, callbacks.user_data);
+				callbacks.compression_event(tile_compression, t, nullptr, callbacks.user_data);
 
-			if (Decompress(settings, compressed_size, tile_w, tile_h, channels, input,
+			if (Decompress(tile_compression, compressed_size, tile_w, tile_h, channels, input,
 			               reinterpret_cast<TCoeff*>(workarea[0]), status) != 0)
 				goto return_failure;
 
 			input = reinterpret_cast<const uint8_t*>(input) + compressed_size;
 
 			if (callbacks.compression_event != nullptr)
-				callbacks.compression_event(settings.compression, t + 1, workarea[0], callbacks.user_data);
+				callbacks.compression_event(tile_compression, t, workarea[0], callbacks.user_data);
 
 			// Developers, developers, developers
 			// printf("Hash: %8x \n", Adler32(workarea[0], tile_data_size));
@@ -140,25 +143,25 @@ static void* sDecodeInternal(const Callbacks& callbacks, const Settings& setting
 		// 3. Wavelet transformation
 		{
 			if (callbacks.lifting_event != nullptr)
-				callbacks.lifting_event(settings.wavelet, settings.wrap, t + 1, nullptr, callbacks.user_data);
+				callbacks.lifting_event(settings.wavelet, settings.wrap, t, nullptr, callbacks.user_data);
 
 			Unlift(callbacks, settings.wavelet, tile_w, tile_h, channels, reinterpret_cast<TCoeff*>(workarea[0]),
 			       reinterpret_cast<TCoeff*>(workarea[1]));
 
 			if (callbacks.lifting_event != nullptr)
-				callbacks.lifting_event(settings.wavelet, settings.wrap, t + 1, workarea[1], callbacks.user_data);
+				callbacks.lifting_event(settings.wavelet, settings.wrap, t, workarea[1], callbacks.user_data);
 		}
 
 		// 4. Format
 		{
 			if (callbacks.format_event != nullptr)
-				callbacks.format_event(settings.color, t + 1, nullptr, callbacks.user_data);
+				callbacks.format_event(settings.color, t, nullptr, callbacks.user_data);
 
 			FormatToRgb(settings.color, tile_w, tile_h, channels, tile_w, reinterpret_cast<TCoeff*>(workarea[1]),
 			            reinterpret_cast<TOut*>(workarea[0]));
 
 			if (callbacks.format_event != nullptr)
-				callbacks.format_event(settings.color, t + 1, workarea[0], callbacks.user_data);
+				callbacks.format_event(settings.color, t, workarea[0], callbacks.user_data);
 		}
 
 		// 5. Copy image data

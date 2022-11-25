@@ -47,7 +47,7 @@ struct ImageHead
 	uint32_t magic;
 	uint32_t a; // Width (25), Depth (5), Color (2)
 	uint32_t b; // Height (25), Tiles dimension (5), Wavelet (2)
-	uint32_t c; // Channels (25), Wrap (2), Compression (2), Unused (3)
+	uint32_t c; // Channels (25), Wrap (2), Unused (5)
 };
 
 struct TileHead
@@ -55,7 +55,7 @@ struct TileHead
 	uint32_t magic;
 	uint32_t no;
 	uint32_t compressed_size;
-	uint32_t unused;
+	uint32_t tags; // Compression (2), Unused (30)
 };
 
 enum class Endianness
@@ -141,11 +141,12 @@ template <typename T> T SaturateToLower(T v);
 // encode/compression.cpp:
 
 template <typename T>
-int Decompress(const Settings&, size_t compressed_size, unsigned width, unsigned height, unsigned channels,
+int Decompress(Compression compression, size_t compressed_size, unsigned width, unsigned height, unsigned channels,
                const void* input, T* output, Status&);
 
 template <typename T>
-size_t Compress(const Settings&, unsigned width, unsigned height, unsigned channels, const T* input, void* output);
+size_t Compress(const Settings&, unsigned width, unsigned height, unsigned channels, const T* input, void* output,
+                Compression& out_compression);
 
 
 // decode/format.cpp:
@@ -163,12 +164,11 @@ void FormatToInternal(const Color& color_transformation, bool discard, unsigned 
 // decode/headers.cpp
 // encode/header.cpp
 
-Status TileHeadRead(const TileHead& head_raw, size_t& out_compressed_size);
+Status TileHeadRead(const TileHead& head_raw, Compression& out_compression, size_t& out_compressed_size);
+void TileHeadWrite(unsigned no, Compression compression, size_t compressed_size, TileHead& out);
 
 void ImageHeadWrite(const Settings& settings, unsigned image_w, unsigned image_h, unsigned channels, unsigned depth,
                     ImageHead& out);
-
-void TileHeadWrite(unsigned no, size_t compressed_size, TileHead& out);
 
 
 // decode/lifting.cpp:

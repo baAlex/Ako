@@ -72,11 +72,6 @@ Status DecodeHead(size_t input_size, const void* input, unsigned* out_width, uns
 	if (status != Status::Ok)
 		return status;
 
-	settings.compression =
-	    ToCompression(static_cast<uint32_t>((head.c >> 3) & 0x3), status); // Compression, 2 in 2 bits
-	if (status != Status::Ok)
-		return status;
-
 	if ((status = ValidateProperties(width, height, channels, depth)) != Status::Ok ||
 	    (status = ValidateSettings(settings)) != Status::Ok)
 		return status;
@@ -97,22 +92,26 @@ Status DecodeHead(size_t input_size, const void* input, unsigned* out_width, uns
 }
 
 
-Status TileHeadRead(const TileHead& head_raw, size_t& out_compressed_size)
+Status TileHeadRead(const TileHead& head_raw, Compression& out_compression, size_t& out_compressed_size)
 {
-	TileHead head = head_raw;
+	auto head = head_raw;
+	auto status = Status::Ok;
 
 	if (SystemEndianness() != Endianness::Little)
 	{
 		head.magic = EndiannessReverse(head.magic);
 		head.no = EndiannessReverse(head.no);
 		head.compressed_size = EndiannessReverse(head.compressed_size);
+		head.tags = EndiannessReverse(head.tags);
 	}
 
 	if (head.magic != TILE_HEAD_MAGIC || head.compressed_size == 0)
 		return Status::InvalidTileHead;
 
 	out_compressed_size = head.compressed_size;
-	return Status::Ok;
+	out_compression = ToCompression(static_cast<uint32_t>((head.tags >> 30) & 0x3), status); // Compression, 2 in 2 bits
+
+	return status;
 }
 
 } // namespace ako

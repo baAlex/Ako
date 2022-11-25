@@ -45,10 +45,9 @@ void ImageHeadWrite(const Settings& settings, unsigned image_w, unsigned image_h
 	out.b |= static_cast<uint32_t>(td & 0x1F) << 2;                   // Tiles, 5 in 5 bits
 	out.b |= static_cast<uint32_t>(ToNumber(settings.wavelet) & 0x3); // Wavelet, 2 in 2 bits
 
-	out.c = static_cast<uint32_t>((channels - 1) & 0xFFFFFF) << 7;             // Channels, 24 in 25 bits
-	out.c |= static_cast<uint32_t>(ToNumber(settings.wrap) & 0x3) << 5;        // Wrap, 2 in 2 bits
-	out.c |= static_cast<uint32_t>(ToNumber(settings.compression) & 0x3) << 3; // Compression, 2 in 2 bits
-	out.c |= static_cast<uint32_t>(0);                                         // Unused 3 bits
+	out.c = static_cast<uint32_t>((channels - 1) & 0xFFFFFF) << 7;      // Channels, 24 in 25 bits
+	out.c |= static_cast<uint32_t>(ToNumber(settings.wrap) & 0x3) << 5; // Wrap, 2 in 2 bits
+	out.c |= static_cast<uint32_t>(0);                                  // Unused 5 bits
 
 	if (SystemEndianness() != Endianness::Little)
 	{
@@ -60,13 +59,15 @@ void ImageHeadWrite(const Settings& settings, unsigned image_w, unsigned image_h
 }
 
 
-void TileHeadWrite(unsigned no, size_t compressed_size, TileHead& out)
+void TileHeadWrite(unsigned no, Compression compression, size_t compressed_size, TileHead& out)
 {
 	out.magic = TILE_HEAD_MAGIC;
 
 	out.no = static_cast<uint32_t>(no);
 	out.compressed_size = static_cast<uint32_t>(compressed_size); // TODO, check
-	out.unused = 0;
+
+	out.tags = 0;
+	out.tags |= static_cast<uint32_t>(ToNumber(compression) & 0x3) << 30; // Compression, 2 bits
 
 	if (SystemEndianness() != Endianness::Little)
 	{

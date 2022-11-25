@@ -137,9 +137,9 @@ static void sCommon(CallbacksData& data, unsigned tile_no, const void* image_dat
 	// we do it now when all tile info is there
 	if (data.print == true && data.current_tile == tile_no)
 	{
-		printf("%s\tTile %u of %u, [%u, %u], %ux%u px (%zu byte(s))\n", data.prefix, data.current_tile, data.tiles_no,
-		       data.tile_x, data.tile_y, data.tile_width, data.tile_height, data.tile_data_size);
-		data.current_tile = 0;
+		printf("%s\tTile %u of %u, [%u, %u], %ux%u px (%zu byte(s))\n", data.prefix, data.current_tile + 1,
+		       data.tiles_no, data.tile_x, data.tile_y, data.tile_width, data.tile_height, data.tile_data_size);
+		data.current_tile = 99999; // TODO
 	}
 
 	// Benchmark
@@ -158,7 +158,7 @@ void CallbackFormatEvent(ako::Color color, unsigned tile_no, const void* image_d
 	// Start event
 	if (image_data == nullptr)
 	{
-		if (data.print == true && tile_no == 1)
+		if (data.print == true && tile_no == 0)
 			printf("%s\t\t- Color transformation: %s\n", data.prefix, ako::ToString(color));
 	}
 
@@ -185,7 +185,7 @@ void CallbackLiftingEvent(ako::Wavelet wavelet, ako::Wrap wrap, unsigned tile_no
 	// Start event
 	if (image_data == nullptr)
 	{
-		if (data.print == true && tile_no == 1)
+		if (data.print == true && tile_no == 0)
 		{
 			printf("%s\t\t- Wavelet transformation: %s\n", data.prefix, ako::ToString(wavelet));
 			printf("%s\t\t- Wrap mode: %s\n", data.prefix, ako::ToString(wrap));
@@ -211,16 +211,12 @@ void CallbackCompressionEvent(ako::Compression compression, unsigned tile_no, co
 	// As above
 	sCommon(data, tile_no, image_data);
 
-	// Start event
-	if (image_data == nullptr)
-	{
-		if (data.print == true && tile_no == 1)
-			printf("%s\t\t- Compression method: %s\n", data.prefix, ako::ToString(compression));
-	}
-
 	// End event
-	else
+	if (image_data != nullptr)
 	{
+		if (data.print == true)
+			printf("%s\t\t- Compression method: %s\n", data.prefix, ako::ToString(compression));
+
 		// Benchmark
 		const auto diff = chrono::duration_cast<chrono::microseconds>(chrono::steady_clock::now() - data.clock);
 		data.compression_duration += diff;

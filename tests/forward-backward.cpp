@@ -21,6 +21,7 @@ struct GatheredTileInfo
 	unsigned y;
 
 	size_t data_size;
+	ako::Compression compression;
 };
 
 struct GatheredGeneralInfo
@@ -88,6 +89,19 @@ static void sCallbackGenericEvent(ako::GenericEvent e, unsigned arg_a, unsigned 
 }
 
 
+static void sCallbackCompressionEvent(ako::Compression compression, unsigned tile_no, const void* image_data,
+                                      void* user_data)
+{
+	auto& data = *reinterpret_cast<GatheredGeneralInfo*>(user_data);
+
+	if (image_data != nullptr) // End event
+	{
+		assert(tile_no < MAX_TILE_INFO);
+		data.tile[tile_no].compression = compression;
+	}
+}
+
+
 template <typename T>
 static void sTest(const char* out_filename, const ako::Settings& settings, unsigned width, unsigned height,
                   unsigned channels, T (*data_generator)(unsigned, uint32_t&))
@@ -120,6 +134,7 @@ static void sTest(const char* out_filename, const ako::Settings& settings, unsig
 	{
 		auto callbacks = ako::DefaultCallbacks();
 		callbacks.generic_event = sCallbackGenericEvent;
+		callbacks.compression_event = sCallbackCompressionEvent;
 		callbacks.user_data = &s_encoded_info;
 
 		auto status = ako::Status::Error; // Assume error
@@ -150,6 +165,7 @@ static void sTest(const char* out_filename, const ako::Settings& settings, unsig
 	{
 		auto callbacks = ako::DefaultCallbacks();
 		callbacks.generic_event = sCallbackGenericEvent;
+		callbacks.compression_event = sCallbackCompressionEvent;
 		callbacks.user_data = &s_decoded_info;
 
 		auto status = ako::Status::Error; // Assume error
@@ -165,7 +181,7 @@ static void sTest(const char* out_filename, const ako::Settings& settings, unsig
 		if (decoded_data == nullptr)
 			printf("Ako decode error: '%s'\n", ToString(status));
 
-		// Simple hecks
+		// Simple checks
 		assert(decoded_data != nullptr);
 		assert(status != ako::Status::Error);
 
@@ -199,6 +215,8 @@ static void sTest(const char* out_filename, const ako::Settings& settings, unsig
 		assert(s_encoded_info.max_tile_index == s_decoded_info.max_tile_index);
 		for (size_t i = 0; i < s_encoded_info.max_tile_index; i += 1) // Yes, ignoring 'tiles_no'
 		{
+			assert(s_encoded_info.tile[i].compression == s_decoded_info.tile[i].compression);
+
 			// Bad maths, since all information here isn't transmitted in the file itself, but calculated
 			assert(s_encoded_info.tile[i].width == s_decoded_info.tile[i].width);
 			assert(s_encoded_info.tile[i].height == s_decoded_info.tile[i].height);

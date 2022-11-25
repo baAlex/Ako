@@ -119,23 +119,28 @@ const unsigned BUFFER_SIZE = 512 * 512;
 
 template <>
 size_t Compress(const Settings& settings, unsigned width, unsigned height, unsigned channels, const int16_t* input,
-                void* output)
+                void* output, Compression& out_compression)
 {
 	size_t compressed_size = 0;
 
 	if (settings.compression == Compression::Kagari)
 	{
 		auto compressor = CompressorKagari<int16_t>(BUFFER_SIZE, sizeof(int16_t) * width * height * channels, output);
+		out_compression = Compression::Kagari;
 
-		if (sCompress(compressor, settings, width, height, channels, input) == 0)
+		if (sCompress(compressor, settings, width, height, channels, input) == 0 ||
+		    (compressed_size = compressor.Finish()) == 0)
+		{
+			printf("!!! Is better to not compress !!!\n"); // TODO, use callbacks
 			goto fallback;
-		if ((compressed_size = compressor.Finish()) == 0)
-			goto fallback;
+		}
 	}
 	else // No compression
 	{
 	fallback:
 		auto compressor = CompressorNone<int16_t>(BUFFER_SIZE, output);
+		out_compression = Compression::None;
+
 		sCompress(compressor, settings, width, height, channels, input);
 		compressed_size = compressor.Finish();
 	}
@@ -145,23 +150,28 @@ size_t Compress(const Settings& settings, unsigned width, unsigned height, unsig
 
 template <>
 size_t Compress(const Settings& settings, unsigned width, unsigned height, unsigned channels, const int32_t* input,
-                void* output)
+                void* output, Compression& out_compression)
 {
 	size_t compressed_size = 0;
 
 	if (settings.compression == Compression::Kagari)
 	{
 		auto compressor = CompressorKagari<int32_t>(BUFFER_SIZE, sizeof(int32_t) * width * height * channels, output);
+		out_compression = Compression::Kagari;
 
-		if (sCompress(compressor, settings, width, height, channels, input) == 0)
+		if (sCompress(compressor, settings, width, height, channels, input) == 0 ||
+		    (compressed_size = compressor.Finish()) == 0)
+		{
+			printf("!!! Is better to not compress !!!\n"); // TODO, use callbacks
 			goto fallback;
-		if ((compressed_size = compressor.Finish()) == 0)
-			goto fallback;
+		}
 	}
 	else // No compression
 	{
 	fallback:
 		auto compressor = CompressorNone<int32_t>(BUFFER_SIZE, output);
+		out_compression = Compression::None;
+
 		sCompress(compressor, settings, width, height, channels, input);
 		compressed_size = compressor.Finish();
 	}
