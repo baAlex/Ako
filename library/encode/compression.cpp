@@ -34,27 +34,35 @@ namespace ako
 
 template <typename T> static inline void sQuantizer(float q, unsigned length, const T* in, T* out)
 {
-	if (std::isinf(q) == true)
+	if (std::isinf(q) == false)
 	{
-		for (unsigned i = 0; i < length; i += 1)
-			out[i] = 0;
-	}
-	else if (q > 1.0F)
-	{
-		for (unsigned i = 0; i < length; i += 1)
-			out[i] = static_cast<T>(std::roundf(static_cast<float>(in[i]) / q) * q);
+		if (q > 1.0F)
+		{
+			// Round is slow, really slow (floor seems to be SIMD optimized)
+
+			// for (unsigned i = 0; i < length; i += 1)
+			//	out[i] = static_cast<T>(std::roundf(static_cast<float>(in[i]) / q) * q);
+
+			for (unsigned i = 0; i < length; i += 1)
+				out[i] = static_cast<T>(floorf(static_cast<float>(in[i]) / q + 0.5F) * q);
+		}
+		else
+		{
+			for (unsigned i = 0; i < length; i += 1)
+				out[i] = in[i];
+		}
 	}
 	else
 	{
 		for (unsigned i = 0; i < length; i += 1)
-			out[i] = in[i];
+			out[i] = 0;
 	}
 }
 
 
 template <typename T>
-static size_t sCompress(Compressor<T>& compressor, const Settings& settings, unsigned width, unsigned height,
-                        unsigned channels, const T* input)
+static size_t sCompress2ndPhase(Compressor<T>& compressor, const Settings& settings, unsigned width, unsigned height,
+                                unsigned channels, const T* input)
 {
 	// Code suspiciously similar to Unlift()
 
@@ -83,7 +91,7 @@ static size_t sCompress(Compressor<T>& compressor, const Settings& settings, uns
 
 		// Quantization step
 		const auto x = (static_cast<float>(lifts_no) - static_cast<float>(lift + 1)) / static_cast<float>(lifts_no - 1);
-		const auto q = powf(2.0F, x * (settings.quantization / 5.0F) * powf(x / 16.0F, 1.0F));
+		const auto q = powf(2.0F, x * settings.quantization * powf(x / 16.0F, 1.0F));
 		const float q_diagonal = (settings.quantization > 0.0F) ? 2.0F : 1.0F;
 
 		// printf("x: %f, q: %f\n", x, (x > 0.0) ? q : 1.0F);
@@ -117,66 +125,111 @@ static size_t sCompress(Compressor<T>& compressor, const Settings& settings, uns
 
 const unsigned BUFFER_SIZE = 512 * 512;
 
+template <typename T>
+static size_t sCompress1stPhase(const Settings& settings, unsigned width, unsigned height, unsigned channels,
+                                const T* input, void* output, Compression& out_compression)
+{
+	size_t compressed_size = 0;
+
+	if (settings.compression == Compression::None)
+		goto fallback;
+
+	// Compress following quantization (including no quantization at all)
+	if (settings.quantization > 0.0F || settings.ratio < 1.0F)
+	{
+		auto compressor = CompressorKagari<T>(BUFFER_SIZE, sizeof(T) * width * height * channels, output);
+		out_compression = Compression::Kagari;
+
+		if (sCompress2ndPhase(compressor, settings, width, height, channels, input) == 0 ||
+		    (compressed_size = compressor.Finish()) == 0)
+		{
+			printf("!!! Compression fallback !!!\n"); // TODO, use callbacks
+			goto fallback;
+		}
+	}
+
+	// Compress iterating until meet a certain ratio
+	else
+	{
+		const auto target_size = static_cast<float>((sizeof(T) >> 1) * width * height * channels) / settings.ratio;
+		out_compression = Compression::Kagari;
+
+		auto s = settings;
+		auto q_floor = 1.0F;
+		auto q_ceil = 1.0F;
+		auto q = 1.0F;
+
+		// Find ceil
+		while (1)
+		{
+			q_floor = q_ceil;
+			q_ceil *= 2.0F;
+			s.quantization = q_ceil;
+			// printf("%.4f\n", q_ceil);
+
+			auto compressor = CompressorKagari<T>(BUFFER_SIZE, static_cast<size_t>(target_size), output);
+			if ((compressed_size = sCompress2ndPhase(compressor, s, width, height, channels, input)) != 0)
+				break;
+
+			// TODO, bad hardcoded limit, but technically quantization doesn't have a maximum right now
+			if (q_ceil > 4096.0F)
+			{
+				printf("!!! Compression fallback !!!\n"); // TODO, use callbacks
+				goto fallback;
+			}
+		}
+
+		// Divide space by two
+		for (int i = 0; i < 8; i += 1)
+		{
+			q = (q_floor + q_ceil) / 2.0F;
+			s.quantization = q;
+			// printf("%.4f, %.4f -> %.4f\n", q_floor, q_ceil, q);
+
+			auto compressor = CompressorKagari<T>(BUFFER_SIZE, static_cast<size_t>(target_size), output);
+			compressed_size = sCompress2ndPhase(compressor, s, width, height, channels, input);
+
+			if (target_size > static_cast<float>(compressed_size) && compressed_size != 0)
+				q_ceil = q;
+			else
+				q_floor = q;
+		}
+
+		// One more time!
+		{
+			s.quantization = q_ceil;
+			printf("%.4f\n", q_ceil);
+
+			auto compressor = CompressorKagari<T>(BUFFER_SIZE, static_cast<size_t>(target_size), output);
+			compressed_size = sCompress2ndPhase(compressor, s, width, height, channels, input);
+		}
+	}
+
+	return compressed_size;
+
+fallback:
+	auto compressor = CompressorNone<T>(BUFFER_SIZE, output);
+	out_compression = Compression::None;
+
+	sCompress2ndPhase(compressor, settings, width, height, channels, input);
+	compressed_size = compressor.Finish();
+
+	return compressed_size;
+}
+
+
 template <>
 size_t Compress(const Settings& settings, unsigned width, unsigned height, unsigned channels, const int16_t* input,
                 void* output, Compression& out_compression)
 {
-	size_t compressed_size = 0;
-
-	if (settings.compression == Compression::Kagari)
-	{
-		auto compressor = CompressorKagari<int16_t>(BUFFER_SIZE, sizeof(int16_t) * width * height * channels, output);
-		out_compression = Compression::Kagari;
-
-		if (sCompress(compressor, settings, width, height, channels, input) == 0 ||
-		    (compressed_size = compressor.Finish()) == 0)
-		{
-			printf("!!! Is better to not compress !!!\n"); // TODO, use callbacks
-			goto fallback;
-		}
-	}
-	else // No compression
-	{
-	fallback:
-		auto compressor = CompressorNone<int16_t>(BUFFER_SIZE, output);
-		out_compression = Compression::None;
-
-		sCompress(compressor, settings, width, height, channels, input);
-		compressed_size = compressor.Finish();
-	}
-
-	return compressed_size;
+	return sCompress1stPhase(settings, width, height, channels, input, output, out_compression);
 }
 
 template <>
 size_t Compress(const Settings& settings, unsigned width, unsigned height, unsigned channels, const int32_t* input,
                 void* output, Compression& out_compression)
 {
-	size_t compressed_size = 0;
-
-	if (settings.compression == Compression::Kagari)
-	{
-		auto compressor = CompressorKagari<int32_t>(BUFFER_SIZE, sizeof(int32_t) * width * height * channels, output);
-		out_compression = Compression::Kagari;
-
-		if (sCompress(compressor, settings, width, height, channels, input) == 0 ||
-		    (compressed_size = compressor.Finish()) == 0)
-		{
-			printf("!!! Is better to not compress !!!\n"); // TODO, use callbacks
-			goto fallback;
-		}
-	}
-	else // No compression
-	{
-	fallback:
-		auto compressor = CompressorNone<int32_t>(BUFFER_SIZE, output);
-		out_compression = Compression::None;
-
-		sCompress(compressor, settings, width, height, channels, input);
-		compressed_size = compressor.Finish();
-	}
-
-	return compressed_size;
+	return sCompress1stPhase(settings, width, height, channels, input, output, out_compression);
 }
 
 } // namespace ako

@@ -140,9 +140,11 @@ struct Settings
 
 	// Non recoverable when decoding:
 	float quantization;
+	bool discard;
 	float gate;
 	float chroma_loss;
-	bool discard;
+
+	float ratio;
 };
 
 AKO_EXPORT size_t EncodeEx(const Callbacks&, const Settings&, unsigned width, unsigned height, unsigned channels,

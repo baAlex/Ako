@@ -200,7 +200,8 @@ int main(int argc, const char* argv[])
 	{
 		const auto uncompressed_size = static_cast<float>(width * height * channels) / 1000.0F;
 		const auto compressed_size = static_cast<float>(input_blob_size) / 1000.0F;
-		const auto bpp = (static_cast<float>(input_blob_size) / static_cast<float>(width * height * channels)) * 8.0F;
+		const auto bpp = (static_cast<float>(input_blob_size) / static_cast<float>(width * height * channels)) * 8.0F *
+		                 static_cast<float>(channels);
 
 		if (checksum == true)
 			printf("(%x) %.2f kB <- %.2f kB, ratio: %.2f:1, %.4f bpp\n", hash, uncompressed_size, compressed_size,

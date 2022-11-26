@@ -115,7 +115,7 @@ int main(int argc, const char* argv[])
 		                                          ->option_text("OPTION")
 		                                          ->transform(CheckedTransformer(s_wavelet_transformer, ignore_case));
 
-		app.add_option("-r,--wrap", s.wrap, "Wrap mode: CLAMP, MIRROR, REPEAT or ZERO.\n"
+		app.add_option("-p,--wrap", s.wrap, "Wrap mode: CLAMP, MIRROR, REPEAT or ZERO.\n"
 		                                    "[Default is " + string(ToString(s.wrap)) + "]")
 		                                    ->option_text("OPTION")
 		                                    ->transform(CheckedTransformer(s_wrap_transformer, ignore_case));
@@ -129,18 +129,22 @@ int main(int argc, const char* argv[])
 		                                                    "[Default is " + to_string(s.quantization) +"]")
 		                                                    ->option_text("NUMBER");
 
-		app.add_option("-g,--noise-gate", s.gate, "Noise gate threshold, controls loss. Zero for lossless.\n"
+		/*app.add_option("-g,--noise-gate", s.gate, "Noise gate threshold, controls loss. Zero for lossless.\n"
 		                                          "[Default is " + to_string(s.gate) +"]")
 		                                          ->option_text("NUMBER");
 
 		app.add_option("-l,--chroma-loss", s.chroma_loss, "Multiplies quantization and noise-gate threshold on\n"
 		                                                  "chroma channels. Zero or 1 for same loss in both luma\n"
 		                                                  "and chroma channels.\n"
-		                                                  "[Default is " + to_string(s.chroma_loss) +"]")->option_text("NUMBER");
+		                                                  "[Default is " + to_string(s.chroma_loss) +"]")->option_text("NUMBER");*/
 
 		app.add_flag("-d,--discard", s.discard, "Discards pixels under fully transparent areas. If set\n"
 		                                        "output will be lossy.\n"
 		                                        "[" + ((s.discard) ? string("Set") : string("No set")) + " by default]");
+
+		app.add_option("-r,--ratio", s.ratio, "Ratio. Zero for lossless.\n"
+		                                      "[Default is " + to_string(s.ratio) +"]")
+		                                      ->option_text("NUMBER");
 
 		app.add_option("-t,--tiles-size", s.tiles_dimension, "Tiles size, must be a power of two. Zero traits image\nas a whole.\n"
 		                                                     "[Default is " + to_string(s.tiles_dimension) +"]")
@@ -150,8 +154,9 @@ int main(int argc, const char* argv[])
 		CLI11_PARSE(app, argc, argv);
 
 		s.quantization = (s.quantization > 0.0F) ? s.quantization : 0.0F;
-		s.gate = (s.gate > 0.0F) ? s.gate : 0.0F;
-		s.chroma_loss = (s.chroma_loss > 0.0F) ? s.chroma_loss : 0.0F;
+		// s.gate = (s.gate > 0.0F) ? s.gate : 0.0F;
+		// s.chroma_loss = (s.chroma_loss > 0.0F) ? s.chroma_loss : 0.0F;
+		s.ratio = (s.ratio > 0.0F) ? s.ratio : 0.0F;
 	}
 
 	if (quiet == false && verbose == true)
@@ -269,7 +274,8 @@ int main(int argc, const char* argv[])
 	{
 		const auto uncompressed_size = static_cast<float>(width * height * channels) / 1000.0F;
 		const auto compressed_size = static_cast<float>(encoded_blob_size) / 1000.0F;
-		const auto bpp = (static_cast<float>(encoded_blob_size) / static_cast<float>(width * height * channels)) * 8.0F;
+		const auto bpp = (static_cast<float>(encoded_blob_size) / static_cast<float>(width * height * channels)) *
+		                 8.0F * static_cast<float>(channels);
 
 		if (checksum == true)
 			printf("(%x) %.2f kB -> %.2f kB, ratio: %.2f:1, %.4f bpp\n", hash, uncompressed_size, compressed_size,
