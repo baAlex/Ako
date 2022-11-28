@@ -83,8 +83,9 @@ static void sCallbackGenericEvent(ako::GenericEvent e, unsigned arg_a, unsigned 
 		data.tile[arg_a].data_size = arg_d.u;
 		break;
 
-	case ako::GenericEvent::LiftLowpassDimensions: // fallthrough
-	case ako::GenericEvent::LiftHighpassesDimensions: break;
+	case ako::GenericEvent::LiftLowpassDimensions:    // fallthrough
+	case ako::GenericEvent::LiftHighpassesDimensions: // fallthrough
+	case ako::GenericEvent::RatioIteration: break;
 	}
 }
 

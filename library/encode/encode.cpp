@@ -153,8 +153,8 @@ static size_t sEncodeInternal(const Callbacks& callbacks, const Settings& settin
 			if (callbacks.compression_event != nullptr)
 				callbacks.compression_event(settings.compression, t, nullptr, callbacks.user_data);
 
-			tile_data_size = Compress(settings, tile_w, tile_h, channels, reinterpret_cast<TCoeff*>(workarea[1]),
-			                          workarea[0], tile_compression);
+			tile_data_size = Compress(callbacks, settings, tile_w, tile_h, channels,
+			                          reinterpret_cast<TCoeff*>(workarea[1]), workarea[0], tile_compression);
 
 			if (callbacks.compression_event != nullptr)
 				callbacks.compression_event(tile_compression, t, workarea[0], callbacks.user_data);

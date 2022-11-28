@@ -91,11 +91,17 @@ void CallbackGenericEvent(ako::GenericEvent e, unsigned arg_a, unsigned arg_b, u
 		// Lift info
 		case ako::GenericEvent::LiftLowpassDimensions:
 			if (data.print == true)
-				printf("%s\t\t- LowpassCh%u, %ux%u px = %li\n", data.prefix, arg_c, arg_a, arg_b, arg_d.s);
+				printf("%s\t\t- LowpassCh%u %ux%u px (%li)\n", data.prefix, arg_c, arg_a, arg_b, arg_d.s);
 			break;
 		case ako::GenericEvent::LiftHighpassesDimensions:
 			if (data.print == true)
-				printf("%s\t\t- Highpass, %ux%u px\n", data.prefix, arg_a, arg_b);
+				printf("%s\t\t- Highpass %ux%u px\n", data.prefix, arg_a, arg_b);
+			break;
+
+		// Ratio
+		case ako::GenericEvent::RatioIteration:
+			if (data.print == true)
+				printf("%s\t\t- Ratio iteration, q: %.3f\n", data.prefix, arg_d.f);
 			break;
 		}
 	}

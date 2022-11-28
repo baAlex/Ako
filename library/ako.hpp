@@ -93,6 +93,7 @@ union GenericType // Like is the 80s again
 {
 	size_t u;
 	signed long s;
+	float f;
 };
 
 enum class GenericEvent
@@ -112,6 +113,8 @@ enum class GenericEvent
 
 	LiftLowpassDimensions,
 	LiftHighpassesDimensions,
+
+	RatioIteration,
 };
 
 struct Callbacks

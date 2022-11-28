@@ -89,7 +89,7 @@ static size_t sCompress2ndPhase(Compressor<T>& compressor, const Settings& setti
 
 		// Quantization step
 		const auto x = (static_cast<float>(lifts_no) - static_cast<float>(lift + 1)) / static_cast<float>(lifts_no - 1);
-		const auto q = std::pow(2.0F, x * settings.quantization * std::pow(x / 16.0F, 1.0F));
+		const auto q = std::pow(2.0F, x * (settings.quantization * 2.0F) * std::pow(x / 8.0F, 1.8F));
 		const float q_diagonal = (settings.quantization > 0.0F) ? 2.0F : 1.0F;
 
 		// printf("x: %f, q: %f\n", x, (x > 0.0) ? q : 1.0F);
@@ -122,10 +122,20 @@ static size_t sCompress2ndPhase(Compressor<T>& compressor, const Settings& setti
 
 
 const unsigned BUFFER_SIZE = 512 * 512;
+const unsigned TRY = 8;
+const float ITERATION_SCALE = 4.0F;
+
+
+static GenericType sDesignatedInitialization(float value)
+{
+	GenericType t;
+	t.f = value;
+	return t;
+}
 
 template <typename T>
-static size_t sCompress1stPhase(const Settings& settings, unsigned width, unsigned height, unsigned channels,
-                                const T* input, void* output, Compression& out_compression)
+static size_t sCompress1stPhase(const Callbacks& callbacks, const Settings& settings, unsigned width, unsigned height,
+                                unsigned channels, const T* input, void* output, Compression& out_compression)
 {
 	size_t compressed_size = 0;
 
@@ -152,16 +162,32 @@ static size_t sCompress1stPhase(const Settings& settings, unsigned width, unsign
 		out_compression = Compression::Kagari;
 
 		auto s = settings;
-		auto q_floor = 1.0F;
+		auto q_floor = 0.0F;
 		auto q_ceil = 1.0F;
+
+		// Check if lossless is enough
+		{
+			s.quantization = 0.0F;
+
+			if (callbacks.generic_event != nullptr)
+				callbacks.generic_event(GenericEvent::RatioIteration, 0, 0, 0,
+				                        sDesignatedInitialization(s.quantization), callbacks.user_data);
+
+			compressor.Reset(BUFFER_SIZE, static_cast<size_t>(target_size), output);
+			if ((compressed_size = sCompress2ndPhase(compressor, s, width, height, channels, input)) != 0)
+				return compressed_size; // Done!
+		}
 
 		// Find ceil
 		while (1)
 		{
 			q_floor = q_ceil;
-			q_ceil *= 2.0F;
+			q_ceil = q_ceil * ITERATION_SCALE;
 			s.quantization = q_ceil;
-			// printf("%.4f\n", q_ceil);
+
+			if (callbacks.generic_event != nullptr)
+				callbacks.generic_event(GenericEvent::RatioIteration, 0, 0, 0,
+				                        sDesignatedInitialization(s.quantization), callbacks.user_data);
 
 			compressor.Reset(BUFFER_SIZE, static_cast<size_t>(target_size), output);
 			if ((compressed_size = sCompress2ndPhase(compressor, s, width, height, channels, input)) != 0)
@@ -172,33 +198,42 @@ static size_t sCompress1stPhase(const Settings& settings, unsigned width, unsign
 				goto fallback;
 		}
 
-		// Divide space by two
-		for (int i = 0; i < 8; i += 1)
+		// Check by dividing the space by two
+		for (unsigned i = 0; i < TRY; i += 1)
 		{
 			const auto q = (q_floor + q_ceil) / 2.0F;
 			s.quantization = q;
-			// printf("%.4f, %.4f -> %.4f\n", q_floor, q_ceil, q);
+
+			if (callbacks.generic_event != nullptr)
+				callbacks.generic_event(GenericEvent::RatioIteration, 0, 0, 0,
+				                        sDesignatedInitialization(s.quantization), callbacks.user_data);
 
 			compressor.Reset(BUFFER_SIZE, static_cast<size_t>(target_size), output);
 			compressed_size = sCompress2ndPhase(compressor, s, width, height, channels, input);
 
-			if (target_size > static_cast<float>(compressed_size) && compressed_size != 0)
+			if (static_cast<float>(compressed_size) < target_size && compressed_size != 0)
+			{
 				q_ceil = q;
+				if (i == TRY - 1)
+					return compressed_size; // Done!
+			}
 			else
 				q_floor = q;
 		}
 
-		// One more time!
+		// Last check fail, lets do it with the last successful value
 		{
 			s.quantization = q_ceil;
-			printf("%.4f\n", q_ceil); // TODO, use callbacks
+
+			if (callbacks.generic_event != nullptr)
+				callbacks.generic_event(GenericEvent::RatioIteration, 0, 0, 0,
+				                        sDesignatedInitialization(s.quantization), callbacks.user_data);
 
 			compressor.Reset(BUFFER_SIZE, static_cast<size_t>(target_size), output);
 			compressed_size = sCompress2ndPhase(compressor, s, width, height, channels, input);
+			return compressed_size;
 		}
 	}
-
-	return compressed_size;
 
 fallback:
 	auto compressor = CompressorNone<T>(BUFFER_SIZE, output);
@@ -212,17 +247,17 @@ fallback:
 
 
 template <>
-size_t Compress(const Settings& settings, unsigned width, unsigned height, unsigned channels, const int16_t* input,
-                void* output, Compression& out_compression)
+size_t Compress(const Callbacks& callbacks, const Settings& settings, unsigned width, unsigned height,
+                unsigned channels, const int16_t* input, void* output, Compression& out_compression)
 {
-	return sCompress1stPhase(settings, width, height, channels, input, output, out_compression);
+	return sCompress1stPhase(callbacks, settings, width, height, channels, input, output, out_compression);
 }
 
 template <>
-size_t Compress(const Settings& settings, unsigned width, unsigned height, unsigned channels, const int32_t* input,
-                void* output, Compression& out_compression)
+size_t Compress(const Callbacks& callbacks, const Settings& settings, unsigned width, unsigned height,
+                unsigned channels, const int32_t* input, void* output, Compression& out_compression)
 {
-	return sCompress1stPhase(settings, width, height, channels, input, output, out_compression);
+	return sCompress1stPhase(callbacks, settings, width, height, channels, input, output, out_compression);
 }
 
 } // namespace ako
