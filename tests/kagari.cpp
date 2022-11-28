@@ -13,11 +13,24 @@
 #include "encode/compression-kagari.hpp"
 
 
-template <typename T> static inline void sQuantizer(float q, unsigned length, const T* in, T* out)
+template <typename T> static void sQuantizer(float q, unsigned length, const T* in, T* out)
 {
 	(void)q;
 	for (unsigned i = 0; i < length; i += 1)
 		out[i] = in[i];
+}
+
+
+static uint32_t sRandom32(uint32_t* state)
+{
+	// https://en.wikipedia.org/wiki/Xorshift#Example_implementation
+	auto x = *state;
+	x ^= static_cast<uint32_t>(x << 13);
+	x ^= static_cast<uint32_t>(x >> 17);
+	x ^= static_cast<uint32_t>(x << 5);
+	*state = x;
+
+	return x;
 }
 
 
@@ -73,7 +86,8 @@ static uint32_t sAdler32(const void* input, size_t input_size)
 
 template <typename T> static void sTestFile(const char* filename)
 {
-	const size_t KAGARI_BUFFER_LENGTH = 256 * 256;
+	const unsigned KAGARI_BUFFER_LENGTH = 256 * 256;
+	const unsigned READS_MAX_LENGTH = (256 * 256) * 2;
 
 	printf(" - File Test, filename '%s'\n", filename);
 
@@ -87,52 +101,64 @@ template <typename T> static void sTestFile(const char* filename)
 
 	// Allocate buffers
 	auto big_buffer = malloc(static_cast<size_t>(filesize));
-	auto tiny_buffer = reinterpret_cast<T*>(malloc(sizeof(T) * KAGARI_BUFFER_LENGTH));
+	auto tiny_buffer = reinterpret_cast<T*>(malloc(sizeof(T) * static_cast<size_t>(READS_MAX_LENGTH)));
 	assert(big_buffer != nullptr);
 	assert(tiny_buffer != nullptr);
 
-	// Compress input, processing it in blocks
-	uint32_t input_data_hash = 0x87654321;
+	// Compress input
+	uint32_t input_data_hash = 0x12345678;
 	size_t compressed_size = 0;
 	{
 		auto compressor = ako::CompressorKagari<T>(KAGARI_BUFFER_LENGTH, static_cast<size_t>(filesize), big_buffer);
+		uint32_t random_state = 1;
 		size_t buffers_no = 0;
+
 		while (1)
 		{
-			const auto read_length = fread(tiny_buffer, sizeof(T), KAGARI_BUFFER_LENGTH, fp);
-			if (read_length != KAGARI_BUFFER_LENGTH) // Stop here
+			// Read a chunk of variable length
+			const auto chunk_length = (sRandom32(&random_state) % (READS_MAX_LENGTH - 1)) + 1;
+			if (fread(tiny_buffer, sizeof(T), chunk_length, fp) != chunk_length)
 				break;
 
-			if (compressor.Step(sQuantizer, 1.0F, static_cast<unsigned>(read_length), 1, tiny_buffer) != 0)
+			// Compress it
+			if (compressor.Step(sQuantizer, 1.0F, chunk_length, 1, tiny_buffer) != 0)
 			{
 				printf("Nope, try with a more quantized image\n");
 				assert(1 == 0); // NOLINT misc-static-assert
 			}
 
-			input_data_hash ^= sAdler32(tiny_buffer, sizeof(T) * read_length); // I know, a bad way of mix hashes
+			// Keep information
+			input_data_hash ^= sAdler32(tiny_buffer, sizeof(T) * chunk_length); // I know, a bad way of mix hashes
 			buffers_no++;
 		}
 
+		// Done
 		compressed_size = compressor.Finish();
-		assert(compressed_size != 0);
-
 		printf("\t%zu, %x, %.2f kB\n", buffers_no, input_data_hash, static_cast<float>(compressed_size) / 1000.0F);
+		assert(compressed_size != 0);
 	}
 
 	// Decompress, same intricacies
-	uint32_t decoded_data_hash = 0x87654321;
+	uint32_t decoded_data_hash = 0x12345678;
 	{
 		auto decompressor = ako::DecompressorKagari<T>(KAGARI_BUFFER_LENGTH, compressed_size, big_buffer);
+		uint32_t random_state = 1;
 		size_t buffers_no = 0;
+
 		while (1)
 		{
-			if (decompressor.Step(KAGARI_BUFFER_LENGTH, 1, tiny_buffer) != ako::Status::Ok)
+			// Decompress a chunk of variable length
+			const auto chunk_length = (sRandom32(&random_state) % (READS_MAX_LENGTH - 1)) + 1;
+
+			if (decompressor.Step(chunk_length, 1, tiny_buffer) != ako::Status::Ok)
 				break;
 
-			decoded_data_hash ^= sAdler32(tiny_buffer, sizeof(int16_t) * KAGARI_BUFFER_LENGTH);
+			// Keep information
+			decoded_data_hash ^= sAdler32(tiny_buffer, sizeof(int16_t) * chunk_length);
 			buffers_no++;
 		}
 
+		// Done
 		printf("\t%zu, %x\n", buffers_no, decoded_data_hash);
 		assert(input_data_hash == decoded_data_hash);
 	}
