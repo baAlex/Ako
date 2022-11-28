@@ -27,8 +27,6 @@ SOFTWARE.
 #include "compression-kagari.hpp"
 #include "compression-none.hpp"
 
-#include <cfloat>
-
 namespace ako
 {
 
@@ -44,7 +42,7 @@ template <typename T> static inline void sQuantizer(float q, unsigned length, co
 			//	out[i] = static_cast<T>(std::roundf(static_cast<float>(in[i]) / q) * q);
 
 			for (unsigned i = 0; i < length; i += 1)
-				out[i] = static_cast<T>(floorf(static_cast<float>(in[i]) / q + 0.5F) * q);
+				out[i] = static_cast<T>(std::floor(static_cast<float>(in[i]) / q + 0.5F) * q);
 		}
 		else
 		{
@@ -91,7 +89,7 @@ static size_t sCompress2ndPhase(Compressor<T>& compressor, const Settings& setti
 
 		// Quantization step
 		const auto x = (static_cast<float>(lifts_no) - static_cast<float>(lift + 1)) / static_cast<float>(lifts_no - 1);
-		const auto q = powf(2.0F, x * settings.quantization * powf(x / 16.0F, 1.0F));
+		const auto q = std::pow(2.0F, x * settings.quantization * std::pow(x / 16.0F, 1.0F));
 		const float q_diagonal = (settings.quantization > 0.0F) ? 2.0F : 1.0F;
 
 		// printf("x: %f, q: %f\n", x, (x > 0.0) ? q : 1.0F);
@@ -142,22 +140,20 @@ static size_t sCompress1stPhase(const Settings& settings, unsigned width, unsign
 
 		if (sCompress2ndPhase(compressor, settings, width, height, channels, input) == 0 ||
 		    (compressed_size = compressor.Finish()) == 0)
-		{
-			printf("!!! Compression fallback !!!\n"); // TODO, use callbacks
 			goto fallback;
-		}
 	}
 
 	// Compress iterating until meet a certain ratio
 	else
 	{
 		const auto target_size = static_cast<float>((sizeof(T) >> 1) * width * height * channels) / settings.ratio;
+
+		auto compressor = CompressorKagari<T>(BUFFER_SIZE, static_cast<size_t>(target_size), output);
 		out_compression = Compression::Kagari;
 
 		auto s = settings;
 		auto q_floor = 1.0F;
 		auto q_ceil = 1.0F;
-		auto q = 1.0F;
 
 		// Find ceil
 		while (1)
@@ -167,26 +163,23 @@ static size_t sCompress1stPhase(const Settings& settings, unsigned width, unsign
 			s.quantization = q_ceil;
 			// printf("%.4f\n", q_ceil);
 
-			auto compressor = CompressorKagari<T>(BUFFER_SIZE, static_cast<size_t>(target_size), output);
+			compressor.Reset(BUFFER_SIZE, static_cast<size_t>(target_size), output);
 			if ((compressed_size = sCompress2ndPhase(compressor, s, width, height, channels, input)) != 0)
 				break;
 
 			// TODO, bad hardcoded limit, but technically quantization doesn't have a maximum right now
 			if (q_ceil > 4096.0F)
-			{
-				printf("!!! Compression fallback !!!\n"); // TODO, use callbacks
 				goto fallback;
-			}
 		}
 
 		// Divide space by two
 		for (int i = 0; i < 8; i += 1)
 		{
-			q = (q_floor + q_ceil) / 2.0F;
+			const auto q = (q_floor + q_ceil) / 2.0F;
 			s.quantization = q;
 			// printf("%.4f, %.4f -> %.4f\n", q_floor, q_ceil, q);
 
-			auto compressor = CompressorKagari<T>(BUFFER_SIZE, static_cast<size_t>(target_size), output);
+			compressor.Reset(BUFFER_SIZE, static_cast<size_t>(target_size), output);
 			compressed_size = sCompress2ndPhase(compressor, s, width, height, channels, input);
 
 			if (target_size > static_cast<float>(compressed_size) && compressed_size != 0)
@@ -198,9 +191,9 @@ static size_t sCompress1stPhase(const Settings& settings, unsigned width, unsign
 		// One more time!
 		{
 			s.quantization = q_ceil;
-			printf("%.4f\n", q_ceil);
+			printf("%.4f\n", q_ceil); // TODO, use callbacks
 
-			auto compressor = CompressorKagari<T>(BUFFER_SIZE, static_cast<size_t>(target_size), output);
+			compressor.Reset(BUFFER_SIZE, static_cast<size_t>(target_size), output);
 			compressed_size = sCompress2ndPhase(compressor, s, width, height, channels, input);
 		}
 	}

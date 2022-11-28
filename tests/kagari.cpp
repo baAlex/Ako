@@ -21,7 +21,6 @@ template <typename T> static inline void sQuantizer(float q, unsigned length, co
 }
 
 
-#if 0
 static uint32_t sAdler32(const void* input, size_t input_size)
 {
 	// Borrowed from LodePNG, modified.
@@ -72,7 +71,7 @@ static uint32_t sAdler32(const void* input, size_t input_size)
 }
 
 
-static void sTestFile(const char* filename)
+template <typename T> static void sTestFile(const char* filename)
 {
 	const size_t KAGARI_BUFFER_LENGTH = 256 * 256;
 
@@ -83,12 +82,12 @@ static void sTestFile(const char* filename)
 
 	// Get filesize
 	fseek(fp, 0, SEEK_END);
-	const auto size = ftell(fp);
+	const auto filesize = ftell(fp);
 	fseek(fp, 0, SEEK_SET);
 
 	// Allocate buffers
-	void* big_buffer = malloc(static_cast<size_t>(size));
-	void* tiny_buffer = malloc(sizeof(int16_t) * KAGARI_BUFFER_LENGTH);
+	auto big_buffer = malloc(static_cast<size_t>(filesize));
+	auto tiny_buffer = reinterpret_cast<T*>(malloc(sizeof(T) * KAGARI_BUFFER_LENGTH));
 	assert(big_buffer != nullptr);
 	assert(tiny_buffer != nullptr);
 
@@ -96,46 +95,45 @@ static void sTestFile(const char* filename)
 	uint32_t input_data_hash = 0x87654321;
 	size_t compressed_size = 0;
 	{
-		auto compressor = ako::CompressorKagari(KAGARI_BUFFER_LENGTH, big_buffer, static_cast<size_t>(size));
-		size_t blocks_no = 0;
+		auto compressor = ako::CompressorKagari<T>(KAGARI_BUFFER_LENGTH, static_cast<size_t>(filesize), big_buffer);
+		size_t buffers_no = 0;
 		while (1)
 		{
-			const auto read_length = fread(tiny_buffer, sizeof(int16_t), KAGARI_BUFFER_LENGTH, fp);
+			const auto read_length = fread(tiny_buffer, sizeof(T), KAGARI_BUFFER_LENGTH, fp);
 			if (read_length != KAGARI_BUFFER_LENGTH) // Stop here
 				break;
 
-			if (compressor.Step(sQuantizer, 1.0F, static_cast<unsigned>(read_length), 1,
-			                    reinterpret_cast<int16_t*>(tiny_buffer)) != 0)
+			if (compressor.Step(sQuantizer, 1.0F, static_cast<unsigned>(read_length), 1, tiny_buffer) != 0)
 			{
 				printf("Nope, try with a more quantized image\n");
 				assert(1 == 0); // NOLINT misc-static-assert
 			}
 
-			input_data_hash ^= sAdler32(tiny_buffer, sizeof(int16_t) * read_length); // I know, a bad way of mix hashes
-			blocks_no++;
+			input_data_hash ^= sAdler32(tiny_buffer, sizeof(T) * read_length); // I know, a bad way of mix hashes
+			buffers_no++;
 		}
 
 		compressed_size = compressor.Finish();
 		assert(compressed_size != 0);
 
-		printf("\t%zu, %x, %.2f\n", blocks_no, input_data_hash, static_cast<float>(compressed_size) / 1024.0F);
+		printf("\t%zu, %x, %.2f kB\n", buffers_no, input_data_hash, static_cast<float>(compressed_size) / 1000.0F);
 	}
 
 	// Decompress, same intricacies
 	uint32_t decoded_data_hash = 0x87654321;
 	{
-		auto decompressor = ako::DecompressorKagari(KAGARI_BUFFER_LENGTH, big_buffer, compressed_size);
-		size_t blocks_no = 0;
+		auto decompressor = ako::DecompressorKagari<T>(KAGARI_BUFFER_LENGTH, compressed_size, big_buffer);
+		size_t buffers_no = 0;
 		while (1)
 		{
-			if (decompressor.Step(KAGARI_BUFFER_LENGTH, 1, reinterpret_cast<int16_t*>(tiny_buffer)) != ako::Status::Ok)
+			if (decompressor.Step(KAGARI_BUFFER_LENGTH, 1, tiny_buffer) != ako::Status::Ok)
 				break;
 
 			decoded_data_hash ^= sAdler32(tiny_buffer, sizeof(int16_t) * KAGARI_BUFFER_LENGTH);
-			blocks_no++;
+			buffers_no++;
 		}
 
-		printf("\t%zu, %x\n", blocks_no, decoded_data_hash);
+		printf("\t%zu, %x\n", buffers_no, decoded_data_hash);
 		assert(input_data_hash == decoded_data_hash);
 	}
 
@@ -144,7 +142,6 @@ static void sTestFile(const char* filename)
 	free(big_buffer);
 	free(tiny_buffer);
 }
-#endif
 
 
 template <typename T> static void sTest(unsigned buffer_length, const char* input)
@@ -201,11 +198,11 @@ int main(int argc, const char* argv[])
 	printf("# Kagari Test (Ako v%i.%i.%i, %s)\n", ako::VersionMajor(), ako::VersionMinor(), ako::VersionPatch(),
 	       (ako::SystemEndianness() == ako::Endianness::Little) ? "little-endian" : "big-endian");
 
-	// if (argc > 1)
-	//{
-	//	sTestFile(argv[1]);
-	//	return EXIT_SUCCESS;
-	//}
+	if (argc > 1)
+	{
+		sTestFile<int16_t>(argv[1]);
+		return EXIT_SUCCESS;
+	}
 
 	const size_t BLOCK_SIZE = 16;
 

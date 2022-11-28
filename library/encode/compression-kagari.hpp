@@ -145,6 +145,16 @@ template <typename T> class CompressorKagari final : public Compressor<T>
   public:
 	CompressorKagari(unsigned buffer_length, size_t output_size, void* output)
 	{
+		Reset(buffer_length, output_size, output);
+	}
+
+	~CompressorKagari()
+	{
+		free(this->buffer_start);
+	}
+
+	void Reset(unsigned buffer_length, size_t output_size, void* output)
+	{
 		this->output_start = reinterpret_cast<uint8_t*>(output);
 		this->output_end = this->output_start + output_size;
 		this->output = this->output_start;
@@ -152,11 +162,6 @@ template <typename T> class CompressorKagari final : public Compressor<T>
 		this->buffer_start = reinterpret_cast<T*>(malloc(buffer_length * sizeof(T)));
 		this->buffer_end = this->buffer_start + buffer_length;
 		this->buffer = this->buffer_start;
-	}
-
-	~CompressorKagari()
-	{
-		free(this->buffer_start);
 	}
 
 	int Step(QuantizationCallback<T> quantize, float quantization, unsigned width, unsigned height,
