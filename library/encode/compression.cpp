@@ -30,7 +30,7 @@ SOFTWARE.
 namespace ako
 {
 
-template <typename T> static inline void sQuantizer(float q, unsigned length, const T* in, T* out)
+template <typename T> static void sQuantizer(float q, unsigned length, const T* in, T* out)
 {
 	if (std::isinf(q) == false)
 	{
@@ -126,13 +126,6 @@ const unsigned TRY = 8;
 const float ITERATION_SCALE = 4.0F;
 
 
-static GenericType sDesignatedInitialization(float value)
-{
-	GenericType t;
-	t.f = value;
-	return t;
-}
-
 template <typename T>
 static size_t sCompress1stPhase(const Callbacks& callbacks, const Settings& settings, unsigned width, unsigned height,
                                 unsigned channels, const T* input, void* output, Compression& out_compression)
@@ -171,7 +164,7 @@ static size_t sCompress1stPhase(const Callbacks& callbacks, const Settings& sett
 
 			if (callbacks.generic_event != nullptr)
 				callbacks.generic_event(GenericEvent::RatioIteration, 0, 0, 0,
-				                        sDesignatedInitialization(s.quantization), callbacks.user_data);
+				                        GenericTypeDesignatedInitialization(s.quantization), callbacks.user_data);
 
 			compressor.Reset(BUFFER_SIZE, static_cast<size_t>(target_size), output);
 			if ((compressed_size = sCompress2ndPhase(compressor, s, width, height, channels, input)) != 0)
@@ -187,7 +180,7 @@ static size_t sCompress1stPhase(const Callbacks& callbacks, const Settings& sett
 
 			if (callbacks.generic_event != nullptr)
 				callbacks.generic_event(GenericEvent::RatioIteration, 0, 0, 0,
-				                        sDesignatedInitialization(s.quantization), callbacks.user_data);
+				                        GenericTypeDesignatedInitialization(s.quantization), callbacks.user_data);
 
 			compressor.Reset(BUFFER_SIZE, static_cast<size_t>(target_size), output);
 			if ((compressed_size = sCompress2ndPhase(compressor, s, width, height, channels, input)) != 0)
@@ -206,7 +199,7 @@ static size_t sCompress1stPhase(const Callbacks& callbacks, const Settings& sett
 
 			if (callbacks.generic_event != nullptr)
 				callbacks.generic_event(GenericEvent::RatioIteration, 0, 0, 0,
-				                        sDesignatedInitialization(s.quantization), callbacks.user_data);
+				                        GenericTypeDesignatedInitialization(s.quantization), callbacks.user_data);
 
 			compressor.Reset(BUFFER_SIZE, static_cast<size_t>(target_size), output);
 			compressed_size = sCompress2ndPhase(compressor, s, width, height, channels, input);
@@ -227,7 +220,7 @@ static size_t sCompress1stPhase(const Callbacks& callbacks, const Settings& sett
 
 			if (callbacks.generic_event != nullptr)
 				callbacks.generic_event(GenericEvent::RatioIteration, 0, 0, 0,
-				                        sDesignatedInitialization(s.quantization), callbacks.user_data);
+				                        GenericTypeDesignatedInitialization(s.quantization), callbacks.user_data);
 
 			compressor.Reset(BUFFER_SIZE, static_cast<size_t>(target_size), output);
 			compressed_size = sCompress2ndPhase(compressor, s, width, height, channels, input);

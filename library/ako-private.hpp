@@ -235,10 +235,24 @@ template <typename T> T Max(T a, T b)
 	return (a > b) ? a : b;
 }
 
-inline GenericType CallbackGenericSigned(signed long v)
+inline GenericType GenericTypeDesignatedInitialization(int16_t value) // Humour
 {
-	union GenericType ret;
-	ret.s = v;
+	GenericType ret;
+	ret.s = static_cast<signed long>(value);
+	return ret;
+}
+
+inline GenericType GenericTypeDesignatedInitialization(int32_t value)
+{
+	GenericType ret;
+	ret.s = static_cast<signed long>(value);
+	return ret;
+}
+
+inline GenericType GenericTypeDesignatedInitialization(float value)
+{
+	GenericType ret;
+	ret.f = value;
 	return ret;
 }
 

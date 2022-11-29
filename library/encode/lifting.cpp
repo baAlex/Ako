@@ -109,7 +109,7 @@ static void sLift(const Callbacks& callbacks, const Wavelet& wavelet_transformat
 
 		if (callbacks.generic_event != nullptr)
 			callbacks.generic_event(GenericEvent::LiftLowpassDimensions, lp_w, lp_h, ch,
-			                        CallbackGenericSigned(static_cast<long>(*lp)), callbacks.user_data);
+			                        GenericTypeDesignatedInitialization(*lp), callbacks.user_data);
 	}
 }
 

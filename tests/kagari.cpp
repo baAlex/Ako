@@ -86,7 +86,7 @@ static uint32_t sAdler32(const void* input, size_t input_size)
 
 template <typename T> static void sTestFile(const char* filename)
 {
-	const unsigned KAGARI_BUFFER_LENGTH = 256 * 256;
+	const unsigned BUFFER_LENGTH = 256 * 256;
 	const unsigned READS_MAX_LENGTH = (256 * 256) * 2;
 
 	printf(" - File Test, filename '%s'\n", filename);
@@ -109,7 +109,7 @@ template <typename T> static void sTestFile(const char* filename)
 	uint32_t input_data_hash = 0x12345678;
 	size_t compressed_size = 0;
 	{
-		auto compressor = ako::CompressorKagari<T>(KAGARI_BUFFER_LENGTH, static_cast<size_t>(filesize), big_buffer);
+		auto compressor = ako::CompressorKagari<T>(BUFFER_LENGTH, static_cast<size_t>(filesize), big_buffer);
 		uint32_t random_state = 1;
 		size_t buffers_no = 0;
 
@@ -141,7 +141,7 @@ template <typename T> static void sTestFile(const char* filename)
 	// Decompress, same intricacies
 	uint32_t decoded_data_hash = 0x12345678;
 	{
-		auto decompressor = ako::DecompressorKagari<T>(KAGARI_BUFFER_LENGTH, compressed_size, big_buffer);
+		auto decompressor = ako::DecompressorKagari<T>(BUFFER_LENGTH, compressed_size, big_buffer);
 		uint32_t random_state = 1;
 		size_t buffers_no = 0;
 
@@ -230,14 +230,15 @@ int main(int argc, const char* argv[])
 		return EXIT_SUCCESS;
 	}
 
-	const size_t BLOCK_SIZE = 16;
+	const size_t BUFFER_LENGTH = 16;
 
-	sTest<int16_t>(BLOCK_SIZE, "123456");       // Literal only
-	sTest<int16_t>(BLOCK_SIZE, "111123456666"); // Literal only, since doesn't meets a minimum for a Rle
-	sTest<int16_t>(BLOCK_SIZE, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"); // Rle
-	sTest<int16_t>(BLOCK_SIZE, "aaaaaaaaaaaabcdefgaaaaaaaaaaaaaa"); // Both
-	sTest<int16_t>(BLOCK_SIZE, "11111111222222223333333344444444555555556666666677777777");
-	sTest<int16_t>(BLOCK_SIZE, "13525465112222221566664441111223333452123456666666111101"); // Case ending in a literal
+	sTest<int16_t>(BUFFER_LENGTH, "123456");       // Literal only
+	sTest<int16_t>(BUFFER_LENGTH, "111123456666"); // Literal only, since doesn't meets a minimum for a Rle
+	sTest<int16_t>(BUFFER_LENGTH, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"); // Rle
+	sTest<int16_t>(BUFFER_LENGTH, "aaaaaaaaaaaabcdefgaaaaaaaaaaaaaa"); // Both
+	sTest<int16_t>(BUFFER_LENGTH, "11111111222222223333333344444444555555556666666677777777");
+	sTest<int16_t>(BUFFER_LENGTH,
+	               "13525465112222221566664441111223333452123456666666111101"); // Case ending in a literal
 
 	return EXIT_SUCCESS;
 }

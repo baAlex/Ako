@@ -50,7 +50,7 @@ static void sUnlift(const Callbacks& callbacks, const Wavelet& wavelet_transform
 
 		if (callbacks.generic_event != nullptr)
 			callbacks.generic_event(GenericEvent::LiftLowpassDimensions, lp_w, lp_h, ch,
-			                        CallbackGenericSigned(static_cast<long>(*lp)), callbacks.user_data);
+			                        GenericTypeDesignatedInitialization(*lp), callbacks.user_data);
 
 		in += (lp_w * lp_h); // Quadrant A
 	}
