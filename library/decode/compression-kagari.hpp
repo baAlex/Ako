@@ -66,40 +66,46 @@ template <typename T> class DecompressorKagari final : public Decompressor<T>
 
 		auto out_end = this->buffer_end;
 		auto out = this->buffer_start;
+		T rle_value = 0;
 
 		while (out < out_end)
 		{
-			// Read literal and Rle lengths
+			// Read Rle and literal lengths
 			if (this->input + (sizeof(uint32_t) * 2) > this->input_end) // End reached, not an error
 				break;
 
 			auto in_u32 = reinterpret_cast<const uint32_t*>(this->input);
-			const uint32_t literal_length = *in_u32++;
-			const uint32_t rle_length = *in_u32++;
+			uint32_t rle_length = *in_u32++;
+			uint32_t literal_length = *in_u32++;
 
 			// Checks
-			if (out + literal_length + rle_length > out_end ||
+			if (out + rle_length + literal_length > out_end ||
 			    this->input + (sizeof(uint32_t) * 2) + (sizeof(T) * literal_length) > this->input_end)
 				return 1;
 
-			// Write literal values
-			auto in_uT = FlipSignCast(reinterpret_cast<const T*>(in_u32));
-			for (uint32_t i = 0; i < literal_length; i += 1)
-				*out++ = ZigZagDecode(*in_uT++);
+			// Update pointer
+			this->input += (sizeof(uint32_t) * 2) + (sizeof(T) * literal_length);
 
 			// Write Rle values
-			const T last_value = *(out - 1);
-			for (uint32_t i = 0; i < rle_length; i += 1)
-				*out++ = last_value;
+			// printf("\tD [Rle, l: %u, v: '%c']", rle_length, static_cast<char>(rle_value));
+			if (rle_length > 0)
+			{
+				do
+					*out++ = rle_value;
+				while (--rle_length != 0);
+			}
 
-			// Update pointer
-			this->input = reinterpret_cast<const uint8_t*>(in_uT);
+			// Write literal values
+			// printf(" [Lit, l: %u, v: ?]\n", literal_length);
+			if (literal_length > 0)
+			{
+				auto in_uT = FlipSignCast(reinterpret_cast<const T*>(in_u32));
+				do
+					*out++ = ZigZagDecode(*in_uT++);
+				while (--literal_length != 0);
 
-			// Developers, developers, developers
-			// printf("\tD [L: %u, R: %u, v: '", literal_length, rle_length);
-			// for (unsigned i = 0; i < literal_length; i += 1)
-			// 	printf("%c", static_cast<char>(*(out - rle_length - literal_length + i)));
-			// printf("']\n");
+				rle_value = *(out - 1);
+			}
 		}
 
 		// Bye!

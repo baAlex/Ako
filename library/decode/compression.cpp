@@ -86,7 +86,7 @@ static int sDecompress(Decompressor<T>& decompressor, unsigned width, unsigned h
 }
 
 
-const unsigned BUFFER_SIZE = 512 * 512;
+const unsigned BUFFER_SIZE = 256 * 256;
 
 template <>
 int Decompress(Compression compression, size_t compressed_size, unsigned width, unsigned height, unsigned channels,

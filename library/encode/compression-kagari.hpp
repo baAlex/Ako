@@ -37,7 +37,7 @@ template <typename T> class CompressorKagari final : public Compressor<T>
 	uint8_t* output_end;
 	uint8_t* output;
 
-	T* buffer_start;
+	T* buffer_start = nullptr;
 	T* buffer_end;
 	T* buffer;
 
@@ -61,27 +61,31 @@ template <typename T> class CompressorKagari final : public Compressor<T>
 		return reinterpret_cast<uint32_t*>(ptr);
 	}
 
-	int Emit(unsigned literal_length, unsigned rle_length, const T* values)
+	int Emit(unsigned rle_length, unsigned literal_length, T rle_value, const T* literal_values)
 	{
 		// Developers, developers, developers
-		// printf("\tE [L: %u, R: %u, v: '", literal_length, rle_length);
-		// for (unsigned i = 0; i < literal_length; i += 1)
-		// 	printf("%c", static_cast<char>(values[i]));
-		// printf("']\n");
+		{
+			(void)rle_value;
+			// printf("\tE [Rle, l: %u, v: '%c']", rle_length, static_cast<char>(rle_value));
+			// printf(" [Lit, l: %u, v: '", literal_length);
+			// for (unsigned i = 0; i < literal_length; i += 1)
+			//	printf("%c", static_cast<char>(literal_values[i]));
+			// printf("']\n");
+		}
 
 		// Check space in output
 		if (this->output + (sizeof(uint32_t) * 2) + (sizeof(T) * literal_length) > this->output_end)
 			return 1;
 
-		// Write literal and Rle lengths
+		// Write Rle and literal lengths
 		auto out_u32 = reinterpret_cast<uint32_t*>(this->output);
-		*out_u32++ = literal_length;
 		*out_u32++ = rle_length;
+		*out_u32++ = literal_length;
 
 		// Write literal values
 		auto out_uT = FlipSignCast(reinterpret_cast<T*>(out_u32));
 		for (unsigned i = 0; i < literal_length; i += 1)
-			*out_uT++ = ZigZagEncode(*values++);
+			*out_uT++ = ZigZagEncode(*literal_values++);
 
 		// Update pointer
 		this->output = reinterpret_cast<uint8_t*>(out_uT);
@@ -96,45 +100,49 @@ template <typename T> class CompressorKagari final : public Compressor<T>
 
 		this->buffer = this->buffer_start;
 
-		unsigned literal_len = 1;
 		unsigned rle_len = 0;
+		T rle_value = 0;
 
 		// Main loop
-		for (unsigned i = 1; i < buffer_len; i += 1)
+		for (unsigned i = 0; i < buffer_len; i += 1)
 		{
-			if (this->buffer[i] != this->buffer[i - 1])
-			{
-				literal_len += 1;
-				literal_len += rle_len; // No enough Rle values, make them part of literals
-				rle_len = 0;
-			}
+			if (this->buffer[i] == rle_value)
+				rle_len += 1;
 			else
 			{
-				rle_len += 1;
-
-				// Enough Rle values, do something
-				if (rle_len == RLE_TRIGGER)
+				// Find literal length
+				unsigned literal_len = 0;
 				{
-					// Find Rle end
-					for (unsigned u = i + 1; u < buffer_len && this->buffer[i] == this->buffer[u]; u += 1)
-						rle_len += 1;
+					unsigned repetitions = 0; // Inside our literal
 
-					// Emit
-					if (Emit(literal_len, rle_len, &this->buffer[i - RLE_TRIGGER - literal_len + 1]) != 0)
-						return 1;
+					for (unsigned u = i + 1; u < buffer_len && repetitions < RLE_TRIGGER; u += 1)
+					{
+						literal_len += 1;
+						if (this->buffer[u] == this->buffer[u - 1])
+							repetitions += 1;
+						else
+							repetitions = 0;
+					}
 
-					i += rle_len - RLE_TRIGGER;
-					literal_len = 0;
-					rle_len = 0;
+					if (repetitions == RLE_TRIGGER)
+						literal_len -= RLE_TRIGGER;
 				}
+
+				// Emit
+				if (Emit(rle_len, literal_len + 1, rle_value, this->buffer + i) != 0)
+					return 1;
+
+				// Next step
+				rle_value = this->buffer[i + literal_len];
+				rle_len = 0;
+				i += literal_len;
 			}
 		}
 
 		// Remainder
-		if (literal_len != 0 || rle_len != 0)
+		if (rle_len != 0)
 		{
-			literal_len += rle_len;
-			if (Emit(literal_len, 0, &this->buffer[buffer_len - literal_len]) != 0)
+			if (Emit(rle_len, 0, rle_value, this->buffer) != 0)
 				return 1;
 		}
 
@@ -159,7 +167,13 @@ template <typename T> class CompressorKagari final : public Compressor<T>
 		this->output_end = this->output_start + output_size;
 		this->output = this->output_start;
 
-		this->buffer_start = reinterpret_cast<T*>(malloc(buffer_length * sizeof(T)));
+		if (this->buffer_start == nullptr || this->buffer_end - this->buffer_start < buffer_length)
+		{
+			if (this->buffer_start != nullptr) // TODO
+				free(this->buffer_start);
+			this->buffer_start = reinterpret_cast<T*>(malloc(buffer_length * sizeof(T)));
+		}
+
 		this->buffer_end = this->buffer_start + buffer_length;
 		this->buffer = this->buffer_start;
 	}

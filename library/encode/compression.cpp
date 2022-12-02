@@ -121,7 +121,7 @@ static size_t sCompress2ndPhase(Compressor<T>& compressor, const Settings& setti
 }
 
 
-const unsigned BUFFER_SIZE = 512 * 512;
+const unsigned BUFFER_SIZE = 256 * 256;
 const unsigned TRY = 8;
 const float ITERATION_SCALE = 4.0F;
 
@@ -144,6 +144,8 @@ static size_t sCompress1stPhase(const Callbacks& callbacks, const Settings& sett
 		if (sCompress2ndPhase(compressor, settings, width, height, channels, input) == 0 ||
 		    (compressed_size = compressor.Finish()) == 0)
 			goto fallback;
+
+		return compressed_size;
 	}
 
 	// Compress iterating until meet a certain ratio
