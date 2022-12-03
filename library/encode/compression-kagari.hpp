@@ -80,7 +80,7 @@ template <typename T> class CompressorKagari final : public Compressor<T>
 		// Write Rle and literal lengths
 		auto out_u32 = reinterpret_cast<uint32_t*>(this->output);
 		*out_u32++ = rle_length;
-		*out_u32++ = literal_length;
+		*out_u32++ = literal_length - 1; // Notice the -1
 
 		// Write literal values
 		auto out_uT = FlipSignCast(reinterpret_cast<T*>(out_u32));
@@ -142,7 +142,8 @@ template <typename T> class CompressorKagari final : public Compressor<T>
 		// Remainder
 		if (rle_len != 0)
 		{
-			if (Emit(rle_len, 0, rle_value, this->buffer) != 0)
+			// Always end on a literal
+			if (Emit(rle_len - 1, 1, rle_value, &rle_value) != 0)
 				return 1;
 		}
 

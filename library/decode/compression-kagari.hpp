@@ -40,14 +40,16 @@ template <typename T> class DecompressorKagari final : public Decompressor<T>
 	unsigned buffer_usage;
 	T* buffer;
 
-	int32_t ZigZagDecode(uint32_t in) const
+	void ZigZagDecode(uint32_t length, const uint32_t* in, int32_t* out) const
 	{
-		return static_cast<int32_t>((in >> 1) ^ (~(in & 1) + 1));
+		for (uint32_t i = 0; i < length; i += 1)
+			out[i] = static_cast<int32_t>((in[i] >> 1) ^ (~(in[i] & 1) + 1));
 	}
 
-	int16_t ZigZagDecode(uint16_t in) const
+	void ZigZagDecode(uint32_t length, const uint16_t* in, int16_t* out) const
 	{
-		return static_cast<int16_t>((in >> 1) ^ (~(in & 1) + 1));
+		for (uint32_t i = 0; i < length; i += 1)
+			out[i] = static_cast<int16_t>((in[i] >> 1) ^ (~(in[i] & 1) + 1));
 	}
 
 	const uint16_t* FlipSignCast(const int16_t* ptr)
@@ -75,37 +77,34 @@ template <typename T> class DecompressorKagari final : public Decompressor<T>
 				break;
 
 			auto in_u32 = reinterpret_cast<const uint32_t*>(this->input);
-			uint32_t rle_length = *in_u32++;
-			uint32_t literal_length = *in_u32++;
+			const uint32_t rle_length = *in_u32++;
+			const uint32_t literal_length = (*in_u32++) + 1; // Notice the +1
 
 			// Checks
 			if (out + rle_length + literal_length > out_end ||
 			    this->input + (sizeof(uint32_t) * 2) + (sizeof(T) * literal_length) > this->input_end)
 				return 1;
 
-			// Update pointer
-			this->input += (sizeof(uint32_t) * 2) + (sizeof(T) * literal_length);
-
 			// Write Rle values
-			// printf("\tD [Rle, l: %u, v: '%c']", rle_length, static_cast<char>(rle_value));
-			if (rle_length > 0)
-			{
-				do
-					*out++ = rle_value;
-				while (--rle_length != 0);
-			}
+			for (uint32_t i = 0; i < rle_length; i += 1)
+				out[i] = rle_value;
 
 			// Write literal values
-			// printf(" [Lit, l: %u, v: ?]\n", literal_length);
-			if (literal_length > 0)
-			{
-				auto in_uT = FlipSignCast(reinterpret_cast<const T*>(in_u32));
-				do
-					*out++ = ZigZagDecode(*in_uT++);
-				while (--literal_length != 0);
+			ZigZagDecode(literal_length, FlipSignCast(reinterpret_cast<const T*>(in_u32)), out + rle_length);
+			rle_value = out[rle_length + literal_length - 1];
 
-				rle_value = *(out - 1);
+			// Developers, developers, developers
+			{
+				// printf("\tD [Rle, l: %u, v: '%c']", rle_length, static_cast<char>(rle_value));
+				// printf(" [Lit, l: %u, v: '", literal_length);
+				// for (unsigned i = 0; i < literal_length; i += 1)
+				//	printf("%c", static_cast<char>(out[rle_length + i]));
+				// printf("']\n");
 			}
+
+			// Update pointers
+			this->input += (sizeof(uint32_t) * 2) + (sizeof(T) * literal_length);
+			out += rle_length + literal_length;
 		}
 
 		// Bye!
