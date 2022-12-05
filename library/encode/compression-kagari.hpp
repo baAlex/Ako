@@ -30,8 +30,15 @@ namespace ako
 
 template <typename T> class CompressorKagari final : public Compressor<T>
 {
+	struct HistogramEntry
+	{
+		unsigned i;
+		unsigned d;
+	};
+
   private:
 	static const unsigned RLE_TRIGGER = 4;
+	static const unsigned HISTOGRAM_LENGTH = 0xFFFF; // TODO, quite short
 
 	uint8_t* output_start;
 	uint8_t* output_end;
@@ -40,6 +47,8 @@ template <typename T> class CompressorKagari final : public Compressor<T>
 	T* buffer_start = nullptr;
 	T* buffer_end;
 	T* buffer;
+
+	HistogramEntry histogram[HISTOGRAM_LENGTH + 1];
 
 	uint32_t ZigZagEncode(int32_t in) const
 	{
@@ -77,15 +86,24 @@ template <typename T> class CompressorKagari final : public Compressor<T>
 		if (this->output + (sizeof(uint32_t) * 2) + (sizeof(T) * literal_length) > this->output_end)
 			return 1;
 
-		// Write Rle and literal lengths
+		// Instructions
 		auto out_u32 = reinterpret_cast<uint32_t*>(this->output);
+
 		*out_u32++ = rle_length;
 		*out_u32++ = literal_length - 1; // Notice the -1
 
-		// Write literal values
+		this->histogram[literal_length & HISTOGRAM_LENGTH].i += 1;
+		this->histogram[rle_length & HISTOGRAM_LENGTH].i += 1;
+
+		// Data
 		auto out_uT = FlipSignCast(reinterpret_cast<T*>(out_u32));
 		for (unsigned i = 0; i < literal_length; i += 1)
-			*out_uT++ = ZigZagEncode(*literal_values++);
+		{
+			const auto v = ZigZagEncode(literal_values[i]);
+			*out_uT++ = v;
+
+			this->histogram[v & HISTOGRAM_LENGTH].d += 1;
+		}
 
 		// Update pointer
 		this->output = reinterpret_cast<uint8_t*>(out_uT);
@@ -177,6 +195,8 @@ template <typename T> class CompressorKagari final : public Compressor<T>
 
 		this->buffer_end = this->buffer_start + buffer_length;
 		this->buffer = this->buffer_start;
+
+		Memset(this->histogram, 0, sizeof(HistogramEntry) * (HISTOGRAM_LENGTH + 1));
 	}
 
 	int Step(QuantizationCallback<T> quantize, float quantization, unsigned width, unsigned height,
@@ -210,12 +230,64 @@ template <typename T> class CompressorKagari final : public Compressor<T>
 
 	size_t Finish() override
 	{
+		// Remainder
 		if (this->buffer - this->buffer_start > 0)
 		{
 			if (Compress() != 0)
 				return 0;
 		}
 
+		// Histogram
+		{
+			unsigned d_last = 0;
+			unsigned d_peak = 0;
+			unsigned d_max = 0;
+
+			unsigned i_last = 0;
+			unsigned i_peak = 0;
+			unsigned i_max = 0;
+
+			for (unsigned i = 0; i < HISTOGRAM_LENGTH + 1; i += 1)
+			{
+				if (histogram[i].d != 0)
+					d_last = i;
+				if (histogram[i].i != 0)
+					i_last = i;
+
+				d_peak = (histogram[i].d > d_max) ? i : d_peak;
+				i_peak = (histogram[i].i > i_max) ? i : i_peak;
+
+				d_max = (histogram[i].d > d_max) ? histogram[i].d : d_max;
+				i_max = (histogram[i].i > i_max) ? histogram[i].i : i_max;
+			}
+
+			printf("Histogram:\n");
+			printf(" - Data,         last: %u, \tpeak: %u (f: %u)\n", d_last, d_peak, d_max);
+			printf(" - Instructions, last: %u, \tpeak: %u (f: %u)\n", i_last, i_peak, i_max);
+
+			// GnuPlot output
+			/*auto fp = fopen("histogram.txt", "w");
+			if (fp != nullptr)
+			{
+			    for (unsigned i = 0; i < Max(d_last + 1, i_last + 1); i += 1)
+			        fprintf(fp, "%u\t%u\t%u\n", i, histogram[i].d, histogram[i].i);
+			    fclose(fp);
+			}
+
+			// Raw/binary output
+			fp = fopen("histogram.bin", "wb");
+			if (fp != nullptr)
+			{
+			    for (unsigned i = 0; i < Max(d_last + 1, i_last + 1); i += 1)
+			    {
+			        fwrite(histogram_d + i, sizeof(unsigned), 1, fp);
+			        fwrite(histogram_i + i, sizeof(unsigned), 1, fp);
+			    }
+			    fclose(fp);
+			}*/
+		}
+
+		// Bye!
 		return static_cast<size_t>(this->output - this->output_start);
 	}
 };

@@ -141,8 +141,7 @@ static size_t sCompress1stPhase(const Callbacks& callbacks, const Settings& sett
 		auto compressor = CompressorKagari<T>(BUFFER_SIZE, sizeof(T) * width * height * channels, output);
 		out_compression = Compression::Kagari;
 
-		if (sCompress2ndPhase(compressor, settings, width, height, channels, input) == 0 ||
-		    (compressed_size = compressor.Finish()) == 0)
+		if ((compressed_size = sCompress2ndPhase(compressor, settings, width, height, channels, input)) == 0)
 			goto fallback;
 
 		return compressed_size;
@@ -234,10 +233,7 @@ fallback:
 	auto compressor = CompressorNone<T>(BUFFER_SIZE, output);
 	out_compression = Compression::None;
 
-	sCompress2ndPhase(compressor, settings, width, height, channels, input);
-	compressed_size = compressor.Finish();
-
-	return compressed_size;
+	return sCompress2ndPhase(compressor, settings, width, height, channels, input);
 }
 
 
