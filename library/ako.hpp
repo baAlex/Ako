@@ -117,6 +117,12 @@ enum class GenericEvent
 	RatioIteration,
 };
 
+struct Histogram
+{
+	unsigned i;
+	unsigned d;
+};
+
 struct Callbacks
 {
 	void* (*malloc)(size_t);
@@ -125,9 +131,10 @@ struct Callbacks
 
 	void (*generic_event)(GenericEvent, unsigned, unsigned, unsigned, GenericType, void* user_data);
 
-	void (*format_event)(Color, unsigned tile_no, const void*, void* user_data);
-	void (*lifting_event)(Wavelet, Wrap, unsigned tile_no, const void*, void* user_data);
-	void (*compression_event)(Compression, unsigned tile_no, const void*, void* user_data);
+	void (*format_event)(unsigned tile_no, Color, const void*, void* user_data);
+	void (*lifting_event)(unsigned tile_no, Wavelet, Wrap, const void*, void* user_data);
+	void (*compression_event)(unsigned tile_no, Compression, const void*, void* user_data);
+	void (*histogram_event)(const Histogram*, unsigned, void* user_data);
 
 	void* user_data;
 };

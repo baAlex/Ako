@@ -40,16 +40,24 @@ template <typename T> class DecompressorKagari final : public Decompressor<T>
 	unsigned buffer_usage;
 	T* buffer;
 
-	void ZigZagDecode(uint32_t length, const uint32_t* in, int32_t* out) const
+	int32_t ZigZagDecode(uint32_t length, const uint32_t* in, int32_t* out) const
 	{
+		// if (length == 0) // A linter will expect this
+		// 	return 0;
+
 		for (uint32_t i = 0; i < length; i += 1)
 			out[i] = static_cast<int32_t>((in[i] >> 1) ^ (~(in[i] & 1) + 1));
+		return out[length - 1]; // NOLINT
 	}
 
-	void ZigZagDecode(uint32_t length, const uint16_t* in, int16_t* out) const
+	int16_t ZigZagDecode(uint32_t length, const uint16_t* in, int16_t* out) const
 	{
+		// if (length == 0) // A linter will expect this
+		// 	return 0;
+
 		for (uint32_t i = 0; i < length; i += 1)
 			out[i] = static_cast<int16_t>((in[i] >> 1) ^ (~(in[i] & 1) + 1));
+		return out[length - 1]; // NOLINT
 	}
 
 	const uint16_t* FlipSignCast(const int16_t* ptr)
@@ -90,8 +98,8 @@ template <typename T> class DecompressorKagari final : public Decompressor<T>
 				out[i] = rle_value;
 
 			// Write literal values
-			ZigZagDecode(literal_length, FlipSignCast(reinterpret_cast<const T*>(in_u32)), out + rle_length);
-			rle_value = out[rle_length + literal_length - 1];
+			rle_value =
+			    ZigZagDecode(literal_length, FlipSignCast(reinterpret_cast<const T*>(in_u32)), out + rle_length);
 
 			// Developers, developers, developers
 			{

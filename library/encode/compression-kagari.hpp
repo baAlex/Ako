@@ -30,12 +30,6 @@ namespace ako
 
 template <typename T> class CompressorKagari final : public Compressor<T>
 {
-	struct HistogramEntry
-	{
-		unsigned i;
-		unsigned d;
-	};
-
   private:
 	static const unsigned RLE_TRIGGER = 4;
 	static const unsigned HISTOGRAM_LENGTH = 0xFFFF; // TODO, quite short
@@ -48,7 +42,7 @@ template <typename T> class CompressorKagari final : public Compressor<T>
 	T* buffer_end;
 	T* buffer;
 
-	HistogramEntry histogram[HISTOGRAM_LENGTH + 1];
+	Histogram histogram[HISTOGRAM_LENGTH + 1];
 
 	uint32_t ZigZagEncode(int32_t in) const
 	{
@@ -196,7 +190,7 @@ template <typename T> class CompressorKagari final : public Compressor<T>
 		this->buffer_end = this->buffer_start + buffer_length;
 		this->buffer = this->buffer_start;
 
-		Memset(this->histogram, 0, sizeof(HistogramEntry) * (HISTOGRAM_LENGTH + 1));
+		Memset(this->histogram, 0, sizeof(struct Histogram) * (HISTOGRAM_LENGTH + 1));
 	}
 
 	int Step(QuantizationCallback<T> quantize, float quantization, unsigned width, unsigned height,
@@ -237,58 +231,18 @@ template <typename T> class CompressorKagari final : public Compressor<T>
 				return 0;
 		}
 
-		// Histogram
-		{
-			unsigned d_last = 0;
-			unsigned d_peak = 0;
-			unsigned d_max = 0;
-
-			unsigned i_last = 0;
-			unsigned i_peak = 0;
-			unsigned i_max = 0;
-
-			for (unsigned i = 0; i < HISTOGRAM_LENGTH + 1; i += 1)
-			{
-				if (histogram[i].d != 0)
-					d_last = i;
-				if (histogram[i].i != 0)
-					i_last = i;
-
-				d_peak = (histogram[i].d > d_max) ? i : d_peak;
-				i_peak = (histogram[i].i > i_max) ? i : i_peak;
-
-				d_max = (histogram[i].d > d_max) ? histogram[i].d : d_max;
-				i_max = (histogram[i].i > i_max) ? histogram[i].i : i_max;
-			}
-
-			printf("Histogram:\n");
-			printf(" - Data,         last: %u, \tpeak: %u (f: %u)\n", d_last, d_peak, d_max);
-			printf(" - Instructions, last: %u, \tpeak: %u (f: %u)\n", i_last, i_peak, i_max);
-
-			// GnuPlot output
-			/*auto fp = fopen("histogram.txt", "w");
-			if (fp != nullptr)
-			{
-			    for (unsigned i = 0; i < Max(d_last + 1, i_last + 1); i += 1)
-			        fprintf(fp, "%u\t%u\t%u\n", i, histogram[i].d, histogram[i].i);
-			    fclose(fp);
-			}
-
-			// Raw/binary output
-			fp = fopen("histogram.bin", "wb");
-			if (fp != nullptr)
-			{
-			    for (unsigned i = 0; i < Max(d_last + 1, i_last + 1); i += 1)
-			    {
-			        fwrite(histogram_d + i, sizeof(unsigned), 1, fp);
-			        fwrite(histogram_i + i, sizeof(unsigned), 1, fp);
-			    }
-			    fclose(fp);
-			}*/
-		}
-
 		// Bye!
 		return static_cast<size_t>(this->output - this->output_start);
+	}
+
+	unsigned HistogramLength() const
+	{
+		return HISTOGRAM_LENGTH + 1;
+	}
+
+	const Histogram* Histogram() const
+	{
+		return this->histogram;
 	}
 };
 

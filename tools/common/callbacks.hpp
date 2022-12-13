@@ -35,6 +35,9 @@ struct CallbacksData
 {
 	bool print;
 	const char* prefix;
+	std::string histogram_output;
+
+	unsigned print_tile_info;
 
 	std::chrono::steady_clock::time_point clock;
 	std::chrono::microseconds format_duration;
@@ -65,8 +68,9 @@ struct CallbacksData
 
 void CallbackGenericEvent(ako::GenericEvent e, unsigned a, unsigned b, unsigned c, ako::GenericType d, void* user_data);
 
-void CallbackFormatEvent(ako::Color, unsigned tile_no, const void* image_data, void* user_data);
-void CallbackLiftingEvent(ako::Wavelet, ako::Wrap, unsigned tile_no, const void* image_data, void* user_data);
-void CallbackCompressionEvent(ako::Compression, unsigned tile_no, const void* data, void* user_data);
+void CallbackFormatEvent(unsigned tile_no, ako::Color, const void* image_data, void* user_data);
+void CallbackLiftingEvent(unsigned tile_no, ako::Wavelet, ako::Wrap, const void* image_data, void* user_data);
+void CallbackCompressionEvent(unsigned tile_no, ako::Compression, const void* data, void* user_data);
+void CallbackHistogramEvent(const ako::Histogram*, unsigned, void* user_data);
 
 #endif

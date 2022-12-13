@@ -90,7 +90,7 @@ static void sCallbackGenericEvent(ako::GenericEvent e, unsigned arg_a, unsigned 
 }
 
 
-static void sCallbackCompressionEvent(ako::Compression compression, unsigned tile_no, const void* image_data,
+static void sCallbackCompressionEvent(unsigned tile_no, ako::Compression compression, const void* image_data,
                                       void* user_data)
 {
 	auto& data = *reinterpret_cast<GatheredGeneralInfo*>(user_data);

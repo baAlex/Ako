@@ -127,37 +127,37 @@ static size_t sEncodeInternal(const Callbacks& callbacks, const Settings& settin
 		// 1. Format
 		{
 			if (callbacks.format_event != nullptr)
-				callbacks.format_event(settings.color, t, nullptr, callbacks.user_data);
+				callbacks.format_event(t, settings.color, nullptr, callbacks.user_data);
 
 			FormatToInternal(settings.color, settings.discard, tile_w, tile_h, channels, image_w,
 			                 input + (tile_x + image_w * tile_y) * channels, reinterpret_cast<TCoeff*>(workarea[0]));
 
 			if (callbacks.format_event != nullptr)
-				callbacks.format_event(settings.color, t, workarea[0], callbacks.user_data);
+				callbacks.format_event(t, settings.color, workarea[0], callbacks.user_data);
 		}
 
 		// 2. Wavelet transform
 		{
 			if (callbacks.lifting_event != nullptr)
-				callbacks.lifting_event(settings.wavelet, settings.wrap, t, nullptr, callbacks.user_data);
+				callbacks.lifting_event(t, settings.wavelet, settings.wrap, nullptr, callbacks.user_data);
 
 			Lift(callbacks, settings.wavelet, tile_w, tile_h, channels, reinterpret_cast<TCoeff*>(workarea[0]),
 			     reinterpret_cast<TCoeff*>(workarea[1]));
 
 			if (callbacks.lifting_event != nullptr)
-				callbacks.lifting_event(settings.wavelet, settings.wrap, t, workarea[1], callbacks.user_data);
+				callbacks.lifting_event(t, settings.wavelet, settings.wrap, workarea[1], callbacks.user_data);
 		}
 
 		// 3. Compression
 		{
 			if (callbacks.compression_event != nullptr)
-				callbacks.compression_event(settings.compression, t, nullptr, callbacks.user_data);
+				callbacks.compression_event(t, settings.compression, nullptr, callbacks.user_data);
 
 			tile_data_size = Compress(callbacks, settings, tile_w, tile_h, channels,
 			                          reinterpret_cast<TCoeff*>(workarea[1]), workarea[0], tile_compression);
 
 			if (callbacks.compression_event != nullptr)
-				callbacks.compression_event(tile_compression, t, workarea[0], callbacks.user_data);
+				callbacks.compression_event(t, tile_compression, workarea[0], callbacks.user_data);
 
 			// Developers, developers, developers
 			// printf("Hash: %8x \n", Adler32(workarea[0], tile_data_size));

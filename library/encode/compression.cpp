@@ -132,108 +132,110 @@ static size_t sCompress1stPhase(const Callbacks& callbacks, const Settings& sett
 {
 	size_t compressed_size = 0;
 
-	if (settings.compression == Compression::None)
-		goto fallback;
-
-	// Compress following quantization (including no quantization at all)
-	if (settings.quantization > 0.0F || settings.ratio < 1.0F)
+	if (settings.compression != Compression::None)
 	{
-		auto compressor = CompressorKagari<T>(BUFFER_SIZE, sizeof(T) * width * height * channels, output);
+		auto target_size = sizeof(T) * width * height * channels;
+		auto compressor = CompressorKagari<T>(BUFFER_SIZE, target_size, output);
 		out_compression = Compression::Kagari;
 
-		if ((compressed_size = sCompress2ndPhase(compressor, settings, width, height, channels, input)) == 0)
-			goto fallback;
+		auto s = settings;
+		auto q_floor = settings.quantization;
+		auto q_ceil = q_floor;
+		s.quantization = q_floor;
+
+		if (settings.quantization == 0.0F && settings.ratio >= 1.0F) // TODO, repeated check
+		{
+			q_floor = 0.0;
+			q_ceil = 0.0;
+			s.quantization = 0.0F;
+			target_size =
+			    static_cast<size_t>(static_cast<float>((sizeof(T) >> 1) * width * height * channels) / settings.ratio);
+		}
+
+		// First floor
+		{
+			compressor.Reset(BUFFER_SIZE, target_size, output);
+			if (callbacks.generic_event != nullptr)
+				callbacks.generic_event(GenericEvent::RatioIteration, 0, 0, 0,
+				                        GenericTypeDesignatedInitialization(s.quantization), callbacks.user_data);
+
+			compressor.Reset(BUFFER_SIZE, target_size, output);
+			if ((compressed_size = sCompress2ndPhase(compressor, s, width, height, channels, input)) == 0)
+			{
+				if (settings.ratio < 1.0F)
+					goto fallback;
+			}
+		}
+
+		// Iterate
+		if (settings.quantization == 0.0F && settings.ratio >= 1.0F)
+		{
+			// Find ceil
+			while (1)
+			{
+				q_floor = q_ceil;
+				q_ceil = (q_ceil != 0.0) ? (q_ceil * ITERATION_SCALE) : ITERATION_SCALE;
+				s.quantization = q_ceil;
+
+				if (callbacks.generic_event != nullptr)
+					callbacks.generic_event(GenericEvent::RatioIteration, 0, 0, 0,
+					                        GenericTypeDesignatedInitialization(s.quantization), callbacks.user_data);
+
+				compressor.Reset(BUFFER_SIZE, target_size, output);
+				if ((compressed_size = sCompress2ndPhase(compressor, s, width, height, channels, input)) != 0)
+					break;
+
+				if (s.quantization > 4096.0F)
+					goto fallback;
+			}
+
+			// Check by dividing the space by two
+			for (unsigned i = 0; i < TRY; i += 1)
+			{
+				const auto q = (q_floor + q_ceil) / 2.0F;
+				s.quantization = q;
+
+				if (callbacks.generic_event != nullptr)
+					callbacks.generic_event(GenericEvent::RatioIteration, 0, 0, 0,
+					                        GenericTypeDesignatedInitialization(s.quantization), callbacks.user_data);
+
+				compressor.Reset(BUFFER_SIZE, target_size, output);
+				compressed_size = sCompress2ndPhase(compressor, s, width, height, channels, input);
+
+				if (compressed_size < target_size && compressed_size != 0)
+					q_ceil = q;
+				else
+					q_floor = q;
+			}
+
+			// Last one being too close to floor, failed
+			if (s.quantization != q_ceil)
+			{
+				s.quantization = q_ceil;
+
+				if (callbacks.generic_event != nullptr)
+					callbacks.generic_event(GenericEvent::RatioIteration, 0, 0, 0,
+					                        GenericTypeDesignatedInitialization(s.quantization), callbacks.user_data);
+
+				compressor.Reset(BUFFER_SIZE, target_size, output);
+				compressed_size = sCompress2ndPhase(compressor, s, width, height, channels, input);
+			}
+		}
+
+		// Bye!
+		if (callbacks.histogram_event != nullptr)
+			callbacks.histogram_event(compressor.Histogram(), compressor.HistogramLength(), callbacks.user_data);
 
 		return compressed_size;
 	}
 
-	// Compress iterating until meet a certain ratio
-	else
-	{
-		const auto target_size = static_cast<float>((sizeof(T) >> 1) * width * height * channels) / settings.ratio;
-
-		auto compressor = CompressorKagari<T>(BUFFER_SIZE, static_cast<size_t>(target_size), output);
-		out_compression = Compression::Kagari;
-
-		auto s = settings;
-		auto q_floor = 0.0F;
-		auto q_ceil = 1.0F;
-
-		// Check if lossless is enough
-		{
-			s.quantization = 0.0F;
-
-			if (callbacks.generic_event != nullptr)
-				callbacks.generic_event(GenericEvent::RatioIteration, 0, 0, 0,
-				                        GenericTypeDesignatedInitialization(s.quantization), callbacks.user_data);
-
-			compressor.Reset(BUFFER_SIZE, static_cast<size_t>(target_size), output);
-			if ((compressed_size = sCompress2ndPhase(compressor, s, width, height, channels, input)) != 0)
-				return compressed_size; // Done!
-		}
-
-		// Find ceil
-		while (1)
-		{
-			q_floor = q_ceil;
-			q_ceil = q_ceil * ITERATION_SCALE;
-			s.quantization = q_ceil;
-
-			if (callbacks.generic_event != nullptr)
-				callbacks.generic_event(GenericEvent::RatioIteration, 0, 0, 0,
-				                        GenericTypeDesignatedInitialization(s.quantization), callbacks.user_data);
-
-			compressor.Reset(BUFFER_SIZE, static_cast<size_t>(target_size), output);
-			if ((compressed_size = sCompress2ndPhase(compressor, s, width, height, channels, input)) != 0)
-				break;
-
-			// TODO, bad hardcoded limit, but technically quantization doesn't have a maximum right now
-			if (q_ceil > 4096.0F)
-				goto fallback;
-		}
-
-		// Check by dividing the space by two
-		for (unsigned i = 0; i < TRY; i += 1)
-		{
-			const auto q = (q_floor + q_ceil) / 2.0F;
-			s.quantization = q;
-
-			if (callbacks.generic_event != nullptr)
-				callbacks.generic_event(GenericEvent::RatioIteration, 0, 0, 0,
-				                        GenericTypeDesignatedInitialization(s.quantization), callbacks.user_data);
-
-			compressor.Reset(BUFFER_SIZE, static_cast<size_t>(target_size), output);
-			compressed_size = sCompress2ndPhase(compressor, s, width, height, channels, input);
-
-			if (static_cast<float>(compressed_size) < target_size && compressed_size != 0)
-			{
-				q_ceil = q;
-				if (i == TRY - 1)
-					return compressed_size; // Done!
-			}
-			else
-				q_floor = q;
-		}
-
-		// Last check fail, lets do it with the last successful value
-		{
-			s.quantization = q_ceil;
-
-			if (callbacks.generic_event != nullptr)
-				callbacks.generic_event(GenericEvent::RatioIteration, 0, 0, 0,
-				                        GenericTypeDesignatedInitialization(s.quantization), callbacks.user_data);
-
-			compressor.Reset(BUFFER_SIZE, static_cast<size_t>(target_size), output);
-			compressed_size = sCompress2ndPhase(compressor, s, width, height, channels, input);
-			return compressed_size;
-		}
-	}
-
 fallback:
+{
 	auto compressor = CompressorNone<T>(BUFFER_SIZE, output);
 	out_compression = Compression::None;
 
 	return sCompress2ndPhase(compressor, settings, width, height, channels, input);
+}
 }
 
 

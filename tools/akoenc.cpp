@@ -72,6 +72,7 @@ int main(int argc, const char* argv[])
 {
 	std::string input_filename = "";
 	std::string output_filename = "";
+	std::string histogram_output_filename = "";
 	bool checksum = false;
 	bool verbose = false;
 	bool quiet = false;
@@ -104,6 +105,8 @@ int main(int argc, const char* argv[])
 		app.add_option("-o,--output", output_filename, "Output filename")->option_text("FILENAME");
 		app.add_flag("-k,--checksum", checksum,        "Checksum input image");
 		app.add_flag("-b,--benchmark", benchmark,      "Benchmark");
+
+		app.add_option("--histogram", histogram_output_filename, "Histogram output filename")->option_text("FILENAME");
 
 		app.add_option("-c,--color", s.color, "Color transformation: YCOCG, SUBTRACTG or NONE.\n"
 		                                      "[Default is " + string(ToString(s.color)) + "]")
@@ -214,6 +217,7 @@ int main(int argc, const char* argv[])
 		// Configure callbacks
 		auto callbacks = ako::DefaultCallbacks();
 		CallbacksData callbacks_data = {};
+		callbacks_data.histogram_output = histogram_output_filename;
 
 		if (quiet == false)
 		{
@@ -226,6 +230,7 @@ int main(int argc, const char* argv[])
 			callbacks.format_event = CallbackFormatEvent;
 			callbacks.lifting_event = CallbackLiftingEvent;
 			callbacks.compression_event = CallbackCompressionEvent;
+			callbacks.histogram_event = CallbackHistogramEvent;
 		}
 
 		// Encode

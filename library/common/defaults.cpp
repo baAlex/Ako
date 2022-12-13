@@ -64,6 +64,7 @@ Callbacks DefaultCallbacks()
 	callbacks.format_event = nullptr;
 	callbacks.lifting_event = nullptr;
 	callbacks.compression_event = nullptr;
+	callbacks.histogram_event = nullptr;
 	callbacks.user_data = nullptr;
 
 	return callbacks;

@@ -77,31 +77,34 @@ void CallbackGenericEvent(ako::GenericEvent e, unsigned arg_a, unsigned arg_b, u
 			data.current_tile = arg_a;
 			data.tile_width = arg_b;
 			data.tile_height = arg_c;
+			data.print_tile_info += 1;
 			break;
 		case ako::GenericEvent::TilePosition:
 			data.current_tile = arg_a;
 			data.tile_x = arg_b;
 			data.tile_y = arg_c;
+			data.print_tile_info += 1;
 			break;
 		case ako::GenericEvent::TileDataSize:
 			data.current_tile = arg_a;
 			data.tile_data_size = arg_d.u;
+			data.print_tile_info += 1;
 			break;
 
 		// Lift info
 		case ako::GenericEvent::LiftLowpassDimensions:
 			if (data.print == true)
-				printf("%s\t\t- LowpassCh%u %ux%u px (%li)\n", data.prefix, arg_c, arg_a, arg_b, arg_d.s);
+				printf("%s\t\t - LowpassCh%u %ux%u px (%li)\n", data.prefix, arg_c, arg_a, arg_b, arg_d.s);
 			break;
 		case ako::GenericEvent::LiftHighpassesDimensions:
 			if (data.print == true)
-				printf("%s\t\t- Highpass %ux%u px\n", data.prefix, arg_a, arg_b);
+				printf("%s\t\t - Highpass %ux%u px\n", data.prefix, arg_a, arg_b);
 			break;
 
 		// Ratio
 		case ako::GenericEvent::RatioIteration:
 			if (data.print == true)
-				printf("%s\t\t- Ratio iteration, q: %.3f\n", data.prefix, arg_d.f);
+				printf("%s\t\t - Ratio iteration, q: %.3f\n", data.prefix, arg_d.f);
 			break;
 		}
 	}
@@ -112,7 +115,7 @@ void CallbackGenericEvent(ako::GenericEvent e, unsigned arg_a, unsigned arg_b, u
 		// Image info
 		if (data.image_events == 3)
 		{
-			printf("%s\t-Image: %ux%u px, %u channel(s), %u bpp depth\n", data.prefix, data.image_width,
+			printf("%s\tImage, %ux%u px, %u channel(s), %u bpp depth\n", data.prefix, data.image_width,
 			       data.image_height, data.channels, data.depth);
 			data.image_events = 0;
 		}
@@ -120,7 +123,7 @@ void CallbackGenericEvent(ako::GenericEvent e, unsigned arg_a, unsigned arg_b, u
 		// Tiles info
 		if (data.tiles_events == 2)
 		{
-			printf("%s\t- %u Tiles, %ux%u px\n", data.prefix, data.tiles_no, data.tiles_dimension,
+			printf("%s\t\t - %u Tiles, %ux%u px\n", data.prefix, data.tiles_no, data.tiles_dimension,
 			       data.tiles_dimension);
 			data.tiles_events = 0;
 		}
@@ -128,24 +131,24 @@ void CallbackGenericEvent(ako::GenericEvent e, unsigned arg_a, unsigned arg_b, u
 		// Memory info
 		if (data.memory_events == 1)
 		{
-			printf("%s\t- Workarea size: %zu byte(s)\n", data.prefix, data.workarea_size);
+			printf("%s\t\t - Workarea size: %zu byte(s)\n", data.prefix, data.workarea_size);
 			data.memory_events = 0;
 		}
 	}
 }
 
 
-static void sCommon(CallbacksData& data, unsigned tile_no, const void* image_data)
+static void sCommon(CallbacksData& data, const void* image_data)
 {
 	using namespace std;
 
 	// Tile information shouldn't be print until is completely gathered, so,
 	// we do it now when all tile info is there
-	if (data.print == true && data.current_tile == tile_no)
+	if (data.print == true && data.print_tile_info >= 3)
 	{
 		printf("%s\tTile %u of %u, [%u, %u], %ux%u px (%zu byte(s))\n", data.prefix, data.current_tile + 1,
 		       data.tiles_no, data.tile_x, data.tile_y, data.tile_width, data.tile_height, data.tile_data_size);
-		data.current_tile = 99999; // TODO
+		data.print_tile_info = 0;
 	}
 
 	// Benchmark
@@ -154,18 +157,18 @@ static void sCommon(CallbacksData& data, unsigned tile_no, const void* image_dat
 }
 
 
-void CallbackFormatEvent(ako::Color color, unsigned tile_no, const void* image_data, void* user_data)
+void CallbackFormatEvent(unsigned tile_no, ako::Color color, const void* image_data, void* user_data)
 {
 	using namespace std;
 	auto& data = *reinterpret_cast<CallbacksData*>(user_data);
 
-	sCommon(data, tile_no, image_data);
+	sCommon(data, image_data);
 
 	// Start event
 	if (image_data == nullptr)
 	{
 		if (data.print == true && tile_no == 0)
-			printf("%s\t\t- Color transformation: %s\n", data.prefix, ako::ToString(color));
+			printf("%s\t\t - Color transformation: %s\n", data.prefix, ako::ToString(color));
 	}
 
 	// End event
@@ -179,22 +182,22 @@ void CallbackFormatEvent(ako::Color color, unsigned tile_no, const void* image_d
 }
 
 
-void CallbackLiftingEvent(ako::Wavelet wavelet, ako::Wrap wrap, unsigned tile_no, const void* image_data,
+void CallbackLiftingEvent(unsigned tile_no, ako::Wavelet wavelet, ako::Wrap wrap, const void* image_data,
                           void* user_data)
 {
 	using namespace std;
 	auto& data = *reinterpret_cast<CallbacksData*>(user_data);
 
 	// As above
-	sCommon(data, tile_no, image_data);
+	sCommon(data, image_data);
 
 	// Start event
 	if (image_data == nullptr)
 	{
 		if (data.print == true && tile_no == 0)
 		{
-			printf("%s\t\t- Wavelet transformation: %s\n", data.prefix, ako::ToString(wavelet));
-			printf("%s\t\t- Wrap mode: %s\n", data.prefix, ako::ToString(wrap));
+			printf("%s\t\t - Wavelet transformation: %s\n", data.prefix, ako::ToString(wavelet));
+			printf("%s\t\t - Wrap mode: %s\n", data.prefix, ako::ToString(wrap));
 		}
 	}
 
@@ -209,23 +212,102 @@ void CallbackLiftingEvent(ako::Wavelet wavelet, ako::Wrap wrap, unsigned tile_no
 }
 
 
-void CallbackCompressionEvent(ako::Compression compression, unsigned tile_no, const void* image_data, void* user_data)
+void CallbackCompressionEvent(unsigned tile_no, ako::Compression compression, const void* image_data, void* user_data)
 {
+	(void)tile_no;
+
 	using namespace std;
 	auto& data = *reinterpret_cast<CallbacksData*>(user_data);
 
 	// As above
-	sCommon(data, tile_no, image_data);
+	sCommon(data, image_data);
 
 	// End event
 	if (image_data != nullptr)
 	{
 		if (data.print == true)
-			printf("%s\t\t- Compression method: %s\n", data.prefix, ako::ToString(compression));
+			printf("%s\t\t - Compression method: %s\n", data.prefix, ako::ToString(compression));
 
 		// Benchmark
 		const auto diff = chrono::duration_cast<chrono::microseconds>(chrono::steady_clock::now() - data.clock);
 		data.compression_duration += diff;
 		data.total_duration += diff;
+	}
+}
+
+
+#include <algorithm>
+
+void CallbackHistogramEvent(const ako::Histogram* histogram, unsigned length, void* user_data)
+{
+	using namespace std;
+	auto& data = *reinterpret_cast<CallbacksData*>(user_data);
+
+	unsigned d_last = 0;
+	unsigned d_peak_at = 0;
+	unsigned d_peak_value = 0;
+
+	unsigned i_last = 0;
+	unsigned i_peak_at = 0;
+	unsigned i_peak_value = 0;
+
+	for (unsigned i = 0; i < length; i += 1)
+	{
+		if (histogram[i].d != 0)
+			d_last = i;
+		if (histogram[i].i != 0)
+			i_last = i;
+
+		if (histogram[i].d > d_peak_value)
+		{
+			d_peak_at = i;
+			d_peak_value = histogram[i].d;
+		}
+
+		if (histogram[i].i > i_peak_value)
+		{
+			i_peak_at = i;
+			i_peak_value = histogram[i].i;
+		}
+	}
+
+	if (data.print == true)
+	{
+		printf("%s\t\t - Histogram:\n", data.prefix);
+		printf("%s\t\t\t - D, last: %u, peak value: %u, at: %u\n", data.prefix, d_last + 1, d_peak_value,
+		       d_peak_at + 1);
+		printf("%s\t\t\t - I, last: %u, peak value: %u, at: %u\n", data.prefix, i_last + 1, i_peak_value,
+		       i_peak_at + 1);
+	}
+
+	if (data.histogram_output != "")
+	{
+		// Output filename
+		auto filename = data.histogram_output;
+		{
+			// TODO, spooky, strings are hard :(
+
+			const auto new_ext = ((data.tiles_no > 1) ? ("-" + std::to_string(data.current_tile + 1)) : "") + ".csv";
+
+			auto lcase_filename = data.histogram_output;
+			std::transform(lcase_filename.begin(), lcase_filename.end(), lcase_filename.begin(),
+			               [](unsigned char c) { return std::tolower(c); });
+
+			const auto ext_pos = lcase_filename.rfind(".csv");
+			if (ext_pos != std::string::npos)
+				filename.replace(ext_pos, 4, new_ext);
+			else
+				filename += new_ext;
+		}
+
+		// Write Csv
+		auto fp = fopen(filename.c_str(), "w");
+		if (fp != nullptr)
+		{
+			for (unsigned i = 0; i < std::max(d_last, i_last) + 1; i += 1)
+				fprintf(fp, "%u,%u\n", histogram[i].d, histogram[i].i);
+			fclose(fp);
+			printf("%s\t\t\t - Wrote CSV '%s'\n", data.prefix, filename.c_str());
+		}
 	}
 }
