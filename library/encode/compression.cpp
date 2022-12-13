@@ -224,7 +224,7 @@ static size_t sCompress1stPhase(const Callbacks& callbacks, const Settings& sett
 
 		// Bye!
 		if (callbacks.histogram_event != nullptr)
-			callbacks.histogram_event(compressor.Histogram(), compressor.HistogramLength(), callbacks.user_data);
+			callbacks.histogram_event(compressor.GetHistogram(), compressor.GetHistogramLength(), callbacks.user_data);
 
 		return compressed_size;
 	}

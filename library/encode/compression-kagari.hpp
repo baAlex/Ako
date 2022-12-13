@@ -190,7 +190,7 @@ template <typename T> class CompressorKagari final : public Compressor<T>
 		this->buffer_end = this->buffer_start + buffer_length;
 		this->buffer = this->buffer_start;
 
-		Memset(this->histogram, 0, sizeof(struct Histogram) * (HISTOGRAM_LENGTH + 1));
+		Memset(this->histogram, 0, sizeof(Histogram) * (HISTOGRAM_LENGTH + 1));
 	}
 
 	int Step(QuantizationCallback<T> quantize, float quantization, unsigned width, unsigned height,
@@ -235,12 +235,12 @@ template <typename T> class CompressorKagari final : public Compressor<T>
 		return static_cast<size_t>(this->output - this->output_start);
 	}
 
-	unsigned HistogramLength() const
+	unsigned GetHistogramLength() const
 	{
 		return HISTOGRAM_LENGTH + 1;
 	}
 
-	const Histogram* Histogram() const
+	const Histogram* GetHistogram() const
 	{
 		return this->histogram;
 	}
