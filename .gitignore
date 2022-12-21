@@ -9,6 +9,8 @@
 /.clangd/
 /.cache/
 
+__pycache__/
+
 compile_commands.json
 .ninja_deps
 .ninja_log
