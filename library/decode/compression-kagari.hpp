@@ -28,6 +28,68 @@ SOFTWARE.
 namespace ako
 {
 
+class KagariBitReader
+{
+	static const uint32_t ACC_LEN = 32;
+
+	const uint32_t* input_end;
+	const uint32_t* input;
+
+	uint32_t accumulator;
+	uint32_t accumulator_usage;
+
+  public:
+	KagariBitReader(size_t input_length, const uint32_t* input)
+	{
+		this->input_end = input + input_length;
+		this->input = input;
+
+		this->accumulator = 0;
+		this->accumulator_usage = 0;
+	}
+
+	int ReadBits(uint32_t len, uint32_t& v)
+	{
+		// Accumulator contains our value, ideal fast path
+		if (len <= this->accumulator_usage)
+		{
+			const auto mask = static_cast<uint32_t>(1 << len) - 1;
+
+			this->accumulator_usage -= len;
+			v = (this->accumulator >> this->accumulator_usage) & mask;
+		}
+
+		// Accumulator doesn't have it, at least entirely, ultra super duper slow path
+		else
+		{
+			if (this->input + 1 > this->input_end || len >= ACC_LEN)
+				return 1;
+
+			// Keep what accumulator has
+			const auto min = this->accumulator_usage;
+			const auto mask = static_cast<uint32_t>(1 << min) - 1;
+
+			v = this->accumulator & mask;
+
+			// Read, make value with remainder part
+			this->accumulator = *this->input++;
+			this->accumulator_usage = ACC_LEN - (len - min);
+
+			v |= (this->accumulator >> this->accumulator_usage) << min;
+
+			// Developers, developers, developers
+			// printf("D |\tRead!, d: 0x%X, min: %u\n", *(this->input - 1), min);
+		}
+
+		// Developers, developers, developers
+		// printf("D | v: %u,\tl: %u, u: %u (%u)\n", v, len, this->accumulator_usage, ACC_LEN -
+		// this->accumulator_usage);
+
+		// Bye!
+		return 0;
+	}
+};
+
 template <typename T> class DecompressorKagari final : public Decompressor<T>
 {
   private:

@@ -28,6 +28,90 @@ SOFTWARE.
 namespace ako
 {
 
+class KagariBitWriter
+{
+	static const uint32_t ACC_LEN = 32;
+
+	uint32_t* output_start;
+	uint32_t* output_end;
+	uint32_t* output;
+
+	uint32_t accumulator;
+	uint32_t accumulator_usage;
+
+  public:
+	KagariBitWriter(size_t output_length, uint32_t* output)
+	{
+		Reset(output_length, output);
+	}
+
+	void Reset(size_t output_length, uint32_t* output)
+	{
+		this->output_start = output;
+		this->output_end = this->output_start + output_length;
+		this->output = this->output_start;
+
+		this->accumulator = 0;
+		this->accumulator_usage = 0;
+	}
+
+	int WriteBits(uint32_t v, uint32_t len)
+	{
+		// Accumulator has space, ideal fast path
+		if (this->accumulator_usage + len < ACC_LEN)
+		{
+			const auto mask = static_cast<uint32_t>(1 << len) - 1;
+
+			this->accumulator = (this->accumulator << len) | (v & mask);
+			this->accumulator_usage += len;
+		}
+
+		// No space in accumulator, ultra super duper slow path
+		else
+		{
+			if (this->output + 1 > this->output_end || len >= ACC_LEN)
+				return 1;
+
+			// Accumulate what we can, then write
+			const auto min = ACC_LEN - this->accumulator_usage;
+			const auto mask = static_cast<uint32_t>(1 << min) - 1;
+
+			*this->output++ = (this->accumulator << min) | (v & mask);
+
+			// Accumulate remainder
+			this->accumulator = v >> min;
+			this->accumulator_usage = len - min;
+
+			// Developers, developers, developers
+			// printf("E |\tWrite!, d: 0x%X, min: %u\n", *(this->output - 1), min);
+		}
+
+		// Developers, developers, developers
+		// printf("E | v: %u,\tl: %u, u: %u\n", v, len, this->accumulator_usage);
+
+		// Bye!
+		return 0;
+	}
+
+	size_t Finish()
+	{
+		// Remainder
+		if (this->accumulator_usage > 0)
+		{
+			if (this->output + 1 > this->output_end)
+				return 0;
+
+			*this->output++ = this->accumulator << (ACC_LEN - this->accumulator_usage);
+
+			// Developers, developers, developers
+			// printf("E |\tWrite!, d: 0x%X\n", *(this->output - 1));
+		}
+
+		// Bye!
+		return static_cast<size_t>(this->output - this->output_start);
+	}
+};
+
 template <typename T> class CompressorKagari final : public Compressor<T>
 {
   private:
@@ -46,12 +130,12 @@ template <typename T> class CompressorKagari final : public Compressor<T>
 
 	uint32_t ZigZagEncode(int32_t in) const
 	{
-		return static_cast<uint32_t>((in << 1) ^ (in >> 31));
+		return static_cast<uint32_t>((in * 2) ^ (in >> 31));
 	}
 
 	uint16_t ZigZagEncode(int16_t in) const
 	{
-		return static_cast<uint16_t>((in << 1) ^ (in >> 15));
+		return static_cast<uint16_t>((in * 2) ^ (in >> 15));
 	}
 
 	uint16_t* FlipSignCast(int16_t* ptr)
