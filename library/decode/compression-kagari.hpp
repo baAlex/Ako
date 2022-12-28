@@ -55,43 +55,50 @@ class KagariBitReader
 
 	int ReadBits(uint32_t length, uint32_t& value)
 	{
+		const auto mask = ~(0xFFFFFFFF << length);
+
 		// Accumulator contains our value, ideal fast path
 		if (length <= this->accumulator_usage)
 		{
-			const auto mask = static_cast<uint32_t>(1 << length) - 1;
-
+			value = this->accumulator & mask;
+			this->accumulator >>= length;
 			this->accumulator_usage -= length;
-			value = (this->accumulator >> this->accumulator_usage) & mask;
 		}
 
 		// Accumulator doesn't have it, at least entirely, ultra super duper slow path
 		else
 		{
-			if (this->input + 1 > this->input_end || length >= ACCUMULATOR_LENGTH)
+			if (this->input + 1 > this->input_end)
 				return 1;
 
 			// Keep what accumulator has
 			const auto min = this->accumulator_usage;
-			const auto mask = static_cast<uint32_t>(1 << min) - 1;
-
-			value = this->accumulator & mask;
+			value = this->accumulator;
 
 			// Read, make value with remainder part
 			this->accumulator = *this->input++;
 			this->accumulator_usage = ACCUMULATOR_LENGTH - (length - min);
 
-			value |= (this->accumulator >> this->accumulator_usage) << min;
+			value = (value | (this->accumulator << min)) & mask;
+			this->accumulator >>= (length - min);
 
 			// Developers, developers, developers
-			// printf("D |\tRead!, d: 0x%X, min: %u\n", *(this->input - 1), min);
+			// printf("\tD | \tRead accumulator [d: 0x%x, min: %u]\n", *(this->input - 1), min);
 		}
 
 		// Developers, developers, developers
-		// printf("D | v: %u,\tl: %u, u: %u (%u)\n", value, length, this->accumulator_usage, ACCUMULATOR_LENGTH -
-		// this->accumulator_usage);
+		// printf("\tD | v: %u,\tl: %u, u: %u (%u)\n", value, length, this->accumulator_usage,
+		//       ACCUMULATOR_LENGTH - this->accumulator_usage);
 
 		// Bye!
 		return 0;
+	}
+
+	size_t Finish(const uint32_t* input_start) const
+	{
+		const auto input_length = Max(static_cast<size_t>(1), static_cast<size_t>(this->input - input_start));
+		// printf("\tDecoded length: %zu\n\n", input_length); // Developers, developers, developers
+		return input_length;
 	}
 };
 

@@ -36,6 +36,10 @@ class KagariBitWriter
 	uint32_t* output_end;
 	uint32_t* output;
 
+	uint32_t wrote_values; // As is possible to encode zero, of length zero,
+	                       // meaning that 'output' doesn't move actually.
+	                       // So this work as an alternative to keep count.
+
 	uint32_t accumulator;
 	uint32_t accumulator_usage;
 
@@ -51,6 +55,8 @@ class KagariBitWriter
 		this->output_end = this->output_start + output_length;
 		this->output = this->output_start;
 
+		this->wrote_values = 0;
+
 		this->accumulator = 0;
 		this->accumulator_usage = 0;
 	}
@@ -60,9 +66,9 @@ class KagariBitWriter
 		// Accumulator has space, ideal fast path
 		if (this->accumulator_usage + length < ACCUMULATOR_LENGTH)
 		{
-			const auto mask = static_cast<uint32_t>(1 << length) - 1;
+			const auto mask = ~(0xFFFFFFFF << length);
 
-			this->accumulator = (this->accumulator << length) | (value & mask);
+			this->accumulator |= ((value & mask) << this->accumulator_usage);
 			this->accumulator_usage += length;
 		}
 
@@ -74,22 +80,23 @@ class KagariBitWriter
 
 			// Accumulate what we can, then write
 			const auto min = ACCUMULATOR_LENGTH - this->accumulator_usage;
-			const auto mask = static_cast<uint32_t>(1 << min) - 1;
-
-			*this->output++ = (this->accumulator << min) | (value & mask);
+			*this->output++ = this->accumulator | (value << this->accumulator_usage);
 
 			// Accumulate remainder
-			this->accumulator = value >> min;
+			const auto mask = ~(0xFFFFFFFF << (length - min));
+
+			this->accumulator = (value >> min) & mask;
 			this->accumulator_usage = length - min;
 
 			// Developers, developers, developers
-			// printf("E |\tWrite!, d: 0x%X, min: %u\n", *(this->output - 1), min);
+			// printf("\tE | \tWrite accumulator [d: 0x%x, min: %u]\n", *(this->output - 1), min);
 		}
 
 		// Developers, developers, developers
-		// printf("E | v: %u,\tl: %u, u: %u\n", value, length, this->accumulator_usage);
+		// printf("\tE | v: %u,\tl: %u, u: %u\n", value, length, this->accumulator_usage);
 
 		// Bye!
+		this->wrote_values += 1;
 		return 0;
 	}
 
@@ -101,14 +108,20 @@ class KagariBitWriter
 			if (this->output + 1 > this->output_end)
 				return 0;
 
-			*this->output++ = this->accumulator << (ACCUMULATOR_LENGTH - this->accumulator_usage);
+			*this->output++ = this->accumulator;
 
 			// Developers, developers, developers
-			// printf("E |\tWrite!, d: 0x%X\n", *(this->output - 1));
+			// printf("\tE | \tWrite accumulator [d: 0x%x]\n", *(this->output - 1));
 		}
 
 		// Bye!
-		return static_cast<size_t>(this->output - this->output_start);
+		auto output_length = static_cast<size_t>(this->output - this->output_start);
+
+		if (output_length == 0 && this->wrote_values != 0) // Somebody wrote lots of zeros
+			output_length = 1;
+
+		// printf("\tEncoded length: %zu\n\n", output_length); // Developers, developers, developers
+		return output_length;
 	}
 };
 

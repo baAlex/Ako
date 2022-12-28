@@ -15,6 +15,9 @@
 
 static uint32_t sBitsLength(uint32_t v)
 {
+	if (v == 0)
+		return 0;
+
 	uint32_t len = 1;
 	for (; v > 1; v >>= 1)
 		len++;
@@ -23,14 +26,12 @@ static uint32_t sBitsLength(uint32_t v)
 }
 
 
-static void sFixedTest()
+static void sFixedTest(const uint32_t* values, const unsigned values_no)
 {
-	printf("FixedTest\n");
+	printf(" - Fixed Test, len: %u\n", values_no);
 
-	const auto values_no = 10;
-	const uint32_t values[values_no] = {0xFFFF, 1023, 15, 13, 0xF123, 2, 4, 5, 0x7FFFFFFF, 3};
-
-	uint32_t buffer[values_no] = {};
+	auto buffer = reinterpret_cast<uint32_t*>(malloc(sizeof(uint32_t) * values_no));
+	assert(values != nullptr);
 
 	// Write
 	size_t encoded_length = 0;
@@ -56,10 +57,15 @@ static void sFixedTest()
 			assert(ret == 0);
 			assert(v == values[i]);
 		}
+
+		reader.Finish(buffer);
 	}
+
+	free(buffer);
 }
 
 
+#if 1
 struct CdfEntry
 {
 	uint16_t value;
@@ -127,6 +133,7 @@ static uint32_t sRandomWaveletDistribution(uint32_t* state)
 	*state = x;
 
 	// Use index as cumulative
+	// const auto c = (x & 0xFFFF);
 	const auto c = ((x & 0xFFFF) >> 1) + (0xFFFF >> 1); // Starts from mid
 	uint16_t ret = s_cdf[255].value;
 
@@ -145,7 +152,7 @@ static uint32_t sRandomWaveletDistribution(uint32_t* state)
 
 static void sRandomTest(unsigned values_no, uint32_t seed = 4321)
 {
-	printf("RandomTest, len: %u, seed: %u\n", values_no, seed);
+	printf(" - Random Test, len: %u, seed: %u\n", values_no, seed);
 
 	auto values = reinterpret_cast<uint32_t*>(malloc(sizeof(uint32_t) * values_no));
 	auto buffer = reinterpret_cast<uint32_t*>(malloc(sizeof(uint32_t) * values_no));
@@ -180,11 +187,14 @@ static void sRandomTest(unsigned values_no, uint32_t seed = 4321)
 			assert(ret == 0);
 			assert(v == values[i]);
 		}
+
+		reader.Finish(buffer);
 	}
 
 	free(values);
 	free(buffer);
 }
+#endif
 
 
 int main(int argc, const char* argv[])
@@ -195,9 +205,24 @@ int main(int argc, const char* argv[])
 	printf("# Kagari Bits Test (Ako v%i.%i.%i, %s)\n", ako::VersionMajor(), ako::VersionMinor(), ako::VersionPatch(),
 	       (ako::SystemEndianness() == ako::Endianness::Little) ? "little-endian" : "big-endian");
 
+	{
+		const auto values_no = 15;
+		const uint32_t values[values_no] = {0xFFFF, 1023,       15, 13,     0xF123, 2, 0, 4,
+		                                    5,      0x7FFFFFFF, 3,  0xFFFF, 0xFFFE, 4, 3};
+		sFixedTest(values, values_no);
+	}
+	{
+		const auto values_no = 4;
+		const uint32_t values[values_no] = {0, 0, 0, 0};
+		sFixedTest(values, values_no);
+	}
+	{
+		const auto values_no = 1;
+		const uint32_t values[values_no] = {4};
+		sFixedTest(values, values_no);
+	}
 
-	sFixedTest();
-	sRandomTest(4096);
+	sRandomTest(8192);
 
 	return EXIT_SUCCESS;
 }
