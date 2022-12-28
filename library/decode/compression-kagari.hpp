@@ -30,7 +30,7 @@ namespace ako
 
 class KagariBitReader
 {
-	static const uint32_t ACC_LEN = 32;
+	static const uint32_t ACCUMULATOR_LENGTH = 32;
 
 	const uint32_t* input_end;
 	const uint32_t* input;
@@ -39,7 +39,12 @@ class KagariBitReader
 	uint32_t accumulator_usage;
 
   public:
-	KagariBitReader(size_t input_length, const uint32_t* input)
+	KagariBitReader(size_t input_length = 0, const uint32_t* input = nullptr)
+	{
+		Reset(input_length, input);
+	}
+
+	void Reset(size_t input_length, const uint32_t* input)
 	{
 		this->input_end = input + input_length;
 		this->input = input;
@@ -48,41 +53,41 @@ class KagariBitReader
 		this->accumulator_usage = 0;
 	}
 
-	int ReadBits(uint32_t len, uint32_t& v)
+	int ReadBits(uint32_t length, uint32_t& value)
 	{
 		// Accumulator contains our value, ideal fast path
-		if (len <= this->accumulator_usage)
+		if (length <= this->accumulator_usage)
 		{
-			const auto mask = static_cast<uint32_t>(1 << len) - 1;
+			const auto mask = static_cast<uint32_t>(1 << length) - 1;
 
-			this->accumulator_usage -= len;
-			v = (this->accumulator >> this->accumulator_usage) & mask;
+			this->accumulator_usage -= length;
+			value = (this->accumulator >> this->accumulator_usage) & mask;
 		}
 
 		// Accumulator doesn't have it, at least entirely, ultra super duper slow path
 		else
 		{
-			if (this->input + 1 > this->input_end || len >= ACC_LEN)
+			if (this->input + 1 > this->input_end || length >= ACCUMULATOR_LENGTH)
 				return 1;
 
 			// Keep what accumulator has
 			const auto min = this->accumulator_usage;
 			const auto mask = static_cast<uint32_t>(1 << min) - 1;
 
-			v = this->accumulator & mask;
+			value = this->accumulator & mask;
 
 			// Read, make value with remainder part
 			this->accumulator = *this->input++;
-			this->accumulator_usage = ACC_LEN - (len - min);
+			this->accumulator_usage = ACCUMULATOR_LENGTH - (length - min);
 
-			v |= (this->accumulator >> this->accumulator_usage) << min;
+			value |= (this->accumulator >> this->accumulator_usage) << min;
 
 			// Developers, developers, developers
 			// printf("D |\tRead!, d: 0x%X, min: %u\n", *(this->input - 1), min);
 		}
 
 		// Developers, developers, developers
-		// printf("D | v: %u,\tl: %u, u: %u (%u)\n", v, len, this->accumulator_usage, ACC_LEN -
+		// printf("D | v: %u,\tl: %u, u: %u (%u)\n", value, length, this->accumulator_usage, ACCUMULATOR_LENGTH -
 		// this->accumulator_usage);
 
 		// Bye!
@@ -90,69 +95,45 @@ class KagariBitReader
 	}
 };
 
-template <typename T> class DecompressorKagari final : public Decompressor<T>
+class DecompressorKagari final : public Decompressor<int16_t>
 {
   private:
-	const uint8_t* input_end;
-	const uint8_t* input;
+	KagariBitReader reader;
 
-	T* buffer_start;
-	T* buffer_end;
+	int16_t* block_start;
+	int16_t* block_end;
 
-	unsigned buffer_usage;
-	T* buffer;
+	unsigned block_usage;
+	int16_t* block_cursor;
 
-	int32_t ZigZagDecode(uint32_t length, const uint32_t* in, int32_t* out) const
+	int16_t ZigZagDecode(uint16_t value) const
 	{
-		// if (length == 0) // A linter will expect this
-		// 	return 0;
-
-		for (uint32_t i = 0; i < length; i += 1)
-			out[i] = static_cast<int32_t>((in[i] >> 1) ^ (~(in[i] & 1) + 1));
-		return out[length - 1]; // NOLINT
-	}
-
-	int16_t ZigZagDecode(uint32_t length, const uint16_t* in, int16_t* out) const
-	{
-		// if (length == 0) // A linter will expect this
-		// 	return 0;
-
-		for (uint32_t i = 0; i < length; i += 1)
-			out[i] = static_cast<int16_t>((in[i] >> 1) ^ (~(in[i] & 1) + 1));
-		return out[length - 1]; // NOLINT
-	}
-
-	const uint16_t* FlipSignCast(const int16_t* ptr)
-	{
-		return reinterpret_cast<const uint16_t*>(ptr);
-	}
-
-	const uint32_t* FlipSignCast(const int32_t* ptr)
-	{
-		return reinterpret_cast<const uint32_t*>(ptr);
+		return static_cast<int16_t>((value >> 1) ^ (~(value & 1) + 1));
 	}
 
 	int Decompress()
 	{
-		this->buffer = this->buffer_start; // We always decompress an entire buffer (as the encoder do)
+		this->block_cursor = this->block_start; // We always decompress an entire block (as the encoder do)
 
-		auto out_end = this->buffer_end;
-		auto out = this->buffer_start;
-		T rle_value = 0;
+		auto out_end = this->block_end;
+		auto out = this->block_start;
+		int16_t rle_value = 0;
 
 		while (out < out_end)
 		{
 			// Read Rle and literal lengths
-			if (this->input + (sizeof(uint32_t) * 2) > this->input_end) // End reached, not an error
-				break;
+			uint32_t rle_length;
+			uint32_t literal_length;
 
-			auto in_u32 = reinterpret_cast<const uint32_t*>(this->input);
-			const uint32_t rle_length = *in_u32++;
-			const uint32_t literal_length = (*in_u32++) + 1; // Notice the +1
+			if (this->reader.ReadBits(16, rle_length) != 0)
+				break; // End reached, not an error, if is an error Step() will catch it
+			if (this->reader.ReadBits(16, literal_length) != 0)
+				break; // Ditto
+
+			literal_length += 1; // [A]
 
 			// Checks
-			if (out + rle_length + literal_length > out_end ||
-			    this->input + (sizeof(uint32_t) * 2) + (sizeof(T) * literal_length) > this->input_end)
+			if (out + rle_length + literal_length > out_end)
 				return 1;
 
 			// Write Rle values
@@ -160,70 +141,83 @@ template <typename T> class DecompressorKagari final : public Decompressor<T>
 				out[i] = rle_value;
 
 			// Write literal values
-			rle_value =
-			    ZigZagDecode(literal_length, FlipSignCast(reinterpret_cast<const T*>(in_u32)), out + rle_length);
+			for (uint32_t i = 0; i < literal_length; i += 1)
+			{
+				uint32_t value;
+				if (this->reader.ReadBits(16, value) != 0) // TODO
+					return 1;
+
+				out[rle_length + i] = static_cast<int16_t>(ZigZagDecode(static_cast<uint16_t>(value)));
+			}
+
+			rle_value = out[rle_length + literal_length - 1]; // [B]
 
 			// Developers, developers, developers
 			{
 				// printf("\tD [Rle, l: %u, v: '%c']", rle_length, static_cast<char>(rle_value));
 				// printf(" [Lit, l: %u, v: '", literal_length);
-				// for (unsigned i = 0; i < literal_length; i += 1)
-				//	printf("%c", static_cast<char>(out[rle_length + i]));
+				// for (uint32_t i = 0; i < literal_length; i += 1)
+				// 	printf("%c", static_cast<char>(out[rle_length + i]));
 				// printf("']\n");
 			}
 
 			// Update pointers
-			this->input += (sizeof(uint32_t) * 2) + (sizeof(T) * literal_length);
 			out += rle_length + literal_length;
 		}
 
 		// Bye!
-		this->buffer_usage = static_cast<unsigned>(out - this->buffer_start);
+		this->block_usage = static_cast<unsigned>(out - this->block_start);
 		return 0;
 	}
 
   public:
-	DecompressorKagari(unsigned buffer_length, size_t input_size, const void* input)
+	DecompressorKagari(unsigned block_length, size_t input_size, const void* input)
 	{
-		this->input_end = reinterpret_cast<const uint8_t*>(input) + input_size;
-		this->input = reinterpret_cast<const uint8_t*>(input);
+		this->reader.Reset(input_size / sizeof(uint32_t), reinterpret_cast<const uint32_t*>(input));
 
-		this->buffer_start = reinterpret_cast<T*>(malloc(buffer_length * sizeof(T)));
-		this->buffer_end = this->buffer_start + buffer_length;
+		this->block_start = reinterpret_cast<int16_t*>(malloc(block_length * sizeof(int16_t)));
+		this->block_end = this->block_start + block_length;
 
-		this->buffer_usage = 0;
-		this->buffer = this->buffer_start;
+		this->block_usage = 0;
+		this->block_cursor = this->block_start;
 	}
 
 	~DecompressorKagari()
 	{
-		free(this->buffer_start);
+		free(this->block_start);
 	}
 
-	Status Step(unsigned width, unsigned height, T* out) override
+	Status Step(unsigned width, unsigned height, int16_t* out) override
 	{
 		auto output_length = (width * height);
 
 		while (output_length != 0)
 		{
-			// If needed, decompress an entire buffer
-			if (this->buffer_usage == 0)
+			// If needed, decompress an entire block
+			if (this->block_usage == 0)
 			{
 				if (Decompress() != 0)
 					return Status::Error;
-				if (this->buffer_usage == 0)
+				if (this->block_usage == 0)
 					return Status::Error;
 			}
 
-			// Move values that this buffer can provide
+			// Move values that this block can provide
 			{
-				const auto length = Min(this->buffer_usage, output_length);
+				const auto length = Min(this->block_usage, output_length);
 
 				for (unsigned i = 0; i < length; i += 1)
-					out[i] = this->buffer[i];
+					out[i] = this->block_cursor[i]; // NOLINT
 
-				this->buffer_usage -= length;
-				this->buffer += length;
+				// False positive, as procedure [A] (which makes [B] be valid)
+				// is confusing Clang Tidy. With encoder cooperation by
+				// disabling '- 1' operations there, our linter then will not
+				// report this here section but [B] (which is correct, and can
+				// be fix with an extra comparision)... so yeah, closer but not
+				// really an error (I think)
+
+				this->block_usage -= length;
+				this->block_cursor += length;
 				output_length -= length;
 				out += length;
 			}

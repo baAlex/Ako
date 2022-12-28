@@ -269,9 +269,9 @@ int main()
 	sTest("/tmp/640x480x3-8bpp.ako", settings, 640, 480, 3, sDataGenerator<uint8_t>);
 	sTest("/tmp/1280x720x4-8bpp.ako", settings, 1280, 720, 4, sDataGenerator<uint8_t>);
 
-	sTest("/tmp/1x1x1-16bpp.ako", settings, 1, 1, 1, sDataGenerator<uint16_t>);
-	sTest("/tmp/640x480x3-16bpp.ako", settings, 640, 480, 3, sDataGenerator<uint16_t>);
-	sTest("/tmp/1280x720x4-16bpp.ako", settings, 1280, 720, 4, sDataGenerator<uint16_t>);
+	// sTest("/tmp/1x1x1-16bpp.ako", settings, 1, 1, 1, sDataGenerator<uint16_t>);
+	// sTest("/tmp/640x480x3-16bpp.ako", settings, 640, 480, 3, sDataGenerator<uint16_t>);
+	// sTest("/tmp/1280x720x4-16bpp.ako", settings, 1280, 720, 4, sDataGenerator<uint16_t>);
 
 	settings.tiles_dimension = 256;
 	sTest("/tmp/128x128x1-8bpp-256tiles.ako", settings, 128, 128, 1, sDataGenerator<uint8_t>);

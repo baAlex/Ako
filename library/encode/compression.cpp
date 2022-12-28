@@ -134,8 +134,9 @@ static size_t sCompress1stPhase(const Callbacks& callbacks, const Settings& sett
 
 	if (settings.compression != Compression::None)
 	{
+		// Initialization
 		auto target_size = sizeof(T) * width * height * channels;
-		auto compressor = CompressorKagari<T>(BUFFER_SIZE, target_size, output);
+		auto compressor = CompressorKagari(BUFFER_SIZE, target_size, output);
 		out_compression = Compression::Kagari;
 
 		auto s = settings;
@@ -167,7 +168,7 @@ static size_t sCompress1stPhase(const Callbacks& callbacks, const Settings& sett
 			}
 		}
 
-		// Iterate
+		// Iterate?
 		if (settings.quantization == 0.0F && settings.ratio >= 1.0F)
 		{
 			// Find ceil
@@ -189,7 +190,7 @@ static size_t sCompress1stPhase(const Callbacks& callbacks, const Settings& sett
 					goto fallback;
 			}
 
-			// Check by dividing the space by two
+			// Divide space in two, between floor and ceil
 			for (unsigned i = 0; i < TRY; i += 1)
 			{
 				const auto q = (q_floor + q_ceil) / 2.0F;
@@ -208,7 +209,7 @@ static size_t sCompress1stPhase(const Callbacks& callbacks, const Settings& sett
 					q_floor = q;
 			}
 
-			// Last one being too close to floor, failed
+			// Last iteration being too close to floor, failed
 			if (s.quantization != q_ceil)
 			{
 				s.quantization = q_ceil;
@@ -250,7 +251,15 @@ template <>
 size_t Compress(const Callbacks& callbacks, const Settings& settings, unsigned width, unsigned height,
                 unsigned channels, const int32_t* input, void* output, Compression& out_compression)
 {
-	return sCompress1stPhase(callbacks, settings, width, height, channels, input, output, out_compression);
+	(void)callbacks;
+	(void)settings;
+	(void)width;
+	(void)height;
+	(void)channels;
+	(void)input;
+	(void)output;
+	(void)out_compression;
+	return 0;
 }
 
 } // namespace ako

@@ -94,7 +94,7 @@ int Decompress(Compression compression, size_t compressed_size, unsigned width, 
 {
 	if (compression == Compression::Kagari)
 	{
-		auto decompressor = DecompressorKagari<int16_t>(BUFFER_SIZE, compressed_size, input);
+		auto decompressor = DecompressorKagari(BUFFER_SIZE, compressed_size, input);
 		return sDecompress(decompressor, width, height, channels, output, status);
 	}
 
@@ -106,14 +106,15 @@ template <>
 int Decompress(Compression compression, size_t compressed_size, unsigned width, unsigned height, unsigned channels,
                const void* input, int32_t* output, Status& status)
 {
-	if (compression == Compression::Kagari)
-	{
-		auto decompressor = DecompressorKagari<int32_t>(BUFFER_SIZE, compressed_size, input);
-		return sDecompress(decompressor, width, height, channels, output, status);
-	}
-
-	auto decompressor = DecompressorNone<int32_t>(compressed_size, input);
-	return sDecompress(decompressor, width, height, channels, output, status);
+	(void)compression;
+	(void)compressed_size;
+	(void)width;
+	(void)height;
+	(void)channels;
+	(void)input;
+	(void)output;
+	(void)status;
+	return 0;
 }
 
 } // namespace ako

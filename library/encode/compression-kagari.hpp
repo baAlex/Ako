@@ -30,7 +30,7 @@ namespace ako
 
 class KagariBitWriter
 {
-	static const uint32_t ACC_LEN = 32;
+	static const uint32_t ACCUMULATOR_LENGTH = 32;
 
 	uint32_t* output_start;
 	uint32_t* output_end;
@@ -40,7 +40,7 @@ class KagariBitWriter
 	uint32_t accumulator_usage;
 
   public:
-	KagariBitWriter(size_t output_length, uint32_t* output)
+	KagariBitWriter(size_t output_length = 0, uint32_t* output = nullptr)
 	{
 		Reset(output_length, output);
 	}
@@ -55,39 +55,39 @@ class KagariBitWriter
 		this->accumulator_usage = 0;
 	}
 
-	int WriteBits(uint32_t v, uint32_t len)
+	int WriteBits(uint32_t value, uint32_t length)
 	{
 		// Accumulator has space, ideal fast path
-		if (this->accumulator_usage + len < ACC_LEN)
+		if (this->accumulator_usage + length < ACCUMULATOR_LENGTH)
 		{
-			const auto mask = static_cast<uint32_t>(1 << len) - 1;
+			const auto mask = static_cast<uint32_t>(1 << length) - 1;
 
-			this->accumulator = (this->accumulator << len) | (v & mask);
-			this->accumulator_usage += len;
+			this->accumulator = (this->accumulator << length) | (value & mask);
+			this->accumulator_usage += length;
 		}
 
 		// No space in accumulator, ultra super duper slow path
 		else
 		{
-			if (this->output + 1 > this->output_end || len >= ACC_LEN)
+			if (this->output + 1 > this->output_end || length >= ACCUMULATOR_LENGTH)
 				return 1;
 
 			// Accumulate what we can, then write
-			const auto min = ACC_LEN - this->accumulator_usage;
+			const auto min = ACCUMULATOR_LENGTH - this->accumulator_usage;
 			const auto mask = static_cast<uint32_t>(1 << min) - 1;
 
-			*this->output++ = (this->accumulator << min) | (v & mask);
+			*this->output++ = (this->accumulator << min) | (value & mask);
 
 			// Accumulate remainder
-			this->accumulator = v >> min;
-			this->accumulator_usage = len - min;
+			this->accumulator = value >> min;
+			this->accumulator_usage = length - min;
 
 			// Developers, developers, developers
 			// printf("E |\tWrite!, d: 0x%X, min: %u\n", *(this->output - 1), min);
 		}
 
 		// Developers, developers, developers
-		// printf("E | v: %u,\tl: %u, u: %u\n", v, len, this->accumulator_usage);
+		// printf("E | v: %u,\tl: %u, u: %u\n", value, length, this->accumulator_usage);
 
 		// Bye!
 		return 0;
@@ -101,7 +101,7 @@ class KagariBitWriter
 			if (this->output + 1 > this->output_end)
 				return 0;
 
-			*this->output++ = this->accumulator << (ACC_LEN - this->accumulator_usage);
+			*this->output++ = this->accumulator << (ACCUMULATOR_LENGTH - this->accumulator_usage);
 
 			// Developers, developers, developers
 			// printf("E |\tWrite!, d: 0x%X\n", *(this->output - 1));
@@ -112,79 +112,57 @@ class KagariBitWriter
 	}
 };
 
-template <typename T> class CompressorKagari final : public Compressor<T>
+class CompressorKagari final : public Compressor<int16_t>
 {
   private:
 	static const unsigned RLE_TRIGGER = 4;
-	static const unsigned HISTOGRAM_LENGTH = 0xFFFF; // TODO, quite short
+	static const unsigned HISTOGRAM_LENGTH = 0xFFFF;
 
-	uint8_t* output_start;
-	uint8_t* output_end;
-	uint8_t* output;
-
-	T* buffer_start = nullptr;
-	T* buffer_end;
-	T* buffer;
-
+	KagariBitWriter writer;
 	Histogram histogram[HISTOGRAM_LENGTH + 1];
 
-	uint32_t ZigZagEncode(int32_t in) const
-	{
-		return static_cast<uint32_t>((in * 2) ^ (in >> 31));
-	}
+	int16_t* block_start = nullptr;
+	int16_t* block_end;
+	int16_t* block;
 
 	uint16_t ZigZagEncode(int16_t in) const
 	{
 		return static_cast<uint16_t>((in * 2) ^ (in >> 15));
 	}
 
-	uint16_t* FlipSignCast(int16_t* ptr)
-	{
-		return reinterpret_cast<uint16_t*>(ptr);
-	}
-
-	uint32_t* FlipSignCast(int32_t* ptr)
-	{
-		return reinterpret_cast<uint32_t*>(ptr);
-	}
-
-	int Emit(unsigned rle_length, unsigned literal_length, T rle_value, const T* literal_values)
+	int Emit(uint32_t rle_length, uint32_t literal_length, int16_t rle_value, const int16_t* literal_values)
 	{
 		// Developers, developers, developers
 		{
 			(void)rle_value;
 			// printf("\tE [Rle, l: %u, v: '%c']", rle_length, static_cast<char>(rle_value));
 			// printf(" [Lit, l: %u, v: '", literal_length);
-			// for (unsigned i = 0; i < literal_length; i += 1)
-			//	printf("%c", static_cast<char>(literal_values[i]));
+			// for (uint32_t i = 0; i < literal_length; i += 1)
+			// 	printf("%c", static_cast<char>(literal_values[i]));
 			// printf("']\n");
 		}
 
-		// Check space in output
-		if (this->output + (sizeof(uint32_t) * 2) + (sizeof(T) * literal_length) > this->output_end)
+		this->histogram[literal_length - 1].i += 1; // Notice the '- 1'
+		this->histogram[rle_length].i += 1;
+
+		if (rle_length > 0xFFFF || literal_length > 0xFFFF) // Block size don't allow this to happen
 			return 1;
 
 		// Instructions
-		auto out_u32 = reinterpret_cast<uint32_t*>(this->output);
+		if (this->writer.WriteBits(rle_length, 16) != 0)
+			return 1;
+		if (this->writer.WriteBits(literal_length - 1, 16) != 0) // Notice the '- 1'
+			return 1;
 
-		*out_u32++ = rle_length;
-		*out_u32++ = literal_length - 1; // Notice the -1
-
-		this->histogram[literal_length & HISTOGRAM_LENGTH].i += 1;
-		this->histogram[rle_length & HISTOGRAM_LENGTH].i += 1;
-
-		// Data
-		auto out_uT = FlipSignCast(reinterpret_cast<T*>(out_u32));
-		for (unsigned i = 0; i < literal_length; i += 1)
+		// Literal data
+		for (uint32_t i = 0; i < literal_length; i += 1)
 		{
-			const auto v = ZigZagEncode(literal_values[i]);
-			*out_uT++ = v;
+			const auto value = ZigZagEncode(literal_values[i]);
+			if (this->writer.WriteBits(value, 16) != 0)
+				return 1;
 
-			this->histogram[v & HISTOGRAM_LENGTH].d += 1;
+			this->histogram[value].d += 1;
 		}
-
-		// Update pointer
-		this->output = reinterpret_cast<uint8_t*>(out_uT);
 
 		// Bye!
 		return 0;
@@ -192,54 +170,54 @@ template <typename T> class CompressorKagari final : public Compressor<T>
 
 	int Compress()
 	{
-		const auto buffer_len = static_cast<unsigned>(this->buffer - this->buffer_start);
+		const auto block_length = static_cast<uint32_t>(this->block - this->block_start);
 
-		this->buffer = this->buffer_start;
+		this->block = this->block_start;
 
-		unsigned rle_len = 0;
-		T rle_value = 0;
+		uint32_t rle_length = 0;
+		int16_t rle_value = 0;
 
 		// Main loop
-		for (unsigned i = 0; i < buffer_len; i += 1)
+		for (uint32_t i = 0; i < block_length; i += 1)
 		{
-			if (this->buffer[i] == rle_value)
-				rle_len += 1;
+			if (this->block[i] == rle_value)
+				rle_length += 1;
 			else
 			{
 				// Find literal length
-				unsigned literal_len = 0;
+				uint32_t literal_length = 0;
 				{
-					unsigned repetitions = 0; // Inside our literal
+					uint32_t repetitions = 0; // Inside our literal
 
-					for (unsigned u = i + 1; u < buffer_len && repetitions < RLE_TRIGGER; u += 1)
+					for (uint32_t u = i + 1; u < block_length && repetitions < RLE_TRIGGER; u += 1)
 					{
-						literal_len += 1;
-						if (this->buffer[u] == this->buffer[u - 1])
+						literal_length += 1;
+						if (this->block[u] == this->block[u - 1])
 							repetitions += 1;
 						else
 							repetitions = 0;
 					}
 
 					if (repetitions == RLE_TRIGGER)
-						literal_len -= RLE_TRIGGER;
+						literal_length -= RLE_TRIGGER;
 				}
 
 				// Emit
-				if (Emit(rle_len, literal_len + 1, rle_value, this->buffer + i) != 0)
+				if (Emit(rle_length, literal_length + 1, rle_value, this->block + i) != 0)
 					return 1;
 
 				// Next step
-				rle_value = this->buffer[i + literal_len];
-				rle_len = 0;
-				i += literal_len;
+				rle_value = this->block[i + literal_length];
+				rle_length = 0;
+				i += literal_length;
 			}
 		}
 
 		// Remainder
-		if (rle_len != 0)
+		if (rle_length != 0)
 		{
 			// Always end on a literal
-			if (Emit(rle_len - 1, 1, rle_value, &rle_value) != 0)
+			if (Emit(rle_length - 1, 1, rle_value, &rle_value) != 0)
 				return 1;
 		}
 
@@ -248,43 +226,41 @@ template <typename T> class CompressorKagari final : public Compressor<T>
 	}
 
   public:
-	CompressorKagari(unsigned buffer_length, size_t output_size, void* output)
+	CompressorKagari(unsigned block_length, size_t output_size, void* output)
 	{
-		Reset(buffer_length, output_size, output);
+		Reset(block_length, output_size, output);
 	}
 
 	~CompressorKagari()
 	{
-		free(this->buffer_start);
+		free(this->block_start);
 	}
 
-	void Reset(unsigned buffer_length, size_t output_size, void* output)
+	void Reset(unsigned block_length, size_t output_size, void* output)
 	{
-		this->output_start = reinterpret_cast<uint8_t*>(output);
-		this->output_end = this->output_start + output_size;
-		this->output = this->output_start;
+		this->writer.Reset(output_size / sizeof(uint32_t), reinterpret_cast<uint32_t*>(output));
 
-		if (this->buffer_start == nullptr || this->buffer_end - this->buffer_start < buffer_length)
+		if (this->block_start == nullptr || static_cast<unsigned>(this->block_end - this->block_start) < block_length)
 		{
-			if (this->buffer_start != nullptr) // TODO
-				free(this->buffer_start);
-			this->buffer_start = reinterpret_cast<T*>(malloc(buffer_length * sizeof(T)));
+			if (this->block_start != nullptr) // TODO
+				free(this->block_start);
+			this->block_start = reinterpret_cast<int16_t*>(malloc(block_length * sizeof(int16_t)));
 		}
 
-		this->buffer_end = this->buffer_start + buffer_length;
-		this->buffer = this->buffer_start;
+		this->block_end = this->block_start + block_length;
+		this->block = this->block_start;
 
 		Memset(this->histogram, 0, sizeof(Histogram) * (HISTOGRAM_LENGTH + 1));
 	}
 
-	int Step(QuantizationCallback<T> quantize, float quantization, unsigned width, unsigned height,
-	         const T* input) override
+	int Step(QuantizationCallback<int16_t> quantize, float quantization, unsigned width, unsigned height,
+	         const int16_t* input) override
 	{
 		auto input_length = (width * height);
 		do
 		{
-			// No space in buffer, compress what we have so far
-			if (this->buffer == this->buffer_end)
+			// No space in block, compress what we have so far
+			if (this->block == this->block_end)
 			{
 				if (Compress() != 0)
 					return 1;
@@ -292,10 +268,10 @@ template <typename T> class CompressorKagari final : public Compressor<T>
 
 			// Quantize input
 			{
-				const auto length = Min(static_cast<unsigned>(this->buffer_end - this->buffer), input_length);
+				const auto length = Min(static_cast<unsigned>(this->block_end - this->block), input_length);
 
-				quantize(quantization, length, input, this->buffer);
-				this->buffer += length;
+				quantize(quantization, length, input, this->block);
+				this->block += length;
 				input_length -= length;
 				input += length;
 			}
@@ -309,14 +285,14 @@ template <typename T> class CompressorKagari final : public Compressor<T>
 	size_t Finish() override
 	{
 		// Remainder
-		if (this->buffer - this->buffer_start > 0)
+		if (this->block - this->block_start > 0)
 		{
 			if (Compress() != 0)
 				return 0;
 		}
 
 		// Bye!
-		return static_cast<size_t>(this->output - this->output_start);
+		return this->writer.Finish() * sizeof(uint32_t);
 	}
 
 	unsigned GetHistogramLength() const
