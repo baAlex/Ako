@@ -81,6 +81,19 @@ template <typename T> class Decompressor
 };
 
 
+// common/cdf-tables.cpp:
+
+struct CdfEntry
+{
+	uint16_t root;
+	uint16_t suffix_length;
+	uint16_t frequency;
+	uint16_t cumulative;
+};
+
+extern const CdfEntry g_cdf1[255 + 1];
+
+
 // common/conversions.cpp:
 
 uint32_t ToNumber(Color c);

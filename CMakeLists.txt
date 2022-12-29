@@ -38,6 +38,7 @@ endif ()
 
 
 set(AKO_SOURCES
+	"./library/common/cdf-tables.cpp"
 	"./library/common/conversions.cpp"
 	"./library/common/defaults.cpp"
 	"./library/common/essentials.cpp"

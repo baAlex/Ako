@@ -8,8 +8,9 @@ import codes as code
 
 
 class CdfEntry:
-	def __init__(self, symbol):
-		self.s = symbol
+	def __init__(self, c):
+		self.r = code.DecodeRoot(c)
+		self.sl = code.DecodeSuffixLength(c)
 		self.f = 0
 		self.c = 0
 
@@ -20,9 +21,9 @@ def Print(cdf):
 	print("{")
 
 	for i in range(CDF_LEN - 1):
-		print("\t{{{}, {}, {}}},".format(cdf[i].s, cdf[i].f, cdf[i].c))
+		print("\t{{{}, {}, {}, {}}},".format(cdf[i].r, cdf[i].sl, cdf[i].f, cdf[i].c))
 
-	print("\t{{{}, {}, {}}}".format(cdf[-1].s, cdf[-1].f, cdf[-1].c))
+	print("\t{{{}, {}, {}, {}}}".format(cdf[-1].r, cdf[-1].sl, cdf[-1].f, cdf[-1].c))
 	print("};")
 
 
@@ -30,9 +31,9 @@ def AddFile(cdf, filename):
 	print("Reading '{}'".format(filename))
 	with open(filename) as fp:
 		reader = csv.reader(fp)
-		for i, row in enumerate(reader): # Value implicit in row number
-			cdf[code.Encode(i)].f += int(row[0]) # For now, merge both data and
-			cdf[code.Encode(i)].f += int(row[1]) # instructions frequencies (each column)
+		for v, row in enumerate(reader): # Value implicit in row number
+			cdf[code.Encode(v)].f += int(row[0]) # For now, merge both data and
+			cdf[code.Encode(v)].f += int(row[1]) # instructions frequencies (each column)
 
 
 def FillZeros(cdf):
@@ -65,10 +66,11 @@ def Normalize(cdf, normalize_to = 65535):
 	i_plus_one = 0
 
 	for i in range(CDF_LEN):
-		cdf[i].f = math.ceil(cdf[i].f / division) # Round or floor also work except that they
-		                                          # may yield a summation less that 'normalize_to',
-		                                          # wasting precision bits. Also it is easy to fix
-		                                          # an excess that a lack.
+		cdf[i].f = int(math.ceil(cdf[i].f / division))
+		# Round or floor also work except that they
+		# may yield a summation less that 'normalize_to',
+		# wasting precision bits. Also it is easy to fix
+		# an excess that a lack.
 
 		if cdf[i].f != 0:
 			final_summation += cdf[i].f
@@ -81,7 +83,9 @@ def Normalize(cdf, normalize_to = 65535):
 				i_plus_one -= 1
 
 	# Fix excess, as there is no perfect normalization
+	excess_fixes = 0
 	while final_summation > normalize_to:
+		excess_fixes += 1
 		final_summation -= 1
 		cdf[i_plus_one].f -= 1
 		if cdf[i_plus_one].f == 1:
@@ -89,7 +93,7 @@ def Normalize(cdf, normalize_to = 65535):
 
 	# Bye!
 	print("Initial summation: {}".format(summation))
-	print("Final summation: {} (d: {:.2f})".format(final_summation, division))
+	print("Final summation: {} (d: {:.2f}, e: {})".format(final_summation, division, excess_fixes))
 
 
 def Accumulate(cdf):
@@ -104,7 +108,7 @@ def Accumulate(cdf):
 if __name__ == '__main__':
 
 	CDF_LEN = 255 + 1
-	cdf = [CdfEntry(code.Decode(i)) for i in range(CDF_LEN)]
+	cdf = [CdfEntry(i) for i in range(CDF_LEN)]
 
 	for filename in sys.argv[1:]:
 		AddFile(cdf, filename)
@@ -114,7 +118,7 @@ if __name__ == '__main__':
 	cdf = sorted(cdf, key = lambda entry: (-entry.f))
 	Normalize(cdf)
 
-	cdf = sorted(cdf, key = lambda entry: (-entry.f, entry.s))
+	cdf = sorted(cdf, key = lambda entry: (-entry.f, entry.r))
 	Accumulate(cdf)
 
 	Print(cdf)

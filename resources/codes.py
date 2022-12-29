@@ -9,7 +9,7 @@ def Design(e, m):
 	return base + add
 
 
-def Decode(code):
+def DecodeRoot(code):
 	e = code >> 4
 	m = code & 15
 
@@ -19,6 +19,15 @@ def Decode(code):
 	base = (1 << e) + 48
 	add = m << (e - 4)
 	return base + add
+
+
+def DecodeSuffixLength(code):
+	e = code >> 4
+
+	if (e < 5):
+		return 0
+
+	return e - 4
 
 
 def Encode(value):
@@ -44,16 +53,16 @@ if __name__ == '__main__':
 		for e in range(16):
 			for m in range(16):
 				code = (e << 4) | m
-				print("{} -> {} = {} -> {}".format(code, Design(e, m), Decode(code), Encode(Decode(code))))
+				print("{} -> {} = {} -> {}, sl: {}".format(code, Design(e, m), DecodeRoot(code), Encode(DecodeRoot(code)), DecodeSuffixLength(code)))
 			print("")
 
 	if 0: # Encode/decode approach
 		prev_code = -1
 		for v in range(65536):
 			code = Encode(v)
-			decoded_v = Decode(code)
+			decoded_r = DecodeRoot(code)
 			if code != prev_code:
-				print("{} -> {} -> {}".format(v, code, decoded_v))
+				print("{} -> {} -> {}".format(v, code, decoded_r))
 			prev_code = code
 
 	if 0: # 65536 values to plot (as a souvenir)
