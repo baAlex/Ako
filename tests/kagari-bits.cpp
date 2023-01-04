@@ -39,7 +39,7 @@ static void sFixedTest(const uint32_t* values, const unsigned values_no)
 		auto writer = ako::KagariBitWriter(values_no, buffer);
 		for (unsigned i = 0; i < values_no; i += 1)
 		{
-			const auto ret = writer.WriteBits(values[i], sBitsLength(values[i]));
+			const auto ret = writer.Write(values[i], sBitsLength(values[i]));
 			assert(ret == 0);
 		}
 
@@ -53,7 +53,7 @@ static void sFixedTest(const uint32_t* values, const unsigned values_no)
 		for (unsigned i = 0; i < values_no; i += 1)
 		{
 			uint32_t v = 0;
-			const auto ret = reader.ReadBits(sBitsLength(values[i]), v);
+			const auto ret = reader.Read(sBitsLength(values[i]), v);
 			assert(ret == 0);
 			assert(v == values[i]);
 		}
@@ -169,7 +169,7 @@ static void sRandomTest(unsigned values_no, uint32_t seed = 4321)
 		auto writer = ako::KagariBitWriter(values_no, buffer);
 		for (unsigned i = 0; i < values_no; i += 1)
 		{
-			const auto ret = writer.WriteBits(values[i], sBitsLength(values[i]));
+			const auto ret = writer.Write(values[i], sBitsLength(values[i]));
 			assert(ret == 0);
 		}
 
@@ -183,7 +183,7 @@ static void sRandomTest(unsigned values_no, uint32_t seed = 4321)
 		for (unsigned i = 0; i < values_no; i += 1)
 		{
 			uint32_t v = 0;
-			const auto ret = reader.ReadBits(sBitsLength(values[i]), v);
+			const auto ret = reader.Read(sBitsLength(values[i]), v);
 			assert(ret == 0);
 			assert(v == values[i]);
 		}

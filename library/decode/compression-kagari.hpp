@@ -53,7 +53,7 @@ class KagariBitReader
 		this->accumulator_usage = 0;
 	}
 
-	int ReadBits(uint32_t length, uint32_t& value)
+	int Read(uint32_t length, uint32_t& value)
 	{
 		const auto mask = ~(0xFFFFFFFF << length);
 
@@ -97,10 +97,58 @@ class KagariBitReader
 	size_t Finish(const uint32_t* input_start) const
 	{
 		const auto input_length = Max(static_cast<size_t>(1), static_cast<size_t>(this->input - input_start));
-		// printf("\tDecoded length: %zu\n\n", input_length); // Developers, developers, developers
+		printf("\tDecoded length: %zu\n\n", input_length); // Developers, developers, developers
 		return input_length;
 	}
 };
+
+
+size_t KagariAnsDecode(uint32_t length, const uint32_t* input, uint16_t* output)
+{
+	(void)output;
+
+	KagariBitReader reader(length, input);
+	uint32_t state = 0;
+
+	for (uint32_t i = 0; i < length; i += 1)
+	{
+		// Normalize state
+		while (state < ANS_L /*&& state != ANS_INITIAL_STATE*/)
+		{
+			uint32_t word;
+			if (reader.Read(ANS_B_LEN, word) != 0)
+				return 0;
+
+			state = (state << ANS_B_LEN) + word;
+
+			printf("\tD | %u\n", word); // Developers, developers, developers
+		}
+
+		// Find Cdf entry
+		const uint32_t modulo = state & ANS_M_MASK;
+		CdfEntry e = g_cdf1[0];
+
+		for (uint32_t i = 1; i < G_CDF1_LENGTH; i += 1)
+		{
+			if (g_cdf1[i].cumulative > modulo)
+			{
+				e = g_cdf1[i - 1];
+				break;
+			}
+		}
+
+		// Developers, developers, developers
+		printf("\tD | 0x%x\t-> Value: %u (r: %u, sl: %u, f: %u, c: %u)\n", state, e.root, e.root, e.suffix_length,
+		       e.frequency, e.cumulative);
+
+		// Update state
+		state = e.frequency * (state >> ANS_M_LEN) + modulo - e.cumulative;
+	}
+
+	// Bye!
+	return reader.Finish(input);
+}
+
 
 class DecompressorKagari final : public Decompressor<int16_t>
 {
@@ -132,9 +180,9 @@ class DecompressorKagari final : public Decompressor<int16_t>
 			uint32_t rle_length;
 			uint32_t literal_length;
 
-			if (this->reader.ReadBits(16, rle_length) != 0)
+			if (this->reader.Read(16, rle_length) != 0)
 				break; // End reached, not an error, if is an error Step() will catch it
-			if (this->reader.ReadBits(16, literal_length) != 0)
+			if (this->reader.Read(16, literal_length) != 0)
 				break; // Ditto
 
 			literal_length += 1; // [A]
@@ -151,7 +199,7 @@ class DecompressorKagari final : public Decompressor<int16_t>
 			for (uint32_t i = 0; i < literal_length; i += 1)
 			{
 				uint32_t value;
-				if (this->reader.ReadBits(16, value) != 0) // TODO
+				if (this->reader.Read(16, value) != 0) // TODO
 					return 1;
 
 				out[rle_length + i] = static_cast<int16_t>(ZigZagDecode(static_cast<uint16_t>(value)));

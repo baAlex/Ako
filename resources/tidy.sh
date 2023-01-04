@@ -26,6 +26,7 @@ files="./library/common/conversions.cpp
        ./library/encode/wavelet-haar.cpp
 
        ./tests/forward-backward.cpp
+       ./tests/kagari-ans.cpp
        ./tests/kagari-bits.cpp
        ./tests/kagari.cpp
        ./tests/wavelet-cdf53.cpp

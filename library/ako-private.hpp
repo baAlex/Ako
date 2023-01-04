@@ -91,6 +91,7 @@ struct CdfEntry
 	uint16_t cumulative;
 };
 
+extern const uint32_t G_CDF1_LENGTH;
 extern const CdfEntry g_cdf1[255 + 1];
 
 
@@ -152,6 +153,19 @@ template <typename T> T SaturateToLower(T v);
 
 // decode/compression.cpp:
 // encode/compression.cpp:
+
+const uint32_t ANS_INITIAL_STATE = 123;
+
+const uint32_t ANS_B_LEN = 13;
+const uint32_t ANS_B = 1 << ANS_B_LEN;
+const uint32_t ANS_B_MASK = ANS_B - 1;
+
+const uint32_t ANS_M_LEN = 16;
+const uint32_t ANS_M = 1 << ANS_M_LEN;
+const uint32_t ANS_M_MASK = ANS_M - 1;
+
+const uint32_t ANS_L = 1 << 16;
+
 
 template <typename T>
 int Decompress(Compression compression, size_t compressed_size, unsigned width, unsigned height, unsigned channels,

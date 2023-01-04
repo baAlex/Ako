@@ -61,7 +61,7 @@ class KagariBitWriter
 		this->accumulator_usage = 0;
 	}
 
-	int WriteBits(uint32_t value, uint32_t length)
+	int Write(uint32_t value, uint32_t length)
 	{
 		// Accumulator has space, ideal fast path
 		if (this->accumulator_usage + length < ACCUMULATOR_LENGTH)
@@ -120,10 +120,123 @@ class KagariBitWriter
 		if (output_length == 0 && this->wrote_values != 0) // Somebody wrote lots of zeros
 			output_length = 1;
 
-		// printf("\tEncoded length: %zu\n\n", output_length); // Developers, developers, developers
+		printf("\tEncoded length: %zu\n\n", output_length); // Developers, developers, developers
 		return output_length;
 	}
 };
+
+
+static uint8_t sCode(uint16_t value)
+{
+	if (value < 64)
+		return static_cast<uint8_t>(value);
+
+	value -= 48;
+
+	int e = 0;
+	while (value >= (1 << (e + 1)))
+		e += 1;
+
+	const auto base = (1 << e);
+	const auto m = ((value - base) >> (e - 4));
+	return static_cast<uint8_t>((e << 4) | m);
+}
+
+static uint16_t sRoot(uint8_t code)
+{
+	const auto e = code >> 4;
+	const auto m = code & 15;
+
+	if (e < 4)
+		return static_cast<uint16_t>((e << 4) + m);
+
+	const auto base = (1 << e) + 48;
+	const auto add = m << (e - 4);
+	return static_cast<uint16_t>(base + add);
+}
+
+static uint32_t C(uint32_t state, const CdfEntry& e)
+{
+	return ((state / e.frequency) << ANS_M_LEN) + (state % e.frequency) + e.cumulative;
+}
+
+size_t KagariAnsEncode(uint32_t length, const uint16_t* input, uint32_t* output)
+{
+	KagariBitWriter writer(length, output);
+
+	uint32_t state = ANS_INITIAL_STATE;
+
+	uint16_t buffer[65535 + 1];
+	unsigned buffer_cursor = 0;
+
+	if (length > 65535)
+		return 0;
+
+	// Iterate input
+	for (uint32_t i = length - 1; i < length; i -= 1) // Underflows, ANS operates in reverse
+	{
+		const auto code = sCode(input[i]);
+
+		// Find value Cdf entry
+		CdfEntry e = g_cdf1[255];
+		{
+			const auto root = sRoot(code); // Cdf is decoder-centric, encoding
+			                               // requires extra steps
+
+			for (uint32_t u = 0; u < G_CDF1_LENGTH; u += 1)
+			{
+				if (g_cdf1[u].root == root)
+				{
+					e = g_cdf1[u];
+					break;
+				}
+			}
+		}
+
+		// Normalize
+		while (C(state, e) > ANS_L * ANS_B - 1)
+		{
+			const auto word = static_cast<uint16_t>(state & ANS_B_MASK);
+			printf("\tE | %u\n", word); // Developers, developers, developers
+
+			state = state >> ANS_B_LEN;
+
+			buffer[buffer_cursor] = word;
+			buffer_cursor += 1;
+		}
+
+		// Update state
+		state = C(state, e);
+
+		// Developers, developers, developers
+		printf("\tE | 0x%x\t<- Value: %u (r: %u, sl: %u, f: %u, c: %u)\n", state, input[i], e.root, e.suffix_length,
+		       e.frequency, e.cumulative);
+	}
+
+	// Normalize remainder
+	while (state != 0)
+	{
+		const auto word = static_cast<uint16_t>(state & ANS_B_MASK);
+		printf("\tE | %u\n", word);
+
+		state = state >> ANS_B_LEN;
+
+		buffer[buffer_cursor] = word;
+		buffer_cursor += 1;
+	}
+
+	// Write bits in reverse order
+	while (buffer_cursor != 0)
+	{
+		buffer_cursor -= 1;
+		if (writer.Write(buffer[buffer_cursor], ANS_B_LEN) != 0)
+			return 0;
+	}
+
+	// Bye!
+	return writer.Finish();
+}
+
 
 class CompressorKagari final : public Compressor<int16_t>
 {
@@ -162,16 +275,16 @@ class CompressorKagari final : public Compressor<int16_t>
 			return 1;
 
 		// Instructions
-		if (this->writer.WriteBits(rle_length, 16) != 0)
+		if (this->writer.Write(rle_length, 16) != 0)
 			return 1;
-		if (this->writer.WriteBits(literal_length - 1, 16) != 0) // Notice the '- 1'
+		if (this->writer.Write(literal_length - 1, 16) != 0) // Notice the '- 1'
 			return 1;
 
 		// Literal data
 		for (uint32_t i = 0; i < literal_length; i += 1)
 		{
 			const auto value = ZigZagEncode(literal_values[i]);
-			if (this->writer.WriteBits(value, 16) != 0)
+			if (this->writer.Write(value, 16) != 0)
 				return 1;
 
 			this->histogram[value].d += 1;
