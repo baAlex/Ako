@@ -105,26 +105,26 @@ class KagariBitReader
 
 size_t KagariAnsDecode(uint32_t length, const uint32_t* input, uint16_t* output)
 {
-	(void)output;
-
 	KagariBitReader reader(length, input);
 	uint32_t state = 0;
 
 	for (uint32_t i = 0; i < length; i += 1)
 	{
-		// Normalize state
+		// Normalize state (fill it)
 		while (state < ANS_L /*&& state != ANS_INITIAL_STATE*/)
 		{
 			uint32_t word;
 			if (reader.Read(ANS_B_LEN, word) != 0)
 				return 0;
+			// if (word == 0) // Shouldn't be needed if 'INITIAL_STATE > ANS_L'
+			//	break;
 
-			state = (state << ANS_B_LEN) + word;
+			state = (state << ANS_B_LEN) | word;
 
 			printf("\tD | %u\n", word); // Developers, developers, developers
 		}
 
-		// Find Cdf entry
+		// Find root Cdf entry
 		const uint32_t modulo = state & ANS_M_MASK;
 		CdfEntry e = g_cdf1[0];
 
@@ -137,9 +137,20 @@ size_t KagariAnsDecode(uint32_t length, const uint32_t* input, uint16_t* output)
 			}
 		}
 
-		// Developers, developers, developers
-		printf("\tD | 0x%x\t-> Value: %u (r: %u, sl: %u, f: %u, c: %u)\n", state, e.root, e.root, e.suffix_length,
-		       e.frequency, e.cumulative);
+		// Output value
+		{
+			// Suffix raw from bitstream
+			uint32_t suffix = 0;
+			reader.Read(e.suffix_length, suffix); // Do not check, let it fail
+
+			// Value is 'root + suffix'
+			const uint16_t value = e.root + static_cast<uint16_t>(suffix);
+			*output++ = value; // TODO, check?
+
+			// Developers, developers, developers
+			printf("\tD | 0x%x\t-> Value: %u (r: %u, sl: %u, f: %u, c: %u)\n", state, value, e.root, e.suffix_length,
+			       e.frequency, e.cumulative);
+		}
 
 		// Update state
 		state = e.frequency * (state >> ANS_M_LEN) + modulo - e.cumulative;

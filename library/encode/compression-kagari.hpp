@@ -155,31 +155,41 @@ static uint16_t sRoot(uint8_t code)
 	return static_cast<uint16_t>(base + add);
 }
 
-static uint32_t C(uint32_t state, const CdfEntry& e)
+struct BitsToWrite
 {
-	return ((state / e.frequency) << ANS_M_LEN) + (state % e.frequency) + e.cumulative;
-}
+	uint16_t v;
+	uint16_t l;
+};
+
+
+#define ANS_YE_OLDE_OVERFLOW_ERROR 0
+// 'Old' since my first Ans implementation ('resources/research/ans/ans2-normalization.cpp')
+// had the same issue. I finally fix it here... I think.
+
 
 size_t KagariAnsEncode(uint32_t length, const uint16_t* input, uint32_t* output)
 {
 	KagariBitWriter writer(length, output);
 
+#if ANS_YE_OLDE_OVERFLOW_ERROR == 0
 	uint32_t state = ANS_INITIAL_STATE;
+#else
+	uint64_t state = ANS_INITIAL_STATE;
+#endif
 
-	uint16_t buffer[65535 + 1];
+	BitsToWrite buffer[65535 + 1];
 	unsigned buffer_cursor = 0;
 
 	if (length > 65535)
 		return 0;
 
 	// Iterate input
-	for (uint32_t i = length - 1; i < length; i -= 1) // Underflows, ANS operates in reverse
+	for (uint32_t i = length - 1; i < length; i -= 1) // Underflows, Ans operates in reverse
 	{
-		const auto code = sCode(input[i]);
-
-		// Find value Cdf entry
+		// Find root Cdf entry
 		CdfEntry e = g_cdf1[255];
 		{
+			const auto code = sCode(input[i]);
 			const auto root = sRoot(code); // Cdf is decoder-centric, encoding
 			                               // requires extra steps
 
@@ -193,20 +203,69 @@ size_t KagariAnsEncode(uint32_t length, const uint16_t* input, uint32_t* output)
 			}
 		}
 
-		// Normalize
-		while (C(state, e) > ANS_L * ANS_B - 1)
+		// Normalize state (make space)
+		while (1) // while (C(state, e) > ANS_L * ANS_B - 1)
 		{
-			const auto word = static_cast<uint16_t>(state & ANS_B_MASK);
-			printf("\tE | %u\n", word); // Developers, developers, developers
+			// Paper's method is to update the state and check if the
+			// result is larger than a threshold, problem is that such
+			// procedure requires a large state (something like u64)
+			// Of course, the paper also suggest to use B as '1 << 8',
+			// so yeah, I'm making the problems here
+
+			if ((state / e.frequency) > ANS_M_MASK) // Wrap 2
+				goto do_it;                         // Straight wrap/overflow, no need of check
+
+#if ANS_YE_OLDE_OVERFLOW_ERROR == 1
+			// Printf debugging (btw, it works criminally well >:D )
+			if (((state / e.frequency) << ANS_M_LEN) + (state % e.frequency) + e.cumulative > 0xFFFFFFFF)
+				printf("N Wrap4\n");
+			if (((state / e.frequency) << ANS_M_LEN) + (state % e.frequency) > 0xFFFFFFFF)
+				printf("N Wrap3\n");
+			if (((state / e.frequency) << ANS_M_LEN) > 0xFFFFFFFF)
+				printf("N Wrap2\n");
+			if ((state / e.frequency) > 0xFFFFFFFF)
+				printf("N Wrap1\n");
+#endif
+
+			// Check
+			if (((state / e.frequency) << ANS_M_LEN) + (state % e.frequency) + e.cumulative <= ANS_L * ANS_B - 1)
+				break;
+
+		do_it:
+			// Normalize
+			const auto b_word = static_cast<uint16_t>(state & ANS_B_MASK);
+			printf("\tE | %u\n", b_word); // Developers, developers, developers
 
 			state = state >> ANS_B_LEN;
 
-			buffer[buffer_cursor] = word;
+			buffer[buffer_cursor].v = b_word;
+			buffer[buffer_cursor].l = ANS_B_LEN;
 			buffer_cursor += 1;
 		}
 
-		// Update state
-		state = C(state, e);
+		// Write root, ans-coded in state
+		{
+#if ANS_YE_OLDE_OVERFLOW_ERROR == 1
+			// Printf debugging
+			// If something here wraps means that normalization was wrong
+			if (((state / e.frequency) << ANS_M_LEN) + (state % e.frequency) + e.cumulative > 0xFFFFFFFF)
+				printf("E Wrap4\n");
+			if (((state / e.frequency) << ANS_M_LEN) + (state % e.frequency) > 0xFFFFFFFF)
+				printf("E Wrap3\n");
+			if (((state / e.frequency) << ANS_M_LEN) > 0xFFFFFFFF)
+				printf("E Wrap2\n");
+			if ((state / e.frequency) > 0xFFFFFFFF)
+				printf("E Wrap1\n");
+#endif
+
+			// State update
+			state = ((state / e.frequency) << ANS_M_LEN) + (state % e.frequency) + e.cumulative;
+		}
+
+		// Write suffix, raw in bitstream
+		buffer[buffer_cursor].v = input[i] - e.root;
+		buffer[buffer_cursor].l = e.suffix_length;
+		buffer_cursor += 1;
 
 		// Developers, developers, developers
 		printf("\tE | 0x%x\t<- Value: %u (r: %u, sl: %u, f: %u, c: %u)\n", state, input[i], e.root, e.suffix_length,
@@ -216,12 +275,13 @@ size_t KagariAnsEncode(uint32_t length, const uint16_t* input, uint32_t* output)
 	// Normalize remainder
 	while (state != 0)
 	{
-		const auto word = static_cast<uint16_t>(state & ANS_B_MASK);
-		printf("\tE | %u\n", word);
+		const auto b_word = static_cast<uint16_t>(state & ANS_B_MASK);
+		printf("\tE | %u\n", b_word);
 
 		state = state >> ANS_B_LEN;
 
-		buffer[buffer_cursor] = word;
+		buffer[buffer_cursor].v = b_word;
+		buffer[buffer_cursor].l = ANS_B_LEN;
 		buffer_cursor += 1;
 	}
 
@@ -229,7 +289,7 @@ size_t KagariAnsEncode(uint32_t length, const uint16_t* input, uint32_t* output)
 	while (buffer_cursor != 0)
 	{
 		buffer_cursor -= 1;
-		if (writer.Write(buffer[buffer_cursor], ANS_B_LEN) != 0)
+		if (writer.Write(buffer[buffer_cursor].v, buffer[buffer_cursor].l) != 0)
 			return 0;
 	}
 

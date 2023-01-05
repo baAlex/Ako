@@ -154,17 +154,20 @@ template <typename T> T SaturateToLower(T v);
 // decode/compression.cpp:
 // encode/compression.cpp:
 
-const uint32_t ANS_INITIAL_STATE = 123;
+const uint32_t ANS_B_LEN = 15;         // Output/input base, Duda's paper uses '1 << 0' as an example
+const uint32_t ANS_B = 1 << ANS_B_LEN; // to extract individual bits, also suggests '1 << 8' for bytes.
+const uint32_t ANS_B_MASK = ANS_B - 1; // A large number should reduce writes/reads. Here 15 bits is
+                                       // the maximum before our 32 bits state wrap/overflows.
 
-const uint32_t ANS_B_LEN = 13;
-const uint32_t ANS_B = 1 << ANS_B_LEN;
-const uint32_t ANS_B_MASK = ANS_B - 1;
+const uint32_t ANS_L = 1 << 16; // Needs to be multiple of the sum of frequencies in the Cdf table (also
+                                // known as 'last cumulative' or M), and such number is hardcoded to
+                                // '1 << 16'. So no choice here.
 
-const uint32_t ANS_M_LEN = 16;
-const uint32_t ANS_M = 1 << ANS_M_LEN;
-const uint32_t ANS_M_MASK = ANS_M - 1;
+const uint32_t ANS_M_LEN = 16;         // So called M, Cdf tables are normalized to this number. It can
+const uint32_t ANS_M = 1 << ANS_M_LEN; // be thought as 'precision' to represent frequencies
+const uint32_t ANS_M_MASK = ANS_M - 1; // (in 0.0, 1.0 range) with integers (as a 0, M range).
 
-const uint32_t ANS_L = 1 << 16;
+const uint32_t ANS_INITIAL_STATE = ANS_L + 123; // 123 addition is arbitrary.
 
 
 template <typename T>
