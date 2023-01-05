@@ -105,7 +105,7 @@ class KagariBitReader
 
 size_t KagariAnsDecode(uint32_t length, const uint32_t* input, uint16_t* output)
 {
-	KagariBitReader reader(length, input);
+	KagariBitReader reader(length + 1, input); // FIXME
 	uint32_t state = 0;
 
 	for (uint32_t i = 0; i < length; i += 1)
@@ -126,7 +126,7 @@ size_t KagariAnsDecode(uint32_t length, const uint32_t* input, uint16_t* output)
 
 		// Find root Cdf entry
 		const uint32_t modulo = state & ANS_M_MASK;
-		CdfEntry e = g_cdf1[0];
+		CdfEntry e = g_cdf1[G_CDF1_LENGTH - 1];
 
 		for (uint32_t i = 1; i < G_CDF1_LENGTH; i += 1)
 		{
@@ -154,6 +154,20 @@ size_t KagariAnsDecode(uint32_t length, const uint32_t* input, uint16_t* output)
 
 		// Update state
 		state = e.frequency * (state >> ANS_M_LEN) + modulo - e.cumulative;
+	}
+
+	// Normalize state
+	// We want the bit reader to be in sync, and happens that the
+	// encoder can normalize before processing the first value
+	while (state < ANS_L)
+	{
+		uint32_t word;
+		if (reader.Read(ANS_B_LEN, word) != 0)
+			return 0;
+
+		state = (state << ANS_B_LEN) | word;
+
+		printf("\tD | %u\n", word); // Developers, developers, developers
 	}
 
 	// Bye!

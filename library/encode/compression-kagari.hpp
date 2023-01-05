@@ -169,7 +169,7 @@ struct BitsToWrite
 
 size_t KagariAnsEncode(uint32_t length, const uint16_t* input, uint32_t* output)
 {
-	KagariBitWriter writer(length, output);
+	KagariBitWriter writer(length + 1, output); // FIXME
 
 #if ANS_YE_OLDE_OVERFLOW_ERROR == 0
 	uint32_t state = ANS_INITIAL_STATE;
@@ -177,10 +177,12 @@ size_t KagariAnsEncode(uint32_t length, const uint16_t* input, uint32_t* output)
 	uint64_t state = ANS_INITIAL_STATE;
 #endif
 
-	BitsToWrite buffer[65535 + 1];
+	const auto BUFFER_LEN = 65536;
+
+	BitsToWrite buffer[BUFFER_LEN];
 	unsigned buffer_cursor = 0;
 
-	if (length > 65535)
+	if (length > BUFFER_LEN)
 		return 0;
 
 	// Iterate input
@@ -212,8 +214,8 @@ size_t KagariAnsEncode(uint32_t length, const uint16_t* input, uint32_t* output)
 			// Of course, the paper also suggest to use B as '1 << 8',
 			// so yeah, I'm making the problems here
 
-			if ((state / e.frequency) > ANS_M_MASK) // Wrap 2
-				goto do_it;                         // Straight wrap/overflow, no need of check
+			if ((state / e.frequency) > (1 << (ANS_STATE_LEN - ANS_M_LEN)) - 1)
+				goto do_it;
 
 #if ANS_YE_OLDE_OVERFLOW_ERROR == 1
 			// Printf debugging (btw, it works criminally well >:D )
@@ -237,6 +239,9 @@ size_t KagariAnsEncode(uint32_t length, const uint16_t* input, uint32_t* output)
 			printf("\tE | %u\n", b_word); // Developers, developers, developers
 
 			state = state >> ANS_B_LEN;
+
+			if (buffer_cursor == BUFFER_LEN)
+				return 0;
 
 			buffer[buffer_cursor].v = b_word;
 			buffer[buffer_cursor].l = ANS_B_LEN;
@@ -263,6 +268,9 @@ size_t KagariAnsEncode(uint32_t length, const uint16_t* input, uint32_t* output)
 		}
 
 		// Write suffix, raw in bitstream
+		if (buffer_cursor == BUFFER_LEN)
+			return 0;
+
 		buffer[buffer_cursor].v = input[i] - e.root;
 		buffer[buffer_cursor].l = e.suffix_length;
 		buffer_cursor += 1;

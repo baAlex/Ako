@@ -154,6 +154,8 @@ template <typename T> T SaturateToLower(T v);
 // decode/compression.cpp:
 // encode/compression.cpp:
 
+const uint32_t ANS_STATE_LEN = 32;
+
 const uint32_t ANS_B_LEN = 15;         // Output/input base, Duda's paper uses '1 << 0' as an example
 const uint32_t ANS_B = 1 << ANS_B_LEN; // to extract individual bits, also suggests '1 << 8' for bytes.
 const uint32_t ANS_B_MASK = ANS_B - 1; // A large number should reduce writes/reads. Here 15 bits is
