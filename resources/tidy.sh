@@ -9,6 +9,7 @@ files="./library/common/conversions.cpp
        ./library/common/utilities.cpp
        ./library/common/version.cpp
 
+       ./library/decode/ans.cpp
        ./library/decode/compression.cpp
        ./library/decode/decode.cpp
        ./library/decode/format.cpp
@@ -17,6 +18,7 @@ files="./library/common/conversions.cpp
        ./library/decode/wavelet-cdf53.cpp
        ./library/decode/wavelet-haar.cpp
 
+       ./library/encode/ans.cpp
        ./library/encode/compression.cpp
        ./library/encode/encode.cpp
        ./library/encode/format.cpp
@@ -25,9 +27,9 @@ files="./library/common/conversions.cpp
        ./library/encode/wavelet-cdf53.cpp
        ./library/encode/wavelet-haar.cpp
 
+       ./tests/ans.cpp
+       ./tests/ans-bits.cpp
        ./tests/forward-backward.cpp
-       ./tests/kagari-ans.cpp
-       ./tests/kagari-bits.cpp
        ./tests/kagari.cpp
        ./tests/wavelet-cdf53.cpp
        ./tests/wavelet-haar.cpp

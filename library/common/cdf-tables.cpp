@@ -2,7 +2,7 @@
 
 MIT License
 
-Copyright (c) 2021-2022 Alexander Brandt
+Copyright (c) 2021-2023 Alexander Brandt
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -28,9 +28,9 @@ SOFTWARE.
 namespace ako
 {
 
-const uint32_t G_CDF1_LENGTH = 255 + 1;
+const uint32_t G_CDF1_LEN = 255 + 1;
 
-const CdfEntry g_cdf1[G_CDF1_LENGTH] = {
+const CdfEntry g_cdf1[G_CDF1_LEN] = {
     {0, 0, 11844, 0},      {2, 0, 8964, 11844},   {1, 0, 8230, 20808},   {4, 0, 4770, 29038},   {3, 0, 4250, 33808},
     {6, 0, 2735, 38058},   {5, 0, 2567, 40793},   {8, 0, 1846, 43360},   {7, 0, 1737, 45206},   {10, 0, 1362, 46943},
     {9, 0, 1279, 48305},   {12, 0, 1059, 49584},  {11, 0, 992, 50643},   {14, 0, 851, 51635},   {13, 0, 795, 52486},

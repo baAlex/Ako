@@ -9,13 +9,10 @@
 #include "ako-private.hpp"
 #include "ako.hpp"
 
-#include "decode/compression-kagari.hpp"
-#include "encode/compression-kagari.hpp"
-
 
 static void sFixedTest(const uint16_t* values, unsigned length)
 {
-	printf(" - Fixed Test, len: %u\n", length);
+	printf(" - Fixed Test, length: %u\n", length);
 
 	auto buffer_a =
 	    static_cast<uint32_t*>(malloc(sizeof(uint32_t) * length * 2)); // FIXME, encoder output is incomplete
@@ -24,12 +21,12 @@ static void sFixedTest(const uint16_t* values, unsigned length)
 	assert(buffer_b != nullptr);
 
 	// Encode
-	const auto bitstream_length = ako::KagariAnsEncode(length, values, buffer_a);
+	const auto bitstream_length = ako::AnsEncode(length, values, buffer_a);
 	assert(bitstream_length != 0); // TODO, measured in length (accumulators) not bytes
 
 	// Decode
-	const auto read_length = ako::KagariAnsDecode(length, buffer_a, buffer_b); // TODO, length is confusing as is
-	                                                                           // used in both output and input
+	const auto read_length = ako::AnsDecode(length, buffer_a, buffer_b); // TODO, length is confusing as is
+	                                                                     // used in both output and input
 
 	assert(read_length == bitstream_length); // We do not want to go out of sync
 
@@ -66,12 +63,12 @@ static void sLongTest(uint16_t value, unsigned length)
 		values[i] = value;
 
 	// Encode
-	const auto bitstream_length = ako::KagariAnsEncode(length, values, buffer_a);
+	const auto bitstream_length = ako::AnsEncode(length, values, buffer_a);
 	assert(bitstream_length != 0); // TODO, measured in length (accumulators) not bytes
 
 	// Decode
-	const auto read_length = ako::KagariAnsDecode(length, buffer_a, buffer_b); // TODO, length is confusing as is
-	                                                                           // used in both output and input
+	const auto read_length = ako::AnsDecode(length, buffer_a, buffer_b); // TODO, length is confusing as is
+	                                                                     // used in both output and input
 
 	assert(read_length == bitstream_length); // We do not want to go out of sync
 
@@ -96,7 +93,7 @@ int main(int argc, const char* argv[])
 	(void)argc;
 	(void)argv;
 
-	printf("# Kagari Ans Test (Ako v%i.%i.%i, %s)\n", ako::VersionMajor(), ako::VersionMinor(), ako::VersionPatch(),
+	printf("# Ans Test (Ako v%i.%i.%i, %s)\n", ako::VersionMajor(), ako::VersionMinor(), ako::VersionPatch(),
 	       (ako::SystemEndianness() == ako::Endianness::Little) ? "little-endian" : "big-endian");
 
 	{

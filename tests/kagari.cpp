@@ -129,7 +129,7 @@ static void sTestFile(const char* filename)
 
 			// Keep information
 			input_data_hash ^= sAdler32(tiny_buffer, sizeof(int16_t) * chunk_length); // I know, a bad way of mix hashes
-			buffers_no++;
+			buffers_no += 1;
 		}
 
 		// Done
@@ -155,7 +155,7 @@ static void sTestFile(const char* filename)
 
 			// Keep information
 			decoded_data_hash ^= sAdler32(tiny_buffer, sizeof(int16_t) * chunk_length);
-			buffers_no++;
+			buffers_no += 1;
 		}
 
 		// Done

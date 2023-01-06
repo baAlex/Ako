@@ -9,6 +9,7 @@ files="./library/ako.hpp
        ./library/common/essentials.cpp
        ./library/common/utilities.cpp
 
+       ./library/decode/ans.cpp
        ./library/decode/compression-kagari.hpp
        ./library/decode/compression-none.hpp
        ./library/decode/compression.cpp
@@ -19,6 +20,7 @@ files="./library/ako.hpp
        ./library/decode/wavelet-cdf53.cpp
        ./library/decode/wavelet-haar.cpp
 
+       ./library/encode/ans.cpp
        ./library/encode/compression-kagari.hpp
        ./library/encode/compression-none.hpp
        ./library/encode/compression.cpp

@@ -9,26 +9,23 @@
 #include "ako-private.hpp"
 #include "ako.hpp"
 
-#include "decode/compression-kagari.hpp"
-#include "encode/compression-kagari.hpp"
-
 
 static uint32_t sBitsLength(uint32_t v)
 {
 	if (v == 0)
 		return 0;
 
-	uint32_t len = 1;
+	uint32_t length = 1;
 	for (; v > 1; v >>= 1)
-		len++;
+		length += 1;
 
-	return len;
+	return length;
 }
 
 
 static void sFixedTest(const uint32_t* values, const unsigned values_no)
 {
-	printf(" - Fixed Test, len: %u\n", values_no);
+	printf(" - Fixed Test, length: %u\n", values_no);
 
 	auto buffer = reinterpret_cast<uint32_t*>(malloc(sizeof(uint32_t) * values_no));
 	assert(values != nullptr);
@@ -36,7 +33,7 @@ static void sFixedTest(const uint32_t* values, const unsigned values_no)
 	// Write
 	size_t encoded_length = 0;
 	{
-		auto writer = ako::KagariBitWriter(values_no, buffer);
+		auto writer = ako::AnsBitWriter(values_no, buffer);
 		for (unsigned i = 0; i < values_no; i += 1)
 		{
 			const auto ret = writer.Write(values[i], sBitsLength(values[i]));
@@ -49,7 +46,7 @@ static void sFixedTest(const uint32_t* values, const unsigned values_no)
 
 	// Read
 	{
-		auto reader = ako::KagariBitReader(encoded_length, buffer);
+		auto reader = ako::AnsBitReader(encoded_length, buffer);
 		for (unsigned i = 0; i < values_no; i += 1)
 		{
 			uint32_t v = 0;
@@ -166,7 +163,7 @@ static void sRandomTest(unsigned values_no, uint32_t seed = 4321)
 	// Write
 	size_t encoded_length = 0;
 	{
-		auto writer = ako::KagariBitWriter(values_no, buffer);
+		auto writer = ako::AnsBitWriter(values_no, buffer);
 		for (unsigned i = 0; i < values_no; i += 1)
 		{
 			const auto ret = writer.Write(values[i], sBitsLength(values[i]));
@@ -179,7 +176,7 @@ static void sRandomTest(unsigned values_no, uint32_t seed = 4321)
 
 	// Read
 	{
-		auto reader = ako::KagariBitReader(encoded_length, buffer);
+		auto reader = ako::AnsBitReader(encoded_length, buffer);
 		for (unsigned i = 0; i < values_no; i += 1)
 		{
 			uint32_t v = 0;
@@ -202,7 +199,7 @@ int main(int argc, const char* argv[])
 	(void)argc;
 	(void)argv;
 
-	printf("# Kagari Bits Test (Ako v%i.%i.%i, %s)\n", ako::VersionMajor(), ako::VersionMinor(), ako::VersionPatch(),
+	printf("# Ans Bits Test (Ako v%i.%i.%i, %s)\n", ako::VersionMajor(), ako::VersionMinor(), ako::VersionPatch(),
 	       (ako::SystemEndianness() == ako::Endianness::Little) ? "little-endian" : "big-endian");
 
 	{

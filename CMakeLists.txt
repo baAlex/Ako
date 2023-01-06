@@ -45,6 +45,7 @@ set(AKO_SOURCES
 	"./library/common/utilities.cpp"
 	"./library/common/version.cpp"
 
+	"./library/decode/ans.cpp"
 	"./library/decode/compression.cpp"
 	"./library/decode/decode.cpp"
 	"./library/decode/format.cpp"
@@ -53,6 +54,7 @@ set(AKO_SOURCES
 	"./library/decode/wavelet-cdf53.cpp"
 	"./library/decode/wavelet-haar.cpp"
 
+	"./library/encode/ans.cpp"
 	"./library/encode/compression.cpp"
 	"./library/encode/encode.cpp"
 	"./library/encode/format.cpp"
@@ -173,20 +175,20 @@ endif ()
 
 
 if (AKO_TESTS)
+	add_executable("test-ans" "./tests/ans.cpp")
+	target_include_directories("test-ans" PRIVATE "./library/")
+	target_link_libraries("test-ans" PRIVATE "ako-static")
+	target_compile_options("test-ans" PRIVATE ${AKO_CFLAGS})
+
+	add_executable("test-ans-bits" "./tests/ans-bits.cpp")
+	target_include_directories("test-ans-bits" PRIVATE "./library/")
+	target_link_libraries("test-ans-bits" PRIVATE "ako-static")
+	target_compile_options("test-ans-bits" PRIVATE ${AKO_CFLAGS})
+
 	add_executable("test-forward-backward" "./tests/forward-backward.cpp")
 	target_include_directories("test-forward-backward" PRIVATE "./library/")
 	target_link_libraries("test-forward-backward" PRIVATE "ako-static")
 	target_compile_options("test-forward-backward" PRIVATE ${AKO_CFLAGS})
-
-	add_executable("test-kagari-ans" "./tests/kagari-ans.cpp")
-	target_include_directories("test-kagari-ans" PRIVATE "./library/")
-	target_link_libraries("test-kagari-ans" PRIVATE "ako-static")
-	target_compile_options("test-kagari-ans" PRIVATE ${AKO_CFLAGS})
-
-	add_executable("test-kagari-bits" "./tests/kagari-bits.cpp")
-	target_include_directories("test-kagari-bits" PRIVATE "./library/")
-	target_link_libraries("test-kagari-bits" PRIVATE "ako-static")
-	target_compile_options("test-kagari-bits" PRIVATE ${AKO_CFLAGS})
 
 	add_executable("test-kagari" "./tests/kagari.cpp")
 	target_include_directories("test-kagari" PRIVATE "./library/")
@@ -204,17 +206,17 @@ if (AKO_TESTS)
 	target_compile_options("test-wavelet-haar" PRIVATE ${AKO_CFLAGS})
 
 	if (AKO_RELEASE)
+		set_property(TARGET "test-ans" PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
+		set_property(TARGET "test-ans-bits" PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
 		set_property(TARGET "test-forward-backward" PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
-		set_property(TARGET "test-kagari-ans" PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
-		set_property(TARGET "test-kagari-bits" PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
 		set_property(TARGET "test-kagari" PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
 		set_property(TARGET "test-wavelet-cdf53" PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
 		set_property(TARGET "test-wavelet-haar" PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
 	endif ()
 
+	add_test(NAME "TestAns" COMMAND "test-ans")
+	add_test(NAME "TestAnsBits" COMMAND "test-ans-bits")
 	add_test(NAME "TestForwardBackward" COMMAND "test-forward-backward")
-	add_test(NAME "TestKagariAns" COMMAND "test-kagari-ans")
-	add_test(NAME "TestKagariBits" COMMAND "test-kagari-bits")
 	add_test(NAME "TestKagari" COMMAND "test-kagari")
 	add_test(NAME "TestWaveletCdf53" COMMAND "test-wavelet-cdf53")
 	add_test(NAME "TestWaveletHaar" COMMAND "test-wavelet-haar")

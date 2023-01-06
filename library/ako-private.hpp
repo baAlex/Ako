@@ -2,7 +2,7 @@
 
 MIT License
 
-Copyright (c) 2021-2022 Alexander Brandt
+Copyright (c) 2021-2023 Alexander Brandt
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -91,7 +91,7 @@ struct CdfEntry
 	uint16_t cumulative;
 };
 
-extern const uint32_t G_CDF1_LENGTH;
+extern const uint32_t G_CDF1_LEN;
 extern const CdfEntry g_cdf1[255 + 1];
 
 
@@ -151,8 +151,8 @@ template <typename T> T WrapAdd(T a, T b);
 template <typename T> T SaturateToLower(T v);
 
 
-// decode/compression.cpp:
-// encode/compression.cpp:
+// decode/ans.cpp:
+// encode/ans.cpp:
 
 const uint32_t ANS_STATE_LEN = 32;
 
@@ -171,6 +171,51 @@ const uint32_t ANS_M_MASK = ANS_M - 1; // (in 0.0, 1.0 range) with integers (as 
 
 const uint32_t ANS_INITIAL_STATE = ANS_L + 123; // 123 addition is arbitrary.
 
+class AnsBitReader
+{
+	static const uint32_t ACCUMULATOR_LEN = 32;
+
+	const uint32_t* input_end;
+	const uint32_t* input;
+
+	uint32_t accumulator;
+	uint32_t accumulator_usage;
+
+  public:
+	AnsBitReader(size_t input_length = 0, const uint32_t* input = nullptr);
+	void Reset(size_t input_length, const uint32_t* input);
+	int Read(uint32_t length, uint32_t& value);
+	size_t Finish(const uint32_t* input_start) const;
+};
+
+class AnsBitWriter
+{
+	static const uint32_t ACCUMULATOR_LEN = 32;
+
+	uint32_t* output_start;
+	uint32_t* output_end;
+	uint32_t* output;
+
+	uint32_t wrote_values; // As is possible to encode zero, of length zero,
+	                       // meaning that 'output' doesn't move actually.
+	                       // So this work as an alternative to keep count.
+
+	uint32_t accumulator;
+	uint32_t accumulator_usage;
+
+  public:
+	AnsBitWriter(size_t output_length = 0, uint32_t* output = nullptr);
+	void Reset(size_t output_length, uint32_t* output);
+	int Write(uint32_t value, uint32_t length);
+	size_t Finish();
+};
+
+size_t AnsDecode(uint32_t length, const uint32_t* input, uint16_t* output);
+size_t AnsEncode(uint32_t length, const uint16_t* input, uint32_t* output);
+
+
+// decode/compression.cpp:
+// encode/compression.cpp:
 
 template <typename T>
 int Decompress(Compression compression, size_t compressed_size, unsigned width, unsigned height, unsigned channels,
