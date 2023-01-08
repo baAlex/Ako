@@ -31,7 +31,7 @@ static void sFixedTest(const uint32_t* values, const unsigned values_no)
 	assert(values != nullptr);
 
 	// Write
-	size_t encoded_length = 0;
+	uint32_t encoded_length = 0;
 	{
 		auto writer = ako::AnsBitWriter(values_no, buffer);
 		for (unsigned i = 0; i < values_no; i += 1)
@@ -161,7 +161,7 @@ static void sRandomTest(unsigned values_no, uint32_t seed = 4321)
 		values[i] = sRandomWaveletDistribution(&seed) & 2147483647; // 32 bits maximum
 
 	// Write
-	size_t encoded_length = 0;
+	uint32_t encoded_length = 0;
 	{
 		auto writer = ako::AnsBitWriter(values_no, buffer);
 		for (unsigned i = 0; i < values_no; i += 1)

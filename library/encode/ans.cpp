@@ -28,12 +28,12 @@ SOFTWARE.
 namespace ako
 {
 
-AnsBitWriter::AnsBitWriter(size_t output_length, uint32_t* output)
+AnsBitWriter::AnsBitWriter(uint32_t output_length, uint32_t* output)
 {
 	this->Reset(output_length, output);
 }
 
-void AnsBitWriter::Reset(size_t output_length, uint32_t* output)
+void AnsBitWriter::Reset(uint32_t output_length, uint32_t* output)
 {
 	this->output_start = output;
 	this->output_end = this->output_start + output_length;
@@ -45,21 +45,21 @@ void AnsBitWriter::Reset(size_t output_length, uint32_t* output)
 	this->accumulator_usage = 0;
 }
 
-int AnsBitWriter::Write(uint32_t value, uint32_t length)
+int AnsBitWriter::Write(uint32_t value, uint32_t bit_length)
 {
 	// Accumulator has space, ideal fast path
-	if (this->accumulator_usage + length < ACCUMULATOR_LEN)
+	if (this->accumulator_usage + bit_length < ACCUMULATOR_LEN)
 	{
-		const auto mask = ~(0xFFFFFFFF << length);
+		const auto mask = ~(0xFFFFFFFF << bit_length);
 
 		this->accumulator |= ((value & mask) << this->accumulator_usage);
-		this->accumulator_usage += length;
+		this->accumulator_usage += bit_length;
 	}
 
 	// No space in accumulator, ultra super duper slow path
 	else
 	{
-		if (this->output + 1 > this->output_end || length >= ACCUMULATOR_LEN)
+		if (this->output + 1 > this->output_end || bit_length >= ACCUMULATOR_LEN)
 			return 1;
 
 		// Accumulate what we can, then write
@@ -67,24 +67,24 @@ int AnsBitWriter::Write(uint32_t value, uint32_t length)
 		*this->output++ = this->accumulator | (value << this->accumulator_usage);
 
 		// Accumulate remainder
-		const auto mask = ~(0xFFFFFFFF << (length - min));
+		const auto mask = ~(0xFFFFFFFF << (bit_length - min));
 
 		this->accumulator = (value >> min) & mask;
-		this->accumulator_usage = length - min;
+		this->accumulator_usage = bit_length - min;
 
 		// Developers, developers, developers
 		// printf("\tE | \tWrite accumulator [d: 0x%x, min: %u]\n", *(this->output - 1), min);
 	}
 
 	// Developers, developers, developers
-	// printf("\tE | v: %u,\tl: %u, u: %u\n", value, length, this->accumulator_usage);
+	// printf("\tE | v: %u,\tl: %u, u: %u\n", value, bit_length, this->accumulator_usage);
 
 	// Bye!
 	this->wrote_values += 1;
 	return 0;
 }
 
-size_t AnsBitWriter::Finish()
+uint32_t AnsBitWriter::Finish()
 {
 	// Remainder
 	if (this->accumulator_usage > 0)
@@ -99,12 +99,12 @@ size_t AnsBitWriter::Finish()
 	}
 
 	// Bye!
-	auto output_length = static_cast<size_t>(this->output - this->output_start);
+	auto output_length = static_cast<uint32_t>(this->output - this->output_start);
 
 	if (output_length == 0 && this->wrote_values != 0) // Somebody wrote lots of zeros
 		output_length = 1;
 
-	// printf("\tEncoded length: %zu\n\n", output_length); // Developers, developers, developers
+	// printf("\tEncoded length: %u\n\n", output_length); // Developers, developers, developers
 	return output_length;
 }
 
@@ -149,9 +149,9 @@ struct BitsToWrite
 	uint16_t l;
 };
 
-size_t AnsEncode(uint32_t length, const uint16_t* input, uint32_t* output)
+uint32_t AnsEncode(uint32_t input_length, uint32_t output_length, const uint16_t* input, uint32_t* output)
 {
-	AnsBitWriter writer(length + 1, output); // FIXME
+	AnsBitWriter writer(output_length, output);
 
 #if ANS_YE_OLDE_OVERFLOW_ERROR == 0
 	uint32_t state = ANS_INITIAL_STATE;
@@ -159,16 +159,19 @@ size_t AnsEncode(uint32_t length, const uint16_t* input, uint32_t* output)
 	uint64_t state = ANS_INITIAL_STATE;
 #endif
 
-	const auto BUFFER_LEN = 65536;
+	// We only encode blocks of 0xFFFF values or less
+	// (and I'm not checking that here to let the follow loop fail if that happens)
 
-	BitsToWrite buffer[BUFFER_LEN];
-	unsigned buffer_cursor = 0;
+	const auto QUEUE_LEN = 65536 * 4; // x2 for both roots and suffixes (assuming one
+	                                  // normalization per value). Should be x1 to truly
+	                                  // prevent inflation.
 
-	if (length > BUFFER_LEN)
-		return 0;
+	BitsToWrite queue[QUEUE_LEN]; // We can't call the bit writer directly as Ans operate in
+	unsigned queue_cursor = 0;    // reverse... to then write bits also in reverse... so is
+	                              // better to queue the bits and write them later
 
 	// Iterate input
-	for (uint32_t i = length - 1; i < length; i -= 1) // Underflows, Ans operates in reverse
+	for (uint32_t i = input_length - 1; i < input_length; i -= 1) // Underflows, Ans operates in reverse
 	{
 		// Find root Cdf entry
 		CdfEntry e = g_cdf1[255];
@@ -193,14 +196,15 @@ size_t AnsEncode(uint32_t length, const uint16_t* input, uint32_t* output)
 			// Paper's method is to update the state and check if the
 			// result is larger than a threshold, problem is that such
 			// procedure requires a large state (something like u64)
+
 			// Of course, the paper also suggest to use B as '1 << 8',
-			// so yeah, I'm making the problems here
+			// so yeah, I'm the cause of problems here.
 
+			// However we can check wraps/overflows:
 			if ((state / e.frequency) > (1 << (ANS_STATE_LEN - ANS_M_LEN)) - 1)
-				goto do_it;
+				goto proceed_with_normalization_as_check_will_wrap; // Gotos are bad ÒwÓ
 
-#if ANS_YE_OLDE_OVERFLOW_ERROR == 1
-			// Printf debugging (btw, it works criminally well >:D )
+#if ANS_YE_OLDE_OVERFLOW_ERROR == 1 // Printf debugging (it works criminally well >:D )
 			if (((state / e.frequency) << ANS_M_LEN) + (state % e.frequency) + e.cumulative > 0xFFFFFFFF)
 				printf("N Wrap4\n");
 			if (((state / e.frequency) << ANS_M_LEN) + (state % e.frequency) > 0xFFFFFFFF)
@@ -215,47 +219,33 @@ size_t AnsEncode(uint32_t length, const uint16_t* input, uint32_t* output)
 			if (((state / e.frequency) << ANS_M_LEN) + (state % e.frequency) + e.cumulative <= ANS_L * ANS_B - 1)
 				break;
 
-		do_it:
-			// Normalize
-			const auto b_word = static_cast<uint16_t>(state & ANS_B_MASK);
-			// printf("\tE | %u\n", b_word); // Developers, developers, developers
-
+		proceed_with_normalization_as_check_will_wrap:
+			// Extract bits and normalize state
+			const auto bits = static_cast<uint16_t>(state & ANS_B_MASK);
 			state = state >> ANS_B_LEN;
 
-			if (buffer_cursor == BUFFER_LEN)
+			// Queue bits
+			if (queue_cursor == QUEUE_LEN)
 				return 0;
 
-			buffer[buffer_cursor].v = b_word;
-			buffer[buffer_cursor].l = ANS_B_LEN;
-			buffer_cursor += 1;
+			queue[queue_cursor].v = bits;
+			queue[queue_cursor].l = ANS_B_LEN;
+			queue_cursor += 1;
+
+			// Developers, developers, developers
+			// printf("\tE | %u\n", bits);
 		}
 
-		// Write root, ans-coded in state
-		{
-#if ANS_YE_OLDE_OVERFLOW_ERROR == 1
-			// Printf debugging
-			// If something here wraps means that normalization was wrong
-			if (((state / e.frequency) << ANS_M_LEN) + (state % e.frequency) + e.cumulative > 0xFFFFFFFF)
-				printf("E Wrap4\n");
-			if (((state / e.frequency) << ANS_M_LEN) + (state % e.frequency) > 0xFFFFFFFF)
-				printf("E Wrap3\n");
-			if (((state / e.frequency) << ANS_M_LEN) > 0xFFFFFFFF)
-				printf("E Wrap2\n");
-			if ((state / e.frequency) > 0xFFFFFFFF)
-				printf("E Wrap1\n");
-#endif
+		// Encode root, ans-coded in state
+		state = ((state / e.frequency) << ANS_M_LEN) + (state % e.frequency) + e.cumulative;
 
-			// State update
-			state = ((state / e.frequency) << ANS_M_LEN) + (state % e.frequency) + e.cumulative;
-		}
-
-		// Write suffix, raw in bitstream
-		if (buffer_cursor == BUFFER_LEN)
+		// Encode suffix, raw in bitstream
+		if (queue_cursor == QUEUE_LEN)
 			return 0;
 
-		buffer[buffer_cursor].v = input[i] - e.root;
-		buffer[buffer_cursor].l = e.suffix_length;
-		buffer_cursor += 1;
+		queue[queue_cursor].v = input[i] - e.root;
+		queue[queue_cursor].l = e.suffix_length;
+		queue_cursor += 1;
 
 		// Developers, developers, developers
 		// printf("\tE | 0x%x\t<- Value: %u (r: %u, sl: %u, f: %u, c: %u)\n", state, input[i], e.root, e.suffix_length,
@@ -265,21 +255,27 @@ size_t AnsEncode(uint32_t length, const uint16_t* input, uint32_t* output)
 	// Normalize remainder
 	while (state != 0)
 	{
-		const auto b_word = static_cast<uint16_t>(state & ANS_B_MASK);
-		// printf("\tE | %u\n", b_word);
-
+		// Extract bits and normalize state
+		const auto bits = static_cast<uint16_t>(state & ANS_B_MASK);
 		state = state >> ANS_B_LEN;
 
-		buffer[buffer_cursor].v = b_word;
-		buffer[buffer_cursor].l = ANS_B_LEN;
-		buffer_cursor += 1;
+		// Queue bits
+		if (queue_cursor == QUEUE_LEN)
+			return 0;
+
+		queue[queue_cursor].v = bits;
+		queue[queue_cursor].l = ANS_B_LEN;
+		queue_cursor += 1;
+
+		// Developers, developers, developers
+		// printf("\tE | %u\n", bits);
 	}
 
-	// Write bits in reverse order
-	while (buffer_cursor != 0)
+	// Write bits to output in reverse order
+	while (queue_cursor != 0)
 	{
-		buffer_cursor -= 1;
-		if (writer.Write(buffer[buffer_cursor].v, buffer[buffer_cursor].l) != 0)
+		queue_cursor -= 1;
+		if (writer.Write(queue[queue_cursor].v, queue[queue_cursor].l) != 0)
 			return 0;
 	}
 

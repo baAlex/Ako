@@ -182,10 +182,10 @@ class AnsBitReader
 	uint32_t accumulator_usage;
 
   public:
-	AnsBitReader(size_t input_length = 0, const uint32_t* input = nullptr);
-	void Reset(size_t input_length, const uint32_t* input);
-	int Read(uint32_t length, uint32_t& value);
-	size_t Finish(const uint32_t* input_start) const;
+	AnsBitReader(uint32_t input_length = 0, const uint32_t* input = nullptr);
+	void Reset(uint32_t input_length, const uint32_t* input);
+	int Read(uint32_t bit_length, uint32_t& value);
+	uint32_t Finish(const uint32_t* input_start) const;
 };
 
 class AnsBitWriter
@@ -204,14 +204,14 @@ class AnsBitWriter
 	uint32_t accumulator_usage;
 
   public:
-	AnsBitWriter(size_t output_length = 0, uint32_t* output = nullptr);
-	void Reset(size_t output_length, uint32_t* output);
-	int Write(uint32_t value, uint32_t length);
-	size_t Finish();
+	AnsBitWriter(uint32_t output_length = 0, uint32_t* output = nullptr);
+	void Reset(uint32_t output_length, uint32_t* output);
+	int Write(uint32_t value, uint32_t bit_length);
+	uint32_t Finish();
 };
 
-size_t AnsDecode(uint32_t length, const uint32_t* input, uint16_t* output);
-size_t AnsEncode(uint32_t length, const uint16_t* input, uint32_t* output);
+uint32_t AnsDecode(uint32_t input_length, uint32_t output_length, const uint32_t* input, uint16_t* output);
+uint32_t AnsEncode(uint32_t input_length, uint32_t output_length, const uint16_t* input, uint32_t* output);
 
 
 // decode/compression.cpp:

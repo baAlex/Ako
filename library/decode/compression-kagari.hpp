@@ -106,7 +106,10 @@ class DecompressorKagari final : public Decompressor<int16_t>
   public:
 	DecompressorKagari(unsigned block_length, size_t input_size, const void* input)
 	{
-		this->reader.Reset(input_size / sizeof(uint32_t), reinterpret_cast<const uint32_t*>(input));
+		// assert(input_size / sizeof(uint32_t) <= 0xFFFFFFFF); // TODO
+
+		this->reader.Reset(static_cast<uint32_t>(input_size / sizeof(uint32_t)),
+		                   reinterpret_cast<const uint32_t*>(input));
 
 		this->block_start = reinterpret_cast<int16_t*>(malloc(block_length * sizeof(int16_t)));
 		this->block_end = this->block_start + block_length;

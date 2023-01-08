@@ -10,28 +10,27 @@
 #include "ako.hpp"
 
 
-static void sFixedTest(const uint16_t* values, unsigned length)
+static void sFixedTest(const uint16_t* values, unsigned input_length)
 {
-	printf(" - Fixed Test, length: %u\n", length);
+	printf(" - Fixed Test, len: %u\n", input_length);
 
-	auto buffer_a =
-	    static_cast<uint32_t*>(malloc(sizeof(uint32_t) * length * 2)); // FIXME, encoder output is incomplete
-	auto buffer_b = static_cast<uint16_t*>(malloc(sizeof(uint16_t) * length));
+	const auto output_buffer_length = input_length * 4; // For inflation, we are not testing that here
+
+	auto buffer_a = static_cast<uint32_t*>(malloc(sizeof(uint32_t) * output_buffer_length));
+	auto buffer_b = static_cast<uint16_t*>(malloc(sizeof(uint16_t) * input_length));
 	assert(buffer_a != nullptr);
 	assert(buffer_b != nullptr);
 
 	// Encode
-	const auto bitstream_length = ako::AnsEncode(length, values, buffer_a);
-	assert(bitstream_length != 0); // TODO, measured in length (accumulators) not bytes
+	const auto encoded_length = ako::AnsEncode(input_length, output_buffer_length, values, buffer_a);
+	assert(encoded_length != 0);
 
 	// Decode
-	const auto read_length = ako::AnsDecode(length, buffer_a, buffer_b); // TODO, length is confusing as is
-	                                                                     // used in both output and input
-
-	assert(read_length == bitstream_length); // We do not want to go out of sync
+	const auto read_length = ako::AnsDecode(encoded_length, input_length, buffer_a, buffer_b);
+	assert(read_length == encoded_length); // We do not want to go out of sync
 
 	// Check
-	for (unsigned i = 0; i < length; i += 1)
+	for (unsigned i = 0; i < input_length; i += 1)
 	{
 		if (values[i] != buffer_b[i])
 			fprintf(stderr, "At %i\n", i);
@@ -45,35 +44,33 @@ static void sFixedTest(const uint16_t* values, unsigned length)
 }
 
 
-static void sLongTest(uint16_t value, unsigned length)
+static void sLongUniformTest(uint16_t value, unsigned input_length)
 {
-	printf(" - Long Test, v: %u, len: %u\n", value, length);
+	printf(" - Long Uniform Test, v: %u, len: %u\n", value, input_length);
 
-	auto values = static_cast<uint16_t*>(malloc(sizeof(uint16_t) * length));
-	auto buffer_a =
-	    static_cast<uint32_t*>(malloc(sizeof(uint32_t) * length * 2)); // FIXME, encoder output is incomplete
-	auto buffer_b = static_cast<uint16_t*>(malloc(sizeof(uint16_t) * length));
+	const auto output_buffer_length = input_length * 4; // For inflation, we are not testing that here
 
+	auto values = static_cast<uint16_t*>(malloc(sizeof(uint16_t) * input_length));
+	auto buffer_a = static_cast<uint32_t*>(malloc(sizeof(uint32_t) * output_buffer_length));
+	auto buffer_b = static_cast<uint16_t*>(malloc(sizeof(uint16_t) * input_length));
 	assert(values != nullptr);
 	assert(buffer_a != nullptr);
 	assert(buffer_b != nullptr);
 
 	// Make values
-	for (unsigned i = 0; i < length; i += 1)
+	for (unsigned i = 0; i < input_length; i += 1)
 		values[i] = value;
 
 	// Encode
-	const auto bitstream_length = ako::AnsEncode(length, values, buffer_a);
-	assert(bitstream_length != 0); // TODO, measured in length (accumulators) not bytes
+	const auto encoded_length = ako::AnsEncode(input_length, output_buffer_length, values, buffer_a);
+	assert(encoded_length != 0);
 
 	// Decode
-	const auto read_length = ako::AnsDecode(length, buffer_a, buffer_b); // TODO, length is confusing as is
-	                                                                     // used in both output and input
-
-	assert(read_length == bitstream_length); // We do not want to go out of sync
+	const auto read_length = ako::AnsDecode(encoded_length, input_length, buffer_a, buffer_b);
+	assert(read_length == encoded_length); // We do not want to go out of sync
 
 	// Check
-	for (unsigned i = 0; i < length; i += 1)
+	for (unsigned i = 0; i < input_length; i += 1)
 	{
 		if (values[i] != buffer_b[i])
 			fprintf(stderr, "At %i\n", i);
@@ -122,8 +119,11 @@ int main(int argc, const char* argv[])
 		sFixedTest(values, 1);
 	}
 
-	sLongTest(0, 32);
-	sLongTest(0xFFFF, 32);
+	sLongUniformTest(0, 32);
+	sLongUniformTest(0xFFFF, 32);
+
+	sLongUniformTest(0, 0xFFFF);      // Maximum length
+	sLongUniformTest(0xFFFF, 0xFFFF); // Ditto, but now with inflation
 
 	return EXIT_SUCCESS;
 }

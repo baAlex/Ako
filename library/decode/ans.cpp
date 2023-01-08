@@ -28,12 +28,12 @@ SOFTWARE.
 namespace ako
 {
 
-AnsBitReader::AnsBitReader(size_t input_length, const uint32_t* input)
+AnsBitReader::AnsBitReader(uint32_t input_length, const uint32_t* input)
 {
 	this->Reset(input_length, input);
 }
 
-void AnsBitReader::Reset(size_t input_length, const uint32_t* input)
+void AnsBitReader::Reset(uint32_t input_length, const uint32_t* input)
 {
 	this->input_end = input + input_length;
 	this->input = input;
@@ -42,16 +42,16 @@ void AnsBitReader::Reset(size_t input_length, const uint32_t* input)
 	this->accumulator_usage = 0;
 }
 
-int AnsBitReader::Read(uint32_t length, uint32_t& value)
+int AnsBitReader::Read(uint32_t bit_length, uint32_t& value)
 {
-	const auto mask = ~(0xFFFFFFFF << length);
+	const auto mask = ~(0xFFFFFFFF << bit_length);
 
 	// Accumulator contains our value, ideal fast path
-	if (length <= this->accumulator_usage)
+	if (bit_length <= this->accumulator_usage)
 	{
 		value = this->accumulator & mask;
-		this->accumulator >>= length;
-		this->accumulator_usage -= length;
+		this->accumulator >>= bit_length;
+		this->accumulator_usage -= bit_length;
 	}
 
 	// Accumulator doesn't have it, at least entirely, ultra super duper slow path
@@ -66,37 +66,37 @@ int AnsBitReader::Read(uint32_t length, uint32_t& value)
 
 		// Read, make value with remainder part
 		this->accumulator = *this->input++;
-		this->accumulator_usage = ACCUMULATOR_LEN - (length - min);
+		this->accumulator_usage = ACCUMULATOR_LEN - (bit_length - min);
 
 		value = (value | (this->accumulator << min)) & mask;
-		this->accumulator >>= (length - min);
+		this->accumulator >>= (bit_length - min);
 
 		// Developers, developers, developers
 		// printf("\tD | \tRead accumulator [d: 0x%x, min: %u]\n", *(this->input - 1), min);
 	}
 
 	// Developers, developers, developers
-	// printf("\tD | v: %u,\tl: %u, u: %u (%u)\n", value, length, this->accumulator_usage,
+	// printf("\tD | v: %u,\tl: %u, u: %u (%u)\n", value, bit_length, this->accumulator_usage,
 	//       ACCUMULATOR_LEN - this->accumulator_usage);
 
 	// Bye!
 	return 0;
 }
 
-size_t AnsBitReader::Finish(const uint32_t* input_start) const
+uint32_t AnsBitReader::Finish(const uint32_t* input_start) const
 {
-	const auto input_length = Max(static_cast<size_t>(1), static_cast<size_t>(this->input - input_start));
-	// printf("\tDecoded length: %zu\n\n", input_length); // Developers, developers, developers
+	const auto input_length = Max(static_cast<uint32_t>(1), static_cast<uint32_t>(this->input - input_start));
+	// printf("\tDecoded length: %u\n\n", input_length); // Developers, developers, developers
 	return input_length;
 }
 
 
-size_t AnsDecode(uint32_t length, const uint32_t* input, uint16_t* output)
+uint32_t AnsDecode(uint32_t input_length, uint32_t output_length, const uint32_t* input, uint16_t* output)
 {
-	AnsBitReader reader(length + 1, input); // FIXME
+	AnsBitReader reader(input_length, input);
 	uint32_t state = 0;
 
-	for (uint32_t i = 0; i < length; i += 1)
+	for (uint32_t i = 0; i < output_length; i += 1)
 	{
 		// Normalize state (fill it)
 		while (state < ANS_L /*&& state != ANS_INITIAL_STATE*/)
@@ -108,13 +108,12 @@ size_t AnsDecode(uint32_t length, const uint32_t* input, uint16_t* output)
 			//	break;
 
 			state = (state << ANS_B_LEN) | word;
-
 			// printf("\tD | %u\n", word); // Developers, developers, developers
 		}
 
 		// Find root Cdf entry
-		const uint32_t modulo = state & ANS_M_MASK;
-		CdfEntry e = g_cdf1[G_CDF1_LEN - 1];
+		const auto modulo = state & ANS_M_MASK;
+		auto e = g_cdf1[G_CDF1_LEN - 1];
 
 		for (uint32_t i = 1; i < G_CDF1_LEN; i += 1)
 		{
@@ -132,7 +131,7 @@ size_t AnsDecode(uint32_t length, const uint32_t* input, uint16_t* output)
 			reader.Read(e.suffix_length, suffix); // Do not check, let it fail
 
 			// Value is 'root + suffix'
-			const uint16_t value = e.root + static_cast<uint16_t>(suffix);
+			const auto value = static_cast<uint16_t>(e.root + suffix);
 			*output++ = value; // TODO, check?
 
 			// Developers, developers, developers
@@ -154,9 +153,12 @@ size_t AnsDecode(uint32_t length, const uint32_t* input, uint16_t* output)
 			return 0;
 
 		state = (state << ANS_B_LEN) | word;
-
 		// printf("\tD | %u\n", word); // Developers, developers, developers
 	}
+
+	// A final check
+	if (state != ANS_INITIAL_STATE)
+		return 0;
 
 	// Bye!
 	return reader.Finish(input);

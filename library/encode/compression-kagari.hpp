@@ -154,7 +154,9 @@ class CompressorKagari final : public Compressor<int16_t>
 
 	void Reset(unsigned block_length, size_t output_size, void* output)
 	{
-		this->writer.Reset(output_size / sizeof(uint32_t), reinterpret_cast<uint32_t*>(output));
+		// assert(output_size / sizeof(uint32_t) <= 0xFFFFFFFF); // TODO
+
+		this->writer.Reset(static_cast<uint32_t>(output_size / sizeof(uint32_t)), reinterpret_cast<uint32_t*>(output));
 
 		if (this->block_start == nullptr || static_cast<unsigned>(this->block_end - this->block_start) < block_length)
 		{
