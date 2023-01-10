@@ -28,7 +28,7 @@ jobs:
     - name: Cache build # As files/state are not shared between jobs
       uses: actions/cache/save@v3
       with:
-        key: cache-${{github.run_id}}
+        key: windows-cache-${{github.run_id}}
         path: |
           ${{github.workspace}}/build
           !${{github.workspace}}/build/**/*.obj
@@ -43,7 +43,7 @@ jobs:
     - name: Restore cache # Or files
       uses: actions/cache/restore@v3
       with:
-        key: cache-${{github.run_id}}
+        key: windows-cache-${{github.run_id}}
         path: | # Needs to be the same path that was used at saving
           ${{github.workspace}}/build
           !${{github.workspace}}/build/**/*.obj
@@ -68,7 +68,7 @@ jobs:
     - name: Restore cache
       uses: actions/cache/restore@v3
       with:
-        key: cache-${{github.run_id}}
+        key: windows-cache-${{github.run_id}}
         path: |
           ${{github.workspace}}/build
           !${{github.workspace}}/build/**/*.obj
