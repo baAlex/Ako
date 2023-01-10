@@ -28,8 +28,11 @@ jobs:
     - name: Cache build # As files/state are not shared between jobs
       uses: actions/cache/save@v3
       with:
-        path: ${{github.workspace}}/build
         key: cache-${{github.run_id}}
+        path: |
+          ${{github.workspace}}/build
+          !${{github.workspace}}/build/**/*.obj
+          !${{github.workspace}}/build/**/*.ilk
 
   ####
   artifacts:
@@ -40,15 +43,21 @@ jobs:
     - name: Restore cache # Or files
       uses: actions/cache/restore@v3
       with:
-        path: ${{github.workspace}}/build
         key: cache-${{github.run_id}}
+        path: | # Needs to be the same path that was used at saving
+          ${{github.workspace}}/build
+          !${{github.workspace}}/build/**/*.obj
+          !${{github.workspace}}/build/**/*.ilk
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v3
       with:
         name: Windows
-        path: ${{github.workspace}}/build
-        if-no-files-found: warn
+        if-no-files-found: error
+        path: |
+          ${{github.workspace}}/build
+          !${{github.workspace}}/build/**/*.obj
+          !${{github.workspace}}/build/**/*.ilk
 
   ####
   test:
@@ -59,8 +68,11 @@ jobs:
     - name: Restore cache
       uses: actions/cache/restore@v3
       with:
-        path: ${{github.workspace}}/build
         key: cache-${{github.run_id}}
+        path: |
+          ${{github.workspace}}/build
+          !${{github.workspace}}/build/**/*.obj
+          !${{github.workspace}}/build/**/*.ilk
 
     - name: Test
       working-directory: ${{github.workspace}}/build
