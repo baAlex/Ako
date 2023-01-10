@@ -40,7 +40,7 @@ jobs:
     - name: Restore cache # Or files
       uses: actions/cache@v3
       with:
-        patch: ${{github.workspace}}/build
+        path: ${{github.workspace}}/build
         key: cache-${{github.run_id}}
 
     - name: Upload artifacts
@@ -58,7 +58,7 @@ jobs:
     - name: Restore cache
       uses: actions/cache@v3
       with:
-        patch: ${{github.workspace}}/build
+        path: ${{github.workspace}}/build
         key: cache-${{github.run_id}}
 
     - name: Test
