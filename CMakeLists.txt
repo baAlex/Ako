@@ -3,12 +3,13 @@ cmake_minimum_required(VERSION 3.16)
 project("Ako" CXX)
 
 
-option(AKO_SHARED "Build shared library" ON)
-option(AKO_STATIC "Build static library" ON)
-option(AKO_DEC    "Build decoding tool"  ON)
-option(AKO_ENC    "Build encoding tool"  ON)
-option(AKO_VIEW   "Build viewer tool"    ON)
-option(AKO_TESTS  "Build tests"          ON)
+option(AKO_SHARED  "Build shared library" ON)
+option(AKO_STATIC  "Build static library" ON)
+option(AKO_DEC     "Build decoding tool"  ON)
+option(AKO_ENC     "Build encoding tool"  ON)
+option(AKO_VIEW    "Build viewer tool"    ON)
+option(AKO_TESTS   "Build tests"          ON)
+option(AKO_FUZZERS "Build fuzzers"        ON)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS True)
 set(CMAKE_CXX_STANDARD 11)
@@ -20,6 +21,11 @@ endif ()
 if (CMAKE_BUILD_TYPE STREQUAL "Release") # OR CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo"
 	set(AKO_RELEASE True)
 endif ()
+
+if (NOT "${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
+	set(AKO_FUZZERS OFF)
+endif ()
+
 
 # <optional flags>
 if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang" OR "${CMAKE_CXX_COMPILER_ID}" MATCHES "GNU")
@@ -227,4 +233,18 @@ if (AKO_TESTS)
 	add_test(NAME "TestWaveletHaar" COMMAND "test-wavelet-haar")
 
 	include(CTest)
+endif ()
+
+
+if (AKO_FUZZERS)
+	add_executable("fuzzer-ans" "./tests/fuzzer-ans.cpp")
+	target_include_directories("fuzzer-ans" PRIVATE "./library/")
+	target_link_libraries( "fuzzer-ans" PRIVATE "ako-static")
+	target_compile_options("fuzzer-ans" PRIVATE ${AKO_CFLAGS})
+	target_compile_options("fuzzer-ans" PRIVATE "-fsanitize=fuzzer,address")
+	target_link_options("fuzzer-ans" PRIVATE "-fsanitize=fuzzer,address")
+
+	if (AKO_RELEASE)
+		set_property(TARGET "fuzzer-ans" PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
+	endif ()
 endif ()
