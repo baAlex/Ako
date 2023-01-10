@@ -31,40 +31,41 @@ jobs:
       run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
 
     - name: Cache # As files/state are not shared between jobs
-      uses: actions/cache@v3
+      uses: actions/cache/save@v3
       with:
         path: ${{github.workspace}}/build
-        key: cache-${{github.run_id}}
+        key: ubuntu-cache-${{github.run_id}}
 
   ####
   artifacts:
     needs: build
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
     steps:
 
     - name: Restore cache # Or files
-      uses: actions/cache@v3
+      uses: actions/cache/restore@v3
       with:
         path: ${{github.workspace}}/build
-        key: cache-${{github.run_id}}
+        key: ubuntu-cache-${{github.run_id}}
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v3
       with:
         name: Ubuntu
         path: ${{github.workspace}}/build
+        if-no-files-found: warn
 
   ####
   test:
     needs: build
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
     steps:
 
     - name: Restore cache
-      uses: actions/cache@v3
+      uses: actions/cache/restore@v3
       with:
         path: ${{github.workspace}}/build
-        key: cache-${{github.run_id}}
+        key: ubuntu-cache-${{github.run_id}}
 
     - name: Test
       working-directory: ${{github.workspace}}/build
