@@ -149,6 +149,14 @@ struct BitsToWrite
 	uint16_t l;
 };
 
+
+// <FIXME>, stack overflow on Windows
+const auto QUEUE_LEN = 65536 * 4; // x2 for both roots and suffixes (assuming one
+                                  // normalization per value).
+BitsToWrite queue[QUEUE_LEN];     // We can't call the bit writer directly as Ans operate in
+// </FIXME>
+
+
 uint32_t AnsEncode(uint32_t input_length, uint32_t output_length, const uint16_t* input, uint32_t* output)
 {
 	AnsBitWriter writer(output_length, output);
@@ -159,16 +167,14 @@ uint32_t AnsEncode(uint32_t input_length, uint32_t output_length, const uint16_t
 	uint64_t state = ANS_INITIAL_STATE;
 #endif
 
-	// We only encode blocks of 0xFFFF values or less
+	// We only encode inputs of 65536 values or less
 	// (and I'm not checking that here to let the follow loop fail if that happens)
 
-	const auto QUEUE_LEN = 65536 * 4; // x2 for both roots and suffixes (assuming one
-	                                  // normalization per value). Should be x1 to truly
-	                                  // prevent inflation.
+	// const auto QUEUE_LEN = 65536 * 4; // x2 for both roots and suffixes (assuming one normalization per value).
 
-	BitsToWrite queue[QUEUE_LEN]; // We can't call the bit writer directly as Ans operate in
-	unsigned queue_cursor = 0;    // reverse... to then write bits also in reverse... so is
-	                              // better to queue the bits and write them later
+	// BitsToWrite queue[QUEUE_LEN]; // We can't call the bit writer directly as Ans operate in
+	unsigned queue_cursor = 0; // reverse... to then write bits also in reverse... so is
+	                           // better to queue the bits and write them later
 
 	// Iterate input
 	for (uint32_t i = input_length - 1; i < input_length; i -= 1) // Underflows, Ans operates in reverse

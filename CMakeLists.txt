@@ -27,6 +27,11 @@ if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang" OR "${CMAKE_CXX_COMPILER_ID}" MAT
 	set(AKO_TOOLS_CFLAGS -Wall -Wextra -pedantic)
 endif ()
 
+if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "MSVC")
+	set(AKO_CFLAGS       /W4)
+	set(AKO_TOOLS_CFLAGS /W2)
+endif ()
+
 if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
 	set(CMAKE_CXX_FLAGS_DEBUG    "${CMAKE_CXX_FLAGS_DEBUG}    -fsanitize=undefined -fno-omit-frame-pointer")
 	set(CMAKE_LINKER_FLAGS_DEBUG "${CMAKE_LINKER_FLAGS_DEBUG} -fsanitize=undefined -fno-omit-frame-pointer")
