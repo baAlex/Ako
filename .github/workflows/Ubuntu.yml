@@ -16,10 +16,10 @@ jobs:
     steps:
     - uses: actions/checkout@v3
 
-    - name: Submodules
+    - name: Initialize submodules
       run: git submodule update --init --recursive
 
-    - name: Install GLFW dependencies
+    - name: Install dependencies
       run: |
           sudo apt update
           sudo apt install libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev libxext-dev
@@ -30,11 +30,23 @@ jobs:
     - name: Build
       run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
 
+    - name: Cache # As files/state are not shared between jobs
+      uses: actions/cache@v3
+      with:
+        path: ${{github.workspace}}/build
+        key: cache-${{github.run_id}}
+
   ####
   artifacts:
     needs: build
     runs-on: windows-latest
     steps:
+
+    - name: Restore cache # Or files
+      uses: actions/cache@v3
+      with:
+        patch: ${{github.workspace}}/build
+        key: cache-${{github.run_id}}
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v3
@@ -47,6 +59,12 @@ jobs:
     needs: build
     runs-on: windows-latest
     steps:
+
+    - name: Restore cache
+      uses: actions/cache@v3
+      with:
+        patch: ${{github.workspace}}/build
+        key: cache-${{github.run_id}}
 
     - name: Test
       working-directory: ${{github.workspace}}/build
