@@ -25,7 +25,10 @@ static void sFixedTest(const uint16_t* values, unsigned input_length)
 	uint32_t encoded_length;
 	{
 		auto status = ako::AnsEncoderStatus::Error;
-		encoded_length = ako::AnsEncode(input_length, output_buffer_length, values, buffer_a, status);
+
+		auto writer = ako::BitWriter(output_buffer_length, buffer_a);
+		encoded_length = ako::AnsEncode(input_length, values, writer, status);
+
 		assert(status == ako::AnsEncoderStatus::Ok);
 		assert(encoded_length != 0);
 	}
@@ -73,7 +76,10 @@ static void sLongUniformTest(uint16_t value, unsigned input_length)
 	uint32_t encoded_length;
 	{
 		auto status = ako::AnsEncoderStatus::Error;
-		encoded_length = ako::AnsEncode(input_length, output_buffer_length, values, buffer_a, status);
+
+		auto writer = ako::BitWriter(output_buffer_length, buffer_a);
+		encoded_length = ako::AnsEncode(input_length, values, writer, status);
+
 		assert(status == ako::AnsEncoderStatus::Ok);
 		assert(encoded_length != 0);
 	}

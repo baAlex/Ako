@@ -28,87 +28,6 @@ SOFTWARE.
 namespace ako
 {
 
-AnsBitWriter::AnsBitWriter(uint32_t output_length, uint32_t* output)
-{
-	this->Reset(output_length, output);
-}
-
-void AnsBitWriter::Reset(uint32_t output_length, uint32_t* output)
-{
-	this->output_start = output;
-	this->output_end = this->output_start + output_length;
-	this->output = this->output_start;
-
-	this->wrote_values = 0;
-
-	this->accumulator = 0;
-	this->accumulator_usage = 0;
-}
-
-int AnsBitWriter::Write(uint32_t value, uint32_t bit_length)
-{
-	// Accumulator has space, ideal fast path
-	if (this->accumulator_usage + bit_length < ACCUMULATOR_LEN)
-	{
-		const auto mask = ~(0xFFFFFFFF << bit_length);
-
-		this->accumulator |= ((value & mask) << this->accumulator_usage);
-		this->accumulator_usage += bit_length;
-	}
-
-	// No space in accumulator, ultra super duper slow path
-	else
-	{
-		if (this->output + 1 > this->output_end || bit_length >= ACCUMULATOR_LEN)
-			return 1;
-
-		// Accumulate what we can, then write
-		const auto min = ACCUMULATOR_LEN - this->accumulator_usage;
-		*this->output++ = this->accumulator | (value << this->accumulator_usage);
-
-		// Accumulate remainder
-		const auto mask = ~(0xFFFFFFFF << (bit_length - min));
-
-		this->accumulator = (value >> min) & mask;
-		this->accumulator_usage = bit_length - min;
-
-		// Developers, developers, developers
-		// printf("\tE | \tWrite accumulator [d: 0x%x, min: %u]\n", *(this->output - 1), min);
-	}
-
-	// Developers, developers, developers
-	// printf("\tE | v: %u,\tl: %u, u: %u\n", value, bit_length, this->accumulator_usage);
-
-	// Bye!
-	this->wrote_values += 1;
-	return 0;
-}
-
-uint32_t AnsBitWriter::Finish()
-{
-	// Remainder
-	if (this->accumulator_usage > 0)
-	{
-		if (this->output + 1 > this->output_end)
-			return 0;
-
-		*this->output++ = this->accumulator;
-
-		// Developers, developers, developers
-		// printf("\tE | \tWrite accumulator [d: 0x%x]\n", *(this->output - 1));
-	}
-
-	// Bye!
-	auto output_length = static_cast<uint32_t>(this->output - this->output_start);
-
-	if (output_length == 0 && this->wrote_values != 0) // Somebody wrote lots of zeros
-		output_length = 1;
-
-	// printf("\tEncoded length: %u\n\n", output_length); // Developers, developers, developers
-	return output_length;
-}
-
-
 static uint8_t sCode(uint16_t value)
 {
 	if (value < 64)
@@ -157,11 +76,8 @@ BitsToWrite queue[QUEUE_LEN];     // We can't call the bit writer directly as An
 // </FIXME>
 
 
-uint32_t AnsEncode(uint32_t input_length, uint32_t output_length, const uint16_t* input, uint32_t* output,
-                   AnsEncoderStatus& out_status)
+uint32_t AnsEncode(uint32_t input_length, const uint16_t* input, BitWriter& writer, AnsEncoderStatus& out_status)
 {
-	AnsBitWriter writer(output_length, output);
-
 #if ANS_YE_OLDE_OVERFLOW_ERROR == 0
 	uint32_t state = ANS_INITIAL_STATE;
 #else

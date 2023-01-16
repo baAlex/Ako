@@ -28,72 +28,9 @@ SOFTWARE.
 namespace ako
 {
 
-AnsBitReader::AnsBitReader(uint32_t input_length, const uint32_t* input)
-{
-	this->Reset(input_length, input);
-}
-
-void AnsBitReader::Reset(uint32_t input_length, const uint32_t* input)
-{
-	this->input_end = input + input_length;
-	this->input = input;
-
-	this->accumulator = 0;
-	this->accumulator_usage = 0;
-}
-
-int AnsBitReader::Read(uint32_t bit_length, uint32_t& value)
-{
-	const auto mask = ~(0xFFFFFFFF << bit_length);
-
-	// Accumulator contains our value, ideal fast path
-	if (bit_length <= this->accumulator_usage)
-	{
-		value = this->accumulator & mask;
-		this->accumulator >>= bit_length;
-		this->accumulator_usage -= bit_length;
-	}
-
-	// Accumulator doesn't have it, at least entirely, ultra super duper slow path
-	else
-	{
-		if (this->input + 1 > this->input_end)
-			return 1;
-
-		// Keep what accumulator has
-		const auto min = this->accumulator_usage;
-		value = this->accumulator;
-
-		// Read, make value with remainder part
-		this->accumulator = *this->input++;
-		this->accumulator_usage = ACCUMULATOR_LEN - (bit_length - min);
-
-		value = (value | (this->accumulator << min)) & mask;
-		this->accumulator >>= (bit_length - min);
-
-		// Developers, developers, developers
-		// printf("\tD | \tRead accumulator [d: 0x%x, min: %u]\n", *(this->input - 1), min);
-	}
-
-	// Developers, developers, developers
-	// printf("\tD | v: %u,\tl: %u, u: %u (%u)\n", value, bit_length, this->accumulator_usage,
-	//       ACCUMULATOR_LEN - this->accumulator_usage);
-
-	// Bye!
-	return 0;
-}
-
-uint32_t AnsBitReader::Finish(const uint32_t* input_start) const
-{
-	const auto input_length = Max(static_cast<uint32_t>(1), static_cast<uint32_t>(this->input - input_start));
-	// printf("\tDecoded length: %u\n\n", input_length); // Developers, developers, developers
-	return input_length;
-}
-
-
 uint32_t AnsDecode(uint32_t input_length, uint32_t output_length, const uint32_t* input, uint16_t* output)
 {
-	AnsBitReader reader(input_length, input);
+	BitReader reader(input_length, input);
 	uint32_t state = 0;
 
 	for (uint32_t i = 0; i < output_length; i += 1)

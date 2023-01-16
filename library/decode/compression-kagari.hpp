@@ -31,7 +31,7 @@ namespace ako
 class DecompressorKagari final : public Decompressor<int16_t>
 {
   private:
-	AnsBitReader reader;
+	BitReader reader;
 
 	int16_t* block_start;
 	int16_t* block_end;

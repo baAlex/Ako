@@ -57,6 +57,7 @@ set(AKO_SOURCES
 	"./library/common/version.cpp"
 
 	"./library/decode/ans.cpp"
+	"./library/decode/bit.cpp"
 	"./library/decode/compression.cpp"
 	"./library/decode/decode.cpp"
 	"./library/decode/format.cpp"
@@ -66,6 +67,7 @@ set(AKO_SOURCES
 	"./library/decode/wavelet-haar.cpp"
 
 	"./library/encode/ans.cpp"
+	"./library/encode/bit.cpp"
 	"./library/encode/compression.cpp"
 	"./library/encode/encode.cpp"
 	"./library/encode/format.cpp"
@@ -191,10 +193,10 @@ if (AKO_TESTS)
 	target_link_libraries("test-ans" PRIVATE "ako-static")
 	target_compile_options("test-ans" PRIVATE ${AKO_CFLAGS})
 
-	add_executable("test-ans-bits" "./tests/ans-bits.cpp")
-	target_include_directories("test-ans-bits" PRIVATE "./library/")
-	target_link_libraries("test-ans-bits" PRIVATE "ako-static")
-	target_compile_options("test-ans-bits" PRIVATE ${AKO_CFLAGS})
+	add_executable("test-bit" "./tests/bit.cpp")
+	target_include_directories("test-bit" PRIVATE "./library/")
+	target_link_libraries("test-bit" PRIVATE "ako-static")
+	target_compile_options("test-bit" PRIVATE ${AKO_CFLAGS})
 
 	add_executable("test-forward-backward" "./tests/forward-backward.cpp")
 	target_include_directories("test-forward-backward" PRIVATE "./library/")
@@ -218,7 +220,7 @@ if (AKO_TESTS)
 
 	if (AKO_RELEASE)
 		set_property(TARGET "test-ans" PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
-		set_property(TARGET "test-ans-bits" PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
+		set_property(TARGET "test-bit" PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
 		set_property(TARGET "test-forward-backward" PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
 		set_property(TARGET "test-kagari" PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
 		set_property(TARGET "test-wavelet-cdf53" PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
@@ -226,7 +228,7 @@ if (AKO_TESTS)
 	endif ()
 
 	add_test(NAME "TestAns" COMMAND "test-ans")
-	add_test(NAME "TestAnsBits" COMMAND "test-ans-bits")
+	add_test(NAME "TestBit" COMMAND "test-bit")
 	add_test(NAME "TestForwardBackward" COMMAND "test-forward-backward")
 	add_test(NAME "TestKagari" COMMAND "test-kagari")
 	add_test(NAME "TestWaveletCdf53" COMMAND "test-wavelet-cdf53")

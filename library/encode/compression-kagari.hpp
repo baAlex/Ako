@@ -34,7 +34,7 @@ class CompressorKagari final : public Compressor<int16_t>
 	static const unsigned RLE_TRIGGER = 4;
 	static const unsigned HISTOGRAM_LENGTH = 0xFFFF;
 
-	AnsBitWriter writer;
+	BitWriter writer;
 	Histogram histogram[HISTOGRAM_LENGTH + 1];
 
 	int16_t* block_start = nullptr;

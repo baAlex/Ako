@@ -33,7 +33,7 @@ static void sFixedTest(const uint32_t* values, const unsigned values_no)
 	// Write
 	uint32_t encoded_length = 0;
 	{
-		auto writer = ako::AnsBitWriter(values_no, buffer);
+		auto writer = ako::BitWriter(values_no, buffer);
 		for (unsigned i = 0; i < values_no; i += 1)
 		{
 			const auto ret = writer.Write(values[i], sBitsLength(values[i]));
@@ -46,7 +46,7 @@ static void sFixedTest(const uint32_t* values, const unsigned values_no)
 
 	// Read
 	{
-		auto reader = ako::AnsBitReader(encoded_length, buffer);
+		auto reader = ako::BitReader(encoded_length, buffer);
 		for (unsigned i = 0; i < values_no; i += 1)
 		{
 			uint32_t v = 0;
@@ -163,7 +163,7 @@ static void sRandomTest(unsigned values_no, uint32_t seed = 4321)
 	// Write
 	uint32_t encoded_length = 0;
 	{
-		auto writer = ako::AnsBitWriter(values_no, buffer);
+		auto writer = ako::BitWriter(values_no, buffer);
 		for (unsigned i = 0; i < values_no; i += 1)
 		{
 			const auto ret = writer.Write(values[i], sBitsLength(values[i]));
@@ -176,7 +176,7 @@ static void sRandomTest(unsigned values_no, uint32_t seed = 4321)
 
 	// Read
 	{
-		auto reader = ako::AnsBitReader(encoded_length, buffer);
+		auto reader = ako::BitReader(encoded_length, buffer);
 		for (unsigned i = 0; i < values_no; i += 1)
 		{
 			uint32_t v = 0;
@@ -199,7 +199,7 @@ int main(int argc, const char* argv[])
 	(void)argc;
 	(void)argv;
 
-	printf("# Ans Bits Test (Ako v%i.%i.%i, %s)\n", ako::VersionMajor(), ako::VersionMinor(), ako::VersionPatch(),
+	printf("# Bit Test (Ako v%i.%i.%i, %s)\n", ako::VersionMajor(), ako::VersionMinor(), ako::VersionPatch(),
 	       (ako::SystemEndianness() == ako::Endianness::Little) ? "little-endian" : "big-endian");
 
 	{

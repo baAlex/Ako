@@ -34,7 +34,9 @@ static int sTest(const uint16_t* input, size_t input_length)
 	uint32_t encoded_length;
 	{
 		auto status = ako::AnsEncoderStatus::Error;
-		encoded_length = ako::AnsEncode(static_cast<uint32_t>(input_length), 32768, input, s_buffer_a, status);
+
+		auto writer = ako::BitWriter(32768, s_buffer_a);
+		encoded_length = ako::AnsEncode(static_cast<uint32_t>(input_length), input, writer, status);
 
 		if (encoded_length == 0) // Not an error, encoder may refuse to encode...
 		{
