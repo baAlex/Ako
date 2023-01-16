@@ -157,7 +157,8 @@ BitsToWrite queue[QUEUE_LEN];     // We can't call the bit writer directly as An
 // </FIXME>
 
 
-uint32_t AnsEncode(uint32_t input_length, uint32_t output_length, const uint16_t* input, uint32_t* output)
+uint32_t AnsEncode(uint32_t input_length, uint32_t output_length, const uint16_t* input, uint32_t* output,
+                   AnsEncoderStatus& out_status)
 {
 	AnsBitWriter writer(output_length, output);
 
@@ -232,7 +233,7 @@ uint32_t AnsEncode(uint32_t input_length, uint32_t output_length, const uint16_t
 
 			// Queue bits
 			if (queue_cursor == QUEUE_LEN)
-				return 0;
+				goto return_input_too_long;
 
 			queue[queue_cursor].v = bits;
 			queue[queue_cursor].l = ANS_B_LEN;
@@ -247,7 +248,7 @@ uint32_t AnsEncode(uint32_t input_length, uint32_t output_length, const uint16_t
 
 		// Encode suffix, raw in bitstream
 		if (queue_cursor == QUEUE_LEN)
-			return 0;
+			goto return_input_too_long;
 
 		queue[queue_cursor].v = input[i] - e.root;
 		queue[queue_cursor].l = e.suffix_length;
@@ -267,7 +268,7 @@ uint32_t AnsEncode(uint32_t input_length, uint32_t output_length, const uint16_t
 
 		// Queue bits
 		if (queue_cursor == QUEUE_LEN)
-			return 0;
+			goto return_input_too_long;
 
 		queue[queue_cursor].v = bits;
 		queue[queue_cursor].l = ANS_B_LEN;
@@ -282,11 +283,18 @@ uint32_t AnsEncode(uint32_t input_length, uint32_t output_length, const uint16_t
 	{
 		queue_cursor -= 1;
 		if (writer.Write(queue[queue_cursor].v, queue[queue_cursor].l) != 0)
-			return 0;
+			goto return_output_too_short;
 	}
 
 	// Bye!
+	out_status = AnsEncoderStatus::Ok;
 	return writer.Finish();
+return_input_too_long:
+	out_status = AnsEncoderStatus::InputTooLong;
+	return 0;
+return_output_too_short:
+	out_status = AnsEncoderStatus::OutputTooShort;
+	return 0;
 }
 
 } // namespace ako

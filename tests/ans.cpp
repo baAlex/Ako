@@ -22,12 +22,20 @@ static void sFixedTest(const uint16_t* values, unsigned input_length)
 	assert(buffer_b != nullptr);
 
 	// Encode
-	const auto encoded_length = ako::AnsEncode(input_length, output_buffer_length, values, buffer_a);
-	assert(encoded_length != 0);
+	uint32_t encoded_length;
+	{
+		auto status = ako::AnsEncoderStatus::Error;
+		encoded_length = ako::AnsEncode(input_length, output_buffer_length, values, buffer_a, status);
+		assert(status == ako::AnsEncoderStatus::Ok);
+		assert(encoded_length != 0);
+	}
 
 	// Decode
-	const auto read_length = ako::AnsDecode(encoded_length, input_length, buffer_a, buffer_b);
-	assert(read_length == encoded_length); // We do not want to go out of sync
+	uint32_t read_length;
+	{
+		read_length = ako::AnsDecode(encoded_length, input_length, buffer_a, buffer_b);
+		assert(read_length == encoded_length);
+	}
 
 	// Check
 	for (unsigned i = 0; i < input_length; i += 1)
@@ -62,12 +70,20 @@ static void sLongUniformTest(uint16_t value, unsigned input_length)
 		values[i] = value;
 
 	// Encode
-	const auto encoded_length = ako::AnsEncode(input_length, output_buffer_length, values, buffer_a);
-	assert(encoded_length != 0);
+	uint32_t encoded_length;
+	{
+		auto status = ako::AnsEncoderStatus::Error;
+		encoded_length = ako::AnsEncode(input_length, output_buffer_length, values, buffer_a, status);
+		assert(status == ako::AnsEncoderStatus::Ok);
+		assert(encoded_length != 0);
+	}
 
 	// Decode
-	const auto read_length = ako::AnsDecode(encoded_length, input_length, buffer_a, buffer_b);
-	assert(read_length == encoded_length); // We do not want to go out of sync
+	uint32_t read_length;
+	{
+		read_length = ako::AnsDecode(encoded_length, input_length, buffer_a, buffer_b);
+		assert(read_length == encoded_length);
+	}
 
 	// Check
 	for (unsigned i = 0; i < input_length; i += 1)

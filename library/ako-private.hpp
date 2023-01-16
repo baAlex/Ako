@@ -154,6 +154,14 @@ template <typename T> T SaturateToLower(T v);
 // decode/ans.cpp:
 // encode/ans.cpp:
 
+enum class AnsEncoderStatus
+{
+	Ok,
+	Error,
+	OutputTooShort,
+	InputTooLong
+};
+
 const uint32_t ANS_STATE_LEN = 32;
 
 const uint32_t ANS_B_LEN = 15;         // Output/input base, Duda's paper uses '1 << 0' as an example
@@ -211,7 +219,8 @@ class AnsBitWriter
 };
 
 uint32_t AnsDecode(uint32_t input_length, uint32_t output_length, const uint32_t* input, uint16_t* output);
-uint32_t AnsEncode(uint32_t input_length, uint32_t output_length, const uint16_t* input, uint32_t* output);
+uint32_t AnsEncode(uint32_t input_length, uint32_t output_length, const uint16_t* input, uint32_t* output,
+                   AnsEncoderStatus& out_status);
 
 
 // decode/compression.cpp:

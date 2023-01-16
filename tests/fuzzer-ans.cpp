@@ -1,5 +1,9 @@
 
 
+// fuzzer-ans -max_len=131072 -len_control=50
+// fuzzer-ans -max_len=131072 -len_control=0
+
+
 #undef NDEBUG
 #include <cassert>
 #include <cstdio>
@@ -29,17 +33,23 @@ static int sTest(const uint16_t* input, size_t input_length)
 	// Encode
 	uint32_t encoded_length;
 	{
-		encoded_length = ako::AnsEncode(static_cast<uint32_t>(input_length), 32768, input, s_buffer_a);
+		auto status = ako::AnsEncoderStatus::Error;
+		encoded_length = ako::AnsEncode(static_cast<uint32_t>(input_length), 32768, input, s_buffer_a, status);
 
-		if (encoded_length == 0) // Not an error, encoder may refuse to encode
+		if (encoded_length == 0) // Not an error, encoder may refuse to encode...
+		{
+			assert(status != ako::AnsEncoderStatus::Ok); // ...but status and length should match
 			return 0;
+		}
+		else
+			assert(status == ako::AnsEncoderStatus::Ok);
 	}
 
 	// Decode
 	{
 		const auto read_length =
 		    ako::AnsDecode(encoded_length, static_cast<uint32_t>(input_length), s_buffer_a, s_buffer_b);
-		assert(read_length == encoded_length); // We do not want to go out of sync
+		assert(read_length == encoded_length);
 	}
 
 	// Check
