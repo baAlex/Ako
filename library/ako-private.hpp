@@ -154,6 +154,9 @@ template <typename T> T SaturateToLower(T v);
 // decode/ans.cpp:
 // encode/ans.cpp:
 
+class BitReader;
+class BitWriter;
+
 enum class AnsEncoderStatus
 {
 	Ok,
@@ -190,11 +193,11 @@ class BitReader
 {
 	static const uint32_t ACCUMULATOR_LEN = 32;
 
-	const uint32_t* input_end;
-	const uint32_t* input;
+	const uint32_t* m_input_end;
+	const uint32_t* m_input;
 
-	uint32_t accumulator;
-	uint32_t accumulator_usage;
+	uint32_t m_accumulator;
+	uint32_t m_accumulator_usage;
 
   public:
 	BitReader(uint32_t input_length = 0, const uint32_t* input = nullptr);
@@ -207,16 +210,16 @@ class BitWriter
 {
 	static const uint32_t ACCUMULATOR_LEN = 32;
 
-	uint32_t* output_start;
-	uint32_t* output_end;
-	uint32_t* output;
+	uint32_t* m_output_start;
+	uint32_t* m_output_end;
+	uint32_t* m_output;
 
-	uint32_t wrote_values; // As is possible to encode zero, of length zero,
-	                       // meaning that 'output' doesn't move actually.
-	                       // So this work as an alternative to keep count.
+	uint32_t m_wrote_values; // As is possible to encode zero, of length zero,
+	                         // meaning that 'output' doesn't move actually.
+	                         // So this work as an alternative to keep count.
 
-	uint32_t accumulator;
-	uint32_t accumulator_usage;
+	uint32_t m_accumulator;
+	uint32_t m_accumulator_usage;
 
   public:
 	BitWriter(uint32_t output_length = 0, uint32_t* output = nullptr);

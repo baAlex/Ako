@@ -2,7 +2,7 @@
 
 MIT License
 
-Copyright (c) 2021-2022 Alexander Brandt
+Copyright (c) 2021-2023 Alexander Brandt
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -31,25 +31,25 @@ namespace ako
 template <typename T> class CompressorNone final : public Compressor<T>
 {
   private:
-	T* output_start;
-	T* output;
+	T* m_output_start;
+	T* m_output;
 
-	unsigned buffer_length;
-	T* buffer;
+	unsigned m_buffer_length;
+	T* m_buffer;
 
   public:
 	CompressorNone(unsigned buffer_length, void* output)
 	{
-		this->output_start = reinterpret_cast<T*>(output);
-		this->output = this->output_start;
+		m_output_start = reinterpret_cast<T*>(output);
+		m_output = m_output_start;
 
-		this->buffer_length = buffer_length;
-		this->buffer = reinterpret_cast<T*>(malloc(buffer_length * sizeof(T)));
+		m_buffer_length = buffer_length;
+		m_buffer = reinterpret_cast<T*>(malloc(buffer_length * sizeof(T)));
 	}
 
 	~CompressorNone()
 	{
-		free(this->buffer);
+		free(m_buffer);
 	}
 
 	int Step(QuantizationCallback<T> quantize, float quantization, unsigned width, unsigned height,
@@ -58,10 +58,10 @@ template <typename T> class CompressorNone final : public Compressor<T>
 		auto input_length = (width * height);
 		do
 		{
-			const auto length = Min(this->buffer_length, input_length);
+			const auto length = Min(m_buffer_length, input_length);
 
 			// Quantize input
-			quantize(quantization, length, input, this->buffer);
+			quantize(quantization, length, input, m_buffer);
 			input_length -= length;
 			input += length;
 
@@ -69,12 +69,12 @@ template <typename T> class CompressorNone final : public Compressor<T>
 			if (SystemEndianness() == Endianness::Little)
 			{
 				for (unsigned i = 0; i < length; i += 1)
-					*this->output++ = this->buffer[i];
+					*m_output++ = m_buffer[i];
 			}
 			else
 			{
 				for (unsigned i = 0; i < length; i += 1)
-					*this->output++ = EndiannessReverse(this->buffer[i]);
+					*m_output++ = EndiannessReverse(m_buffer[i]);
 			}
 
 		} while (input_length != 0);
@@ -85,7 +85,7 @@ template <typename T> class CompressorNone final : public Compressor<T>
 
 	size_t Finish() override
 	{
-		return static_cast<size_t>(this->output - this->output_start) * sizeof(T);
+		return static_cast<size_t>(m_output - m_output_start) * sizeof(T);
 	}
 };
 

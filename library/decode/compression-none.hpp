@@ -2,7 +2,7 @@
 
 MIT License
 
-Copyright (c) 2021-2022 Alexander Brandt
+Copyright (c) 2021-2023 Alexander Brandt
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -31,33 +31,33 @@ namespace ako
 template <typename T> class DecompressorNone final : public Decompressor<T>
 {
   private:
-	const T* input_end;
-	const T* input;
+	const T* m_input_end;
+	const T* m_input;
 
   public:
 	DecompressorNone(size_t input_size, const void* input)
 	{
-		this->input_end = reinterpret_cast<const T*>(input) + input_size / sizeof(T);
-		this->input = reinterpret_cast<const T*>(input);
+		m_input_end = reinterpret_cast<const T*>(input) + input_size / sizeof(T);
+		m_input = reinterpret_cast<const T*>(input);
 	}
 
 	Status Step(unsigned width, unsigned height, T* out) override
 	{
-		if (this->input + (width * height) > this->input_end)
+		if (m_input + (width * height) > m_input_end)
 			return Status::TruncatedTileData;
 
 		if (SystemEndianness() == Endianness::Little)
 		{
 			for (unsigned i = 0; i < (width * height); i += 1)
-				out[i] = this->input[i];
+				out[i] = m_input[i];
 		}
 		else
 		{
 			for (unsigned i = 0; i < (width * height); i += 1)
-				out[i] = EndiannessReverse<T>(this->input[i]);
+				out[i] = EndiannessReverse<T>(m_input[i]);
 		}
 
-		this->input += (width * height);
+		m_input += (width * height);
 		return Status::Ok;
 	}
 };

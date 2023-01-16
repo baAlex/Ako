@@ -31,13 +31,13 @@ namespace ako
 class DecompressorKagari final : public Decompressor<int16_t>
 {
   private:
-	BitReader reader;
+	BitReader m_reader;
 
-	int16_t* block_start;
-	int16_t* block_end;
+	int16_t* m_block_start;
+	int16_t* m_block_end;
 
-	unsigned block_usage;
-	int16_t* block_cursor;
+	unsigned m_block_usage;
+	int16_t* m_block_cursor;
 
 	int16_t ZigZagDecode(uint16_t value) const
 	{
@@ -46,10 +46,10 @@ class DecompressorKagari final : public Decompressor<int16_t>
 
 	int Decompress()
 	{
-		this->block_cursor = this->block_start; // We always decompress an entire block (as the encoder do)
+		m_block_cursor = m_block_start; // We always decompress an entire block (as the encoder do)
 
-		auto out_end = this->block_end;
-		auto out = this->block_start;
+		auto out_end = m_block_end;
+		auto out = m_block_start;
 		int16_t rle_value = 0;
 
 		while (out < out_end)
@@ -58,9 +58,9 @@ class DecompressorKagari final : public Decompressor<int16_t>
 			uint32_t rle_length;
 			uint32_t literal_length;
 
-			if (this->reader.Read(16, rle_length) != 0)
+			if (m_reader.Read(16, rle_length) != 0)
 				break; // End reached, not an error, if is an error Step() will catch it
-			if (this->reader.Read(16, literal_length) != 0)
+			if (m_reader.Read(16, literal_length) != 0)
 				break; // Ditto
 
 			literal_length += 1; // [A]
@@ -77,7 +77,7 @@ class DecompressorKagari final : public Decompressor<int16_t>
 			for (uint32_t i = 0; i < literal_length; i += 1)
 			{
 				uint32_t value;
-				if (this->reader.Read(16, value) != 0) // TODO
+				if (m_reader.Read(16, value) != 0) // TODO
 					return 1;
 
 				out[rle_length + i] = static_cast<int16_t>(ZigZagDecode(static_cast<uint16_t>(value)));
@@ -99,7 +99,7 @@ class DecompressorKagari final : public Decompressor<int16_t>
 		}
 
 		// Bye!
-		this->block_usage = static_cast<unsigned>(out - this->block_start);
+		m_block_usage = static_cast<unsigned>(out - m_block_start);
 		return 0;
 	}
 
@@ -108,19 +108,18 @@ class DecompressorKagari final : public Decompressor<int16_t>
 	{
 		// assert(input_size / sizeof(uint32_t) <= 0xFFFFFFFF); // TODO
 
-		this->reader.Reset(static_cast<uint32_t>(input_size / sizeof(uint32_t)),
-		                   reinterpret_cast<const uint32_t*>(input));
+		m_reader.Reset(static_cast<uint32_t>(input_size / sizeof(uint32_t)), reinterpret_cast<const uint32_t*>(input));
 
-		this->block_start = reinterpret_cast<int16_t*>(malloc(block_length * sizeof(int16_t)));
-		this->block_end = this->block_start + block_length;
+		m_block_start = reinterpret_cast<int16_t*>(malloc(block_length * sizeof(int16_t)));
+		m_block_end = m_block_start + block_length;
 
-		this->block_usage = 0;
-		this->block_cursor = this->block_start;
+		m_block_usage = 0;
+		m_block_cursor = m_block_start;
 	}
 
 	~DecompressorKagari()
 	{
-		free(this->block_start);
+		free(m_block_start);
 	}
 
 	Status Step(unsigned width, unsigned height, int16_t* out) override
@@ -130,20 +129,20 @@ class DecompressorKagari final : public Decompressor<int16_t>
 		while (output_length != 0)
 		{
 			// If needed, decompress an entire block
-			if (this->block_usage == 0)
+			if (m_block_usage == 0)
 			{
 				if (Decompress() != 0)
 					return Status::Error;
-				if (this->block_usage == 0)
+				if (m_block_usage == 0)
 					return Status::Error;
 			}
 
 			// Move values that this block can provide
 			{
-				const auto length = Min(this->block_usage, output_length);
+				const auto length = Min(m_block_usage, output_length);
 
 				for (unsigned i = 0; i < length; i += 1)
-					out[i] = this->block_cursor[i]; // NOLINT
+					out[i] = m_block_cursor[i]; // NOLINT
 
 				// False positive, as procedure [A] (which makes [B] be valid)
 				// is confusing Clang Tidy. With encoder cooperation by
@@ -152,8 +151,8 @@ class DecompressorKagari final : public Decompressor<int16_t>
 				// be fix with an extra comparision)... so yeah, closer but not
 				// really an error (I think)
 
-				this->block_usage -= length;
-				this->block_cursor += length;
+				m_block_usage -= length;
+				m_block_cursor += length;
 				output_length -= length;
 				out += length;
 			}
