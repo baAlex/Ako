@@ -2,7 +2,7 @@
 
 MIT License
 
-Copyright (c) 2021-2022 Alexander Brandt
+Copyright (c) 2021-2023 Alexander Brandt
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -244,33 +244,41 @@ void CallbackHistogramEvent(const ako::Histogram* histogram, unsigned length, vo
 	auto& data = *reinterpret_cast<CallbacksData*>(user_data);
 
 	unsigned d_last = 0;
-	unsigned d_peak_at = 0;
 	unsigned d_peak_value = 0;
+	unsigned d_peak_at = 0;
 
 	unsigned i_last = 0;
-	unsigned i_peak_at = 0;
 	unsigned i_peak_value = 0;
+	unsigned i_peak_at = 0;
 
+	if (histogram == nullptr || length == 0)
+		return;
+
+	// Find peaks
 	for (unsigned i = 0; i < length; i += 1)
 	{
 		if (histogram[i].d != 0)
-			d_last = i;
-		if (histogram[i].i != 0)
-			i_last = i;
-
-		if (histogram[i].d > d_peak_value)
 		{
-			d_peak_at = i;
-			d_peak_value = histogram[i].d;
+			d_last = i;
+			if (histogram[i].d > d_peak_value)
+			{
+				d_peak_value = histogram[i].d;
+				d_peak_at = i;
+			}
 		}
 
-		if (histogram[i].i > i_peak_value)
+		if (histogram[i].i != 0)
 		{
-			i_peak_at = i;
-			i_peak_value = histogram[i].i;
+			i_last = i;
+			if (histogram[i].i > i_peak_value)
+			{
+				i_peak_value = histogram[i].i;
+				i_peak_at = i;
+			}
 		}
 	}
 
+	// Feedback
 	if (data.print == true)
 	{
 		printf("%s\t\t - Histogram:\n", data.prefix);
@@ -280,9 +288,10 @@ void CallbackHistogramEvent(const ako::Histogram* histogram, unsigned length, vo
 		       i_peak_at + 1);
 	}
 
+	// Write to file
 	if (data.histogram_output != "")
 	{
-		// Output filename
+		// Make a filename
 		auto filename = data.histogram_output;
 		{
 			// TODO, spooky, strings are hard :(
@@ -300,14 +309,16 @@ void CallbackHistogramEvent(const ako::Histogram* histogram, unsigned length, vo
 				filename += new_ext;
 		}
 
-		// Write Csv
+		// Write
 		auto fp = fopen(filename.c_str(), "w");
 		if (fp != nullptr)
 		{
 			for (unsigned i = 0; i < std::max(d_last, i_last) + 1; i += 1)
 				fprintf(fp, "%u,%u\n", histogram[i].d, histogram[i].i);
 			fclose(fp);
-			printf("%s\t\t\t - Wrote CSV '%s'\n", data.prefix, filename.c_str());
+
+			if (data.print == true)
+				printf("%s\t\t\t - Wrote CSV '%s'\n", data.prefix, filename.c_str());
 		}
 	}
 }

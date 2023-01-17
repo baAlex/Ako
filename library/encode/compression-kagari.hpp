@@ -141,26 +141,26 @@ class CompressorKagari final : public Compressor<int16_t>
 
 		const auto rle_compressed_length = static_cast<uint32_t>(m_mini_buffer - m_mini_buffer_start);
 
-		// Check if Ans provide us some compression, as it may inflate
+		// Check if Ans provide us improvements on top of Rle
 		uint32_t ans_compress = 0;
 		{
-			AnsEncoderStatus ans_status;
-			const auto ans_compressed_length =
-			    AnsEncode(rle_compressed_length, m_mini_buffer_start, nullptr, ans_status);
+			const auto ans_size = AnsEncode(rle_compressed_length, m_mini_buffer_start, nullptr);
 
-			if (ans_compressed_length != 0 &&
-			    (ans_compressed_length * sizeof(uint32_t) < rle_compressed_length * sizeof(uint16_t)))
-				ans_compress = 1;
+			if (ans_size != 0)
+			{
+				if (ans_size < rle_compressed_length * sizeof(uint16_t) * 8) // x8 as AnsEncode() returns size in bits
+					ans_compress = 1;
+			}
 		}
 
-		// Write block head
+		// Output block head
 		{
 			const auto block_head = (rle_compressed_length << 1) | ans_compress;
 			if (m_writer.Write(block_head, 18) != 0)
 				return 1;
 		}
 
-		// Write block data
+		// Output block data
 		if (ans_compress == 0)
 		{
 			for (auto v = m_mini_buffer_start; v < m_mini_buffer; v += 1)
@@ -171,9 +171,7 @@ class CompressorKagari final : public Compressor<int16_t>
 		}
 		else
 		{
-			AnsEncoderStatus ans_status;
-			// printf("%u\n", rle_compressed_length);
-			if (AnsEncode(rle_compressed_length, m_mini_buffer_start, &m_writer, ans_status) == 0)
+			if (AnsEncode(rle_compressed_length, m_mini_buffer_start, &m_writer) == 0)
 				return 1;
 		}
 

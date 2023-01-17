@@ -58,48 +58,30 @@ static uint16_t sRoot(uint8_t code)
 }
 
 
-#define ANS_YE_OLDE_OVERFLOW_ERROR 0
-// 'Old' since my first Ans implementation ('resources/research/ans/ans2-normalization.cpp')
-// had the same issue. I finally fix it here... I think.
-
-struct BitsToWrite
+struct QueueToWrite
 {
 	uint16_t v;
 	uint16_t l;
 };
 
 
-// <FIXME>, stack overflow on Windows
-const auto QUEUE_LEN = 65536 * 4; // x2 for both roots and suffixes (assuming one
-                                  // normalization per value).
-BitsToWrite queue[QUEUE_LEN];     // We can't call the bit writer directly as Ans operate in
+// <FIXME>, used to be inside AnsEncode() but stack overflows on Windows
+static const auto QUEUE_LENGTH = 65536 * 4;
+static QueueToWrite s_queue[QUEUE_LENGTH];
 // </FIXME>
 
 
-uint32_t AnsEncode(uint32_t input_length, const uint16_t* input, BitWriter* writer, AnsEncoderStatus& out_status)
+uint32_t AnsEncode(uint32_t input_length, const uint16_t* input, BitWriter* writer)
 {
-#if ANS_YE_OLDE_OVERFLOW_ERROR == 0
 	uint32_t state = ANS_INITIAL_STATE;
-#else
-	uint64_t state = ANS_INITIAL_STATE;
-#endif
-
-	uint32_t output_length = 0;
-
-	// We only encode inputs of 65536 values or less
-	// (and I'm not checking that here to let the follow loop fail if that happens)
-
-	// const auto QUEUE_LEN = 65536 * 4; // x2 for both roots and suffixes (assuming one normalization per value).
-
-	// BitsToWrite queue[QUEUE_LEN]; // We can't call the bit writer directly as Ans operate in
-	unsigned queue_cursor = 0; // reverse... to then write bits also in reverse... so is
-	                           // better to queue the bits and write them later
+	uint32_t output_size = 0;
+	uint32_t queue_cursor = 0;
 
 	// Iterate input
 	for (uint32_t i = input_length - 1; i < input_length; i -= 1) // Underflows, Ans operates in reverse
 	{
 		// Find root Cdf entry
-		CdfEntry e = g_cdf1[255];
+		auto e = g_cdf1[255];
 		{
 			const auto code = sCode(input[i]);
 			const auto root = sRoot(code); // Cdf is decoder-centric, encoding
@@ -129,17 +111,6 @@ uint32_t AnsEncode(uint32_t input_length, const uint16_t* input, BitWriter* writ
 			if ((state / e.frequency) > (1 << (ANS_STATE_LEN - ANS_M_LEN)) - 1)
 				goto proceed_with_normalization_as_check_will_wrap; // Gotos are bad ÒwÓ
 
-#if ANS_YE_OLDE_OVERFLOW_ERROR == 1 // Printf debugging (it works criminally well >:D )
-			if (((state / e.frequency) << ANS_M_LEN) + (state % e.frequency) + e.cumulative > 0xFFFFFFFF)
-				printf("N Wrap4\n");
-			if (((state / e.frequency) << ANS_M_LEN) + (state % e.frequency) > 0xFFFFFFFF)
-				printf("N Wrap3\n");
-			if (((state / e.frequency) << ANS_M_LEN) > 0xFFFFFFFF)
-				printf("N Wrap2\n");
-			if ((state / e.frequency) > 0xFFFFFFFF)
-				printf("N Wrap1\n");
-#endif
-
 			// Check
 			if (((state / e.frequency) << ANS_M_LEN) + (state % e.frequency) + e.cumulative <= ANS_L * ANS_B - 1)
 				break;
@@ -150,11 +121,12 @@ uint32_t AnsEncode(uint32_t input_length, const uint16_t* input, BitWriter* writ
 			state = state >> ANS_B_LEN;
 
 			// Queue bits
-			if (queue_cursor == QUEUE_LEN)
-				goto return_input_too_long;
+			if (queue_cursor == QUEUE_LENGTH)
+				return 0;
 
-			queue[queue_cursor].v = bits;
-			queue[queue_cursor].l = ANS_B_LEN;
+			s_queue[queue_cursor].v = bits;
+			s_queue[queue_cursor].l = ANS_B_LEN;
+			output_size += ANS_B_LEN;
 			queue_cursor += 1;
 
 			// Developers, developers, developers
@@ -165,11 +137,12 @@ uint32_t AnsEncode(uint32_t input_length, const uint16_t* input, BitWriter* writ
 		state = ((state / e.frequency) << ANS_M_LEN) + (state % e.frequency) + e.cumulative;
 
 		// Encode suffix, raw in bitstream
-		if (queue_cursor == QUEUE_LEN)
-			goto return_input_too_long;
+		if (queue_cursor == QUEUE_LENGTH)
+			return 0;
 
-		queue[queue_cursor].v = input[i] - e.root;
-		queue[queue_cursor].l = e.suffix_length;
+		s_queue[queue_cursor].v = input[i] - e.root;
+		s_queue[queue_cursor].l = e.suffix_length;
+		output_size += e.suffix_length;
 		queue_cursor += 1;
 
 		// Developers, developers, developers
@@ -185,11 +158,12 @@ uint32_t AnsEncode(uint32_t input_length, const uint16_t* input, BitWriter* writ
 		state = state >> ANS_B_LEN;
 
 		// Queue bits
-		if (queue_cursor == QUEUE_LEN)
-			goto return_input_too_long;
+		if (queue_cursor == QUEUE_LENGTH)
+			return 0;
 
-		queue[queue_cursor].v = bits;
-		queue[queue_cursor].l = ANS_B_LEN;
+		s_queue[queue_cursor].v = bits;
+		s_queue[queue_cursor].l = ANS_B_LEN;
+		output_size += ANS_B_LEN;
 		queue_cursor += 1;
 
 		// Developers, developers, developers
@@ -202,43 +176,13 @@ uint32_t AnsEncode(uint32_t input_length, const uint16_t* input, BitWriter* writ
 		while (queue_cursor != 0)
 		{
 			queue_cursor -= 1;
-			if (writer->Write(queue[queue_cursor].v, queue[queue_cursor].l) != 0)
-				goto return_output_too_short;
+			if (writer->Write(s_queue[queue_cursor].v, s_queue[queue_cursor].l) != 0)
+				return 0;
 		}
-
-		// output_length = writer->Finish();
-	}
-
-	// ... No, we don't have a writer to write. But
-	// we at least can return the output length
-	// else
-	{
-		uint32_t accumulator = 0;
-		while (queue_cursor != 0)
-		{
-			queue_cursor -= 1;
-			accumulator += queue[queue_cursor].l;
-
-			if (accumulator > 32)
-			{
-				output_length += 1;
-				accumulator = 0;
-			}
-		}
-
-		if (accumulator > BitWriter::ACCUMULATOR_LEN) // Mimic BitWriter behaviour
-			output_length += 1;
 	}
 
 	// Bye!
-	out_status = AnsEncoderStatus::Ok;
-	return 1; // FIXME
-return_input_too_long:
-	out_status = AnsEncoderStatus::InputTooLong;
-	return 0;
-return_output_too_short:
-	out_status = AnsEncoderStatus::OutputTooShort;
-	return 0;
+	return output_size;
 }
 
 } // namespace ako

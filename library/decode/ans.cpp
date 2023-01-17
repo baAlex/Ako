@@ -31,6 +31,7 @@ namespace ako
 uint32_t AnsDecode(BitReader& reader, uint32_t output_length, uint16_t* output)
 {
 	uint32_t state = 0;
+	uint32_t read_size = 0;
 
 	for (uint32_t i = 0; i < output_length; i += 1)
 	{
@@ -40,10 +41,9 @@ uint32_t AnsDecode(BitReader& reader, uint32_t output_length, uint16_t* output)
 			uint32_t word;
 			if (reader.Read(ANS_B_LEN, word) != 0)
 				return 0;
-			// if (word == 0) // Shouldn't be needed if 'INITIAL_STATE > ANS_L'
-			//	break;
 
 			state = (state << ANS_B_LEN) | word;
+			read_size += ANS_B_LEN;
 			// printf("\tD | %u\n", word); // Developers, developers, developers
 		}
 
@@ -65,6 +65,7 @@ uint32_t AnsDecode(BitReader& reader, uint32_t output_length, uint16_t* output)
 			// Suffix raw from bitstream
 			uint32_t suffix = 0;
 			reader.Read(e.suffix_length, suffix); // Do not check, let it fail
+			read_size += e.suffix_length;
 
 			// Value is 'root + suffix'
 			const auto value = static_cast<uint16_t>(e.root + suffix);
@@ -89,6 +90,7 @@ uint32_t AnsDecode(BitReader& reader, uint32_t output_length, uint16_t* output)
 			return 0;
 
 		state = (state << ANS_B_LEN) | word;
+		read_size += ANS_B_LEN;
 		// printf("\tD | %u\n", word); // Developers, developers, developers
 	}
 
@@ -97,8 +99,7 @@ uint32_t AnsDecode(BitReader& reader, uint32_t output_length, uint16_t* output)
 		return 0;
 
 	// Bye!
-	return 1; // TODO
-	          // return reader.Finish(input);
+	return read_size;
 }
 
 } // namespace ako

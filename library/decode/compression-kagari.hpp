@@ -56,12 +56,14 @@ class DecompressorKagari final : public Decompressor<int16_t>
 
 		auto mini_buffer = m_mini_buffer_start;
 
-		// Read block head
+		// Input
 		uint32_t block_head;
 		{
+			// Input block head
 			if (m_reader.Read(18, block_head) != 0)
 				return 1;
 
+			// Input block data
 			if ((block_head & 0x01) == 0)
 			{
 				for (uint32_t i = 0; i < (block_head >> 1); i += 1)
@@ -74,17 +76,12 @@ class DecompressorKagari final : public Decompressor<int16_t>
 			}
 			else
 			{
-				// printf("%u\n", block_head >> 1);
 				if (AnsDecode(m_reader, block_head >> 1, mini_buffer) == 0)
 					return 1;
-
-				// if (AnsDecode(block_head >> 1, static_cast<uint32_t>(m_block_end - m_block_start), m_reader,
-				//              mini_buffer) == 0)
-				//	return 1;
 			}
 		}
 
-		// Read block data
+		// Rle decompress
 		while (out < out_end)
 		{
 			if (mini_buffer - m_mini_buffer_start >= (block_head >> 1)) // TODO
@@ -93,11 +90,6 @@ class DecompressorKagari final : public Decompressor<int16_t>
 			// Read Rle and literal lengths
 			uint32_t rle_length = *mini_buffer++;
 			uint32_t literal_length = *mini_buffer++;
-
-			// if (m_reader.Read(16, rle_length) != 0)
-			//	break; // End reached, not an error, if is an error Step() will catch it
-			// if (m_reader.Read(16, literal_length) != 0)
-			//	break; // Ditto
 
 			literal_length += 1; // [A]
 

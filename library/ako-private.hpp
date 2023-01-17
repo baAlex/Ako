@@ -157,14 +157,6 @@ template <typename T> T SaturateToLower(T v);
 class BitReader;
 class BitWriter;
 
-enum class AnsEncoderStatus
-{
-	Ok,
-	Error,
-	OutputTooShort,
-	InputTooLong
-};
-
 const uint32_t ANS_STATE_LEN = 32;
 
 const uint32_t ANS_B_LEN = 15;         // Output/input base, Duda's paper uses '1 << 0' as an example
@@ -183,7 +175,7 @@ const uint32_t ANS_M_MASK = ANS_M - 1; // (in 0.0, 1.0 range) with integers (as 
 const uint32_t ANS_INITIAL_STATE = ANS_L + 123; // 123 addition is arbitrary.
 
 uint32_t AnsDecode(BitReader& reader, uint32_t output_length, uint16_t* output);
-uint32_t AnsEncode(uint32_t input_length, const uint16_t* input, BitWriter* writer, AnsEncoderStatus& out_status);
+uint32_t AnsEncode(uint32_t input_length, const uint16_t* input, BitWriter* writer);
 
 
 // decode/bit.cpp:
