@@ -76,13 +76,15 @@ BitsToWrite queue[QUEUE_LEN];     // We can't call the bit writer directly as An
 // </FIXME>
 
 
-uint32_t AnsEncode(uint32_t input_length, const uint16_t* input, BitWriter& writer, AnsEncoderStatus& out_status)
+uint32_t AnsEncode(uint32_t input_length, const uint16_t* input, BitWriter* writer, AnsEncoderStatus& out_status)
 {
 #if ANS_YE_OLDE_OVERFLOW_ERROR == 0
 	uint32_t state = ANS_INITIAL_STATE;
 #else
 	uint64_t state = ANS_INITIAL_STATE;
 #endif
+
+	uint32_t output_length = 0;
 
 	// We only encode inputs of 65536 values or less
 	// (and I'm not checking that here to let the follow loop fail if that happens)
@@ -195,16 +197,42 @@ uint32_t AnsEncode(uint32_t input_length, const uint16_t* input, BitWriter& writ
 	}
 
 	// Write bits to output in reverse order
-	while (queue_cursor != 0)
+	if (writer != nullptr)
 	{
-		queue_cursor -= 1;
-		if (writer.Write(queue[queue_cursor].v, queue[queue_cursor].l) != 0)
-			goto return_output_too_short;
+		while (queue_cursor != 0)
+		{
+			queue_cursor -= 1;
+			if (writer->Write(queue[queue_cursor].v, queue[queue_cursor].l) != 0)
+				goto return_output_too_short;
+		}
+
+		// output_length = writer->Finish();
+	}
+
+	// ... No, we don't have a writer to write. But
+	// we at least can return the output length
+	// else
+	{
+		uint32_t accumulator = 0;
+		while (queue_cursor != 0)
+		{
+			queue_cursor -= 1;
+			accumulator += queue[queue_cursor].l;
+
+			if (accumulator > 32)
+			{
+				output_length += 1;
+				accumulator = 0;
+			}
+		}
+
+		if (accumulator > BitWriter::ACCUMULATOR_LEN) // Mimic BitWriter behaviour
+			output_length += 1;
 	}
 
 	// Bye!
 	out_status = AnsEncoderStatus::Ok;
-	return writer.Finish();
+	return 1; // FIXME
 return_input_too_long:
 	out_status = AnsEncoderStatus::InputTooLong;
 	return 0;

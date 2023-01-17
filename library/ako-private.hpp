@@ -182,8 +182,8 @@ const uint32_t ANS_M_MASK = ANS_M - 1; // (in 0.0, 1.0 range) with integers (as 
 
 const uint32_t ANS_INITIAL_STATE = ANS_L + 123; // 123 addition is arbitrary.
 
-uint32_t AnsDecode(uint32_t input_length, uint32_t output_length, const uint32_t* input, uint16_t* output);
-uint32_t AnsEncode(uint32_t input_length, const uint16_t* input, BitWriter& writer, AnsEncoderStatus& out_status);
+uint32_t AnsDecode(BitReader& reader, uint32_t output_length, uint16_t* output);
+uint32_t AnsEncode(uint32_t input_length, const uint16_t* input, BitWriter* writer, AnsEncoderStatus& out_status);
 
 
 // decode/bit.cpp:
@@ -191,8 +191,6 @@ uint32_t AnsEncode(uint32_t input_length, const uint16_t* input, BitWriter& writ
 
 class BitReader
 {
-	static const uint32_t ACCUMULATOR_LEN = 32;
-
 	const uint32_t* m_input_end;
 	const uint32_t* m_input;
 
@@ -200,6 +198,8 @@ class BitReader
 	uint32_t m_accumulator_usage;
 
   public:
+	static const uint32_t ACCUMULATOR_LEN = 32;
+
 	BitReader(uint32_t input_length = 0, const uint32_t* input = nullptr);
 	void Reset(uint32_t input_length, const uint32_t* input);
 	int Read(uint32_t bit_length, uint32_t& value);
@@ -208,8 +208,6 @@ class BitReader
 
 class BitWriter
 {
-	static const uint32_t ACCUMULATOR_LEN = 32;
-
 	uint32_t* m_output_start;
 	uint32_t* m_output_end;
 	uint32_t* m_output;
@@ -222,6 +220,8 @@ class BitWriter
 	uint32_t m_accumulator_usage;
 
   public:
+	static const uint32_t ACCUMULATOR_LEN = 32;
+
 	BitWriter(uint32_t output_length = 0, uint32_t* output = nullptr);
 	void Reset(uint32_t output_length, uint32_t* output);
 	int Write(uint32_t value, uint32_t bit_length);

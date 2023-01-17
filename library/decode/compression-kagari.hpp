@@ -39,6 +39,8 @@ class DecompressorKagari final : public Decompressor<int16_t>
 	unsigned m_block_usage;
 	int16_t* m_block_cursor;
 
+	uint16_t* m_mini_buffer_start = nullptr;
+
 	int16_t ZigZagDecode(uint16_t value) const
 	{
 		return static_cast<int16_t>((value >> 1) ^ (~(value & 1) + 1));
@@ -52,16 +54,50 @@ class DecompressorKagari final : public Decompressor<int16_t>
 		auto out = m_block_start;
 		int16_t rle_value = 0;
 
+		auto mini_buffer = m_mini_buffer_start;
+
+		// Read block head
+		uint32_t block_head;
+		{
+			if (m_reader.Read(18, block_head) != 0)
+				return 1;
+
+			if ((block_head & 0x01) == 0)
+			{
+				for (uint32_t i = 0; i < (block_head >> 1); i += 1)
+				{
+					uint32_t v;
+					if (m_reader.Read(16, v) != 0) // TODO
+						return 1;
+					mini_buffer[i] = static_cast<uint16_t>(v);
+				}
+			}
+			else
+			{
+				// printf("%u\n", block_head >> 1);
+				if (AnsDecode(m_reader, block_head >> 1, mini_buffer) == 0)
+					return 1;
+
+				// if (AnsDecode(block_head >> 1, static_cast<uint32_t>(m_block_end - m_block_start), m_reader,
+				//              mini_buffer) == 0)
+				//	return 1;
+			}
+		}
+
+		// Read block data
 		while (out < out_end)
 		{
-			// Read Rle and literal lengths
-			uint32_t rle_length;
-			uint32_t literal_length;
+			if (mini_buffer - m_mini_buffer_start >= (block_head >> 1)) // TODO
+				break;
 
-			if (m_reader.Read(16, rle_length) != 0)
-				break; // End reached, not an error, if is an error Step() will catch it
-			if (m_reader.Read(16, literal_length) != 0)
-				break; // Ditto
+			// Read Rle and literal lengths
+			uint32_t rle_length = *mini_buffer++;
+			uint32_t literal_length = *mini_buffer++;
+
+			// if (m_reader.Read(16, rle_length) != 0)
+			//	break; // End reached, not an error, if is an error Step() will catch it
+			// if (m_reader.Read(16, literal_length) != 0)
+			//	break; // Ditto
 
 			literal_length += 1; // [A]
 
@@ -76,9 +112,9 @@ class DecompressorKagari final : public Decompressor<int16_t>
 			// Write literal values
 			for (uint32_t i = 0; i < literal_length; i += 1)
 			{
-				uint32_t value;
-				if (m_reader.Read(16, value) != 0) // TODO
-					return 1;
+				const uint32_t value = *mini_buffer++;
+				// if (m_reader.Read(16, value) != 0) // TODO
+				//	return 1;
 
 				out[rle_length + i] = static_cast<int16_t>(ZigZagDecode(static_cast<uint16_t>(value)));
 			}
@@ -113,6 +149,8 @@ class DecompressorKagari final : public Decompressor<int16_t>
 		m_block_start = reinterpret_cast<int16_t*>(malloc(block_length * sizeof(int16_t)));
 		m_block_end = m_block_start + block_length;
 
+		m_mini_buffer_start = reinterpret_cast<uint16_t*>(malloc((block_length + 1) * sizeof(uint16_t)));
+
 		m_block_usage = 0;
 		m_block_cursor = m_block_start;
 	}
@@ -120,6 +158,7 @@ class DecompressorKagari final : public Decompressor<int16_t>
 	~DecompressorKagari()
 	{
 		free(m_block_start);
+		free(m_mini_buffer_start);
 	}
 
 	Status Step(unsigned width, unsigned height, int16_t* out) override

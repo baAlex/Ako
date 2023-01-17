@@ -31,7 +31,7 @@ namespace ako
 class CompressorKagari final : public Compressor<int16_t>
 {
   private:
-	static const unsigned RLE_TRIGGER = 4;
+	static const unsigned RLE_TRIGGER = 2;
 	static const unsigned HISTOGRAM_LENGTH = 0xFFFF;
 
 	BitWriter m_writer;
@@ -40,6 +40,9 @@ class CompressorKagari final : public Compressor<int16_t>
 	int16_t* m_block_start = nullptr;
 	int16_t* m_block_end;
 	int16_t* m_block;
+
+	uint16_t* m_mini_buffer_start = nullptr;
+	uint16_t* m_mini_buffer;
 
 	uint16_t ZigZagEncode(int16_t in) const
 	{
@@ -65,17 +68,14 @@ class CompressorKagari final : public Compressor<int16_t>
 			return 1;
 
 		// Instructions
-		if (m_writer.Write(rle_length, 16) != 0)
-			return 1;
-		if (m_writer.Write(literal_length - 1, 16) != 0) // Notice the '- 1'
-			return 1;
+		*m_mini_buffer++ = static_cast<uint16_t>(rle_length);
+		*m_mini_buffer++ = static_cast<uint16_t>(literal_length - 1); // Notice the '- 1'
 
 		// Literal data
 		for (uint32_t i = 0; i < literal_length; i += 1)
 		{
 			const auto value = ZigZagEncode(literal_values[i]);
-			if (m_writer.Write(value, 16) != 0)
-				return 1;
+			*m_mini_buffer++ = value;
 
 			m_histogram[value].d += 1;
 		}
@@ -87,55 +87,97 @@ class CompressorKagari final : public Compressor<int16_t>
 	int Compress()
 	{
 		const auto block_length = static_cast<uint32_t>(m_block - m_block_start);
-
 		m_block = m_block_start;
 
-		uint32_t rle_length = 0;
-		int16_t rle_value = 0;
-
-		// Main loop
-		for (uint32_t i = 0; i < block_length; i += 1)
+		// Rle compress
 		{
-			if (m_block[i] == rle_value)
-				rle_length += 1;
-			else
-			{
-				// Find literal length
-				uint32_t literal_length = 0;
-				{
-					uint32_t repetitions = 0; // Inside our literal
+			uint32_t rle_length = 0;
+			int16_t rle_value = 0;
 
-					for (uint32_t u = i + 1; u < block_length && repetitions < RLE_TRIGGER; u += 1)
+			// Main loop
+			for (uint32_t i = 0; i < block_length; i += 1)
+			{
+				if (m_block[i] == rle_value)
+					rle_length += 1;
+				else
+				{
+					// Find literal length
+					uint32_t literal_length = 0;
 					{
-						literal_length += 1;
-						if (m_block[u] == m_block[u - 1])
-							repetitions += 1;
-						else
-							repetitions = 0;
+						uint32_t repetitions = 0; // Inside our literal
+
+						for (uint32_t u = i + 1; u < block_length && repetitions < RLE_TRIGGER; u += 1)
+						{
+							literal_length += 1;
+							if (m_block[u] == m_block[u - 1])
+								repetitions += 1;
+							else
+								repetitions = 0;
+						}
+
+						if (repetitions == RLE_TRIGGER)
+							literal_length -= RLE_TRIGGER;
 					}
 
-					if (repetitions == RLE_TRIGGER)
-						literal_length -= RLE_TRIGGER;
+					// Emit
+					if (Emit(rle_length, literal_length + 1, rle_value, m_block + i) != 0)
+						return 1;
+
+					// Next step
+					rle_value = m_block[i + literal_length];
+					rle_length = 0;
+					i += literal_length;
 				}
+			}
 
-				// Emit
-				if (Emit(rle_length, literal_length + 1, rle_value, m_block + i) != 0)
+			// Remainder
+			if (rle_length != 0)
+			{
+				// Always end on a literal
+				if (Emit(rle_length - 1, 1, rle_value, &rle_value) != 0)
 					return 1;
-
-				// Next step
-				rle_value = m_block[i + literal_length];
-				rle_length = 0;
-				i += literal_length;
 			}
 		}
 
-		// Remainder
-		if (rle_length != 0)
+		const auto rle_compressed_length = static_cast<uint32_t>(m_mini_buffer - m_mini_buffer_start);
+
+		// Check if Ans provide us some compression, as it may inflate
+		uint32_t ans_compress = 0;
 		{
-			// Always end on a literal
-			if (Emit(rle_length - 1, 1, rle_value, &rle_value) != 0)
+			AnsEncoderStatus ans_status;
+			const auto ans_compressed_length =
+			    AnsEncode(rle_compressed_length, m_mini_buffer_start, nullptr, ans_status);
+
+			if (ans_compressed_length != 0 &&
+			    (ans_compressed_length * sizeof(uint32_t) < rle_compressed_length * sizeof(uint16_t)))
+				ans_compress = 1;
+		}
+
+		// Write block head
+		{
+			const auto block_head = (rle_compressed_length << 1) | ans_compress;
+			if (m_writer.Write(block_head, 18) != 0)
 				return 1;
 		}
+
+		// Write block data
+		if (ans_compress == 0)
+		{
+			for (auto v = m_mini_buffer_start; v < m_mini_buffer; v += 1)
+			{
+				if (m_writer.Write(*v, 16) != 0)
+					return 1;
+			}
+		}
+		else
+		{
+			AnsEncoderStatus ans_status;
+			// printf("%u\n", rle_compressed_length);
+			if (AnsEncode(rle_compressed_length, m_mini_buffer_start, &m_writer, ans_status) == 0)
+				return 1;
+		}
+
+		m_mini_buffer = m_mini_buffer_start;
 
 		// Bye!
 		return 0;
@@ -150,6 +192,7 @@ class CompressorKagari final : public Compressor<int16_t>
 	~CompressorKagari()
 	{
 		free(m_block_start);
+		free(m_mini_buffer_start);
 	}
 
 	void Reset(unsigned block_length, size_t output_size, void* output)
@@ -160,13 +203,19 @@ class CompressorKagari final : public Compressor<int16_t>
 
 		if (m_block_start == nullptr || static_cast<unsigned>(m_block_end - m_block_start) < block_length)
 		{
-			if (m_block_start != nullptr) // TODO
+			if (m_block_start != nullptr) // TODO?, use realloc()?
 				free(m_block_start);
+			if (m_mini_buffer_start != nullptr)
+				free(m_mini_buffer_start);
+
 			m_block_start = reinterpret_cast<int16_t*>(malloc(block_length * sizeof(int16_t)));
+			m_mini_buffer_start = reinterpret_cast<uint16_t*>(malloc((block_length + 1) * sizeof(uint16_t)));
 		}
 
 		m_block_end = m_block_start + block_length;
 		m_block = m_block_start;
+
+		m_mini_buffer = m_mini_buffer_start;
 
 		Memset(m_histogram, 0, sizeof(Histogram) * (HISTOGRAM_LENGTH + 1));
 	}

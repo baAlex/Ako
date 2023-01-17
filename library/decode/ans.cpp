@@ -28,9 +28,8 @@ SOFTWARE.
 namespace ako
 {
 
-uint32_t AnsDecode(uint32_t input_length, uint32_t output_length, const uint32_t* input, uint16_t* output)
+uint32_t AnsDecode(BitReader& reader, uint32_t output_length, uint16_t* output)
 {
-	BitReader reader(input_length, input);
 	uint32_t state = 0;
 
 	for (uint32_t i = 0; i < output_length; i += 1)
@@ -98,7 +97,8 @@ uint32_t AnsDecode(uint32_t input_length, uint32_t output_length, const uint32_t
 		return 0;
 
 	// Bye!
-	return reader.Finish(input);
+	return 1; // TODO
+	          // return reader.Finish(input);
 }
 
 } // namespace ako
