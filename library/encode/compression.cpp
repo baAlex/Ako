@@ -38,7 +38,7 @@ template <typename T> static void sQuantizer(float q, unsigned length, const T* 
 		if (nq != 0)
 		{
 			for (unsigned i = 0; i < length; i += 1)
-				out[i] = ((in[i]) / nq) * nq;
+				out[i] = static_cast<T>(((in[i]) / nq) * nq);
 
 			return;
 		}
