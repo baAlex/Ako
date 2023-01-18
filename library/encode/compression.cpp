@@ -34,27 +34,18 @@ template <typename T> static void sQuantizer(float q, unsigned length, const T* 
 {
 	if (std::isinf(q) == false)
 	{
-		if (q > 1.0F)
-		{
-			// Round is slow, really slow (floor seems to be SIMD optimized)
-
-			// for (unsigned i = 0; i < length; i += 1)
-			//	out[i] = static_cast<T>(std::roundf(static_cast<float>(in[i]) / q) * q);
-
-			for (unsigned i = 0; i < length; i += 1)
-				out[i] = static_cast<T>(std::floor(static_cast<float>(in[i]) / q + 0.5F) * q);
-		}
-		else
+		const auto nq = static_cast<T>(q); // TODO, funny phenomena, float quantization overshoots
+		if (nq != 0)
 		{
 			for (unsigned i = 0; i < length; i += 1)
-				out[i] = in[i];
+				out[i] = ((in[i]) / nq) * nq;
+
+			return;
 		}
 	}
-	else
-	{
-		for (unsigned i = 0; i < length; i += 1)
-			out[i] = 0;
-	}
+
+	for (unsigned i = 0; i < length; i += 1)
+		out[i] = 0;
 }
 
 
@@ -89,7 +80,7 @@ static size_t sCompress2ndPhase(Compressor<T>& compressor, const Settings& setti
 
 		// Quantization step
 		const auto x = (static_cast<float>(lifts_no) - static_cast<float>(lift + 1)) / static_cast<float>(lifts_no - 1);
-		const auto q = std::pow(2.0F, x * (settings.quantization * 2.0F) * std::pow(x / 8.0F, 1.8F));
+		const auto q = std::pow(2.0F, std::pow(x, 3.0F) * settings.quantization);
 		const float q_diagonal = (settings.quantization > 0.0F) ? 2.0F : 1.0F;
 
 		// printf("x: %f, q: %f\n", x, (x > 0.0) ? q : 1.0F);

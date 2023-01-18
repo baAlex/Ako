@@ -28,33 +28,32 @@ SOFTWARE.
 namespace ako
 {
 
-static uint8_t sCode(uint16_t value)
+static uint8_t sEncode(uint16_t value)
 {
-	if (value < 64)
+	if (value < 247)
 		return static_cast<uint8_t>(value);
 
-	value -= 48;
-
 	int e = 0;
-	while (value >= (1 << (e + 1)))
+	while (value >= (1 << e))
 		e += 1;
 
-	const auto base = (1 << e);
-	const auto m = ((value - base) >> (e - 4));
-	return static_cast<uint8_t>((e << 4) | m);
+	return static_cast<uint8_t>(247 + e - 8);
 }
 
 static uint16_t sRoot(uint8_t code)
 {
-	const auto e = code >> 4;
-	const auto m = code & 15;
+	if (code < 247)
+		return static_cast<uint8_t>(code);
 
-	if (e < 4)
-		return static_cast<uint16_t>((e << 4) + m);
+	return 0;
+}
 
-	const auto base = (1 << e) + 48;
-	const auto add = m << (e - 4);
-	return static_cast<uint16_t>(base + add);
+static uint16_t sSuffixLength(uint8_t code)
+{
+	if (code < 247)
+		return 0;
+
+	return static_cast<uint8_t>(code - 247 + 8);
 }
 
 
@@ -83,13 +82,13 @@ uint32_t AnsEncode(uint32_t input_length, const uint16_t* input, BitWriter* writ
 		// Find root Cdf entry
 		auto e = g_cdf1[255];
 		{
-			const auto code = sCode(input[i]);
-			const auto root = sRoot(code); // Cdf is decoder-centric, encoding
-			                               // requires extra steps
+			const auto code = sEncode(input[i]);
+			const auto root = sRoot(code);       // Cdf is decoder-centric, encoding
+			const auto sl = sSuffixLength(code); // requires extra steps
 
 			for (uint32_t u = 0; u < G_CDF1_LEN; u += 1)
 			{
-				if (g_cdf1[u].root == root)
+				if (g_cdf1[u].root == root && g_cdf1[u].suffix_length == sl)
 				{
 					e = g_cdf1[u];
 					break;
