@@ -138,10 +138,10 @@ class DecompressorKagari final : public Decompressor<int16_t>
 
 		m_reader.Reset(static_cast<uint32_t>(input_size / sizeof(uint32_t)), reinterpret_cast<const uint32_t*>(input));
 
-		m_block_start = reinterpret_cast<int16_t*>(malloc(block_length * sizeof(int16_t)));
+		m_block_start = reinterpret_cast<int16_t*>(std::malloc(block_length * sizeof(int16_t)));
 		m_block_end = m_block_start + block_length;
 
-		m_mini_buffer_start = reinterpret_cast<uint16_t*>(malloc((block_length + 1) * sizeof(uint16_t)));
+		m_mini_buffer_start = reinterpret_cast<uint16_t*>(std::malloc((block_length + 1) * sizeof(uint16_t)));
 
 		m_block_usage = 0;
 		m_block_cursor = m_block_start;
@@ -149,8 +149,8 @@ class DecompressorKagari final : public Decompressor<int16_t>
 
 	~DecompressorKagari()
 	{
-		free(m_block_start);
-		free(m_mini_buffer_start);
+		std::free(m_block_start);
+		std::free(m_mini_buffer_start);
 	}
 
 	Status Step(unsigned width, unsigned height, int16_t* out) override

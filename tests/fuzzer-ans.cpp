@@ -36,8 +36,14 @@ static int sTest(const uint16_t* values, size_t input_length)
 	uint32_t write_length; // In 'accumulators' (what BitWriter() returns)
 	{
 		auto writer = ako::BitWriter(BUFFER_A_LENGTH, s_buffer_a);
-		write_size = ako::AnsEncode(static_cast<uint32_t>(input_length), values, &writer);
+		auto encoder = ako::AnsEncoder();
+
+		write_size = encoder.Encode(static_cast<uint32_t>(input_length), values);
+		encoder.Write(&writer);
 		write_length = writer.Finish();
+
+		assert(write_size != 0);
+		assert(write_length != 0);
 
 		if (write_size != 0) // Zero is not an error, encoder may refuse to encode...
 		{

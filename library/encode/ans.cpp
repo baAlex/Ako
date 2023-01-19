@@ -57,24 +57,25 @@ static uint16_t sSuffixLength(uint8_t code)
 }
 
 
-struct QueueToWrite
+AnsEncoder::AnsEncoder()
 {
-	uint16_t v;
-	uint16_t l;
-};
+	m_queue = reinterpret_cast<QueueToWrite*>(std::malloc(sizeof(QueueToWrite) * QUEUE_LENGTH));
+	m_queue_cursor = 0;
+}
+
+AnsEncoder::~AnsEncoder()
+{
+	std::free(m_queue);
+}
 
 
-// <FIXME>, used to be inside AnsEncode() but stack overflows on Windows
-static const auto QUEUE_LENGTH = 65536 * 4;
-static QueueToWrite s_queue[QUEUE_LENGTH];
-// </FIXME>
-
-
-uint32_t AnsEncode(uint32_t input_length, const uint16_t* input, BitWriter* writer)
+uint32_t AnsEncoder::Encode(uint32_t input_length, const uint16_t* input)
 {
 	uint32_t state = ANS_INITIAL_STATE;
 	uint32_t output_size = 0;
-	uint32_t queue_cursor = 0;
+
+	// Reset
+	m_queue_cursor = 0;
 
 	// Iterate input
 	for (uint32_t i = input_length - 1; i < input_length; i -= 1) // Underflows, Ans operates in reverse
@@ -120,13 +121,13 @@ uint32_t AnsEncode(uint32_t input_length, const uint16_t* input, BitWriter* writ
 			state = state >> ANS_B_LEN;
 
 			// Queue bits
-			if (queue_cursor == QUEUE_LENGTH)
+			if (m_queue_cursor == QUEUE_LENGTH)
 				return 0;
 
-			s_queue[queue_cursor].v = bits;
-			s_queue[queue_cursor].l = ANS_B_LEN;
+			m_queue[m_queue_cursor].v = bits;
+			m_queue[m_queue_cursor].l = ANS_B_LEN;
 			output_size += ANS_B_LEN;
-			queue_cursor += 1;
+			m_queue_cursor += 1;
 
 			// Developers, developers, developers
 			// printf("\tE | %u\n", bits);
@@ -136,16 +137,17 @@ uint32_t AnsEncode(uint32_t input_length, const uint16_t* input, BitWriter* writ
 		state = ((state / e.frequency) << ANS_M_LEN) + (state % e.frequency) + e.cumulative;
 
 		// Encode suffix, raw in bitstream
-		if (queue_cursor == QUEUE_LENGTH)
+		if (m_queue_cursor == QUEUE_LENGTH)
 			return 0;
 
-		s_queue[queue_cursor].v = input[i] - e.root;
-		s_queue[queue_cursor].l = e.suffix_length;
+		m_queue[m_queue_cursor].v = input[i] - e.root;
+		m_queue[m_queue_cursor].l = e.suffix_length;
 		output_size += e.suffix_length;
-		queue_cursor += 1;
+		m_queue_cursor += 1;
 
 		// Developers, developers, developers
-		// printf("\tE | 0x%x\t<- Value: %u (r: %u, sl: %u, f: %u, c: %u)\n", state, input[i], e.root, e.suffix_length,
+		// printf("\tE | 0x%x\t<- Value: %u (r: %u, sl: %u, f: %u, c: %u)\n", state, input[i], e.root,
+		// e.suffix_length,
 		//       e.frequency, e.cumulative);
 	}
 
@@ -157,31 +159,38 @@ uint32_t AnsEncode(uint32_t input_length, const uint16_t* input, BitWriter* writ
 		state = state >> ANS_B_LEN;
 
 		// Queue bits
-		if (queue_cursor == QUEUE_LENGTH)
+		if (m_queue_cursor == QUEUE_LENGTH)
 			return 0;
 
-		s_queue[queue_cursor].v = bits;
-		s_queue[queue_cursor].l = ANS_B_LEN;
+		m_queue[m_queue_cursor].v = bits;
+		m_queue[m_queue_cursor].l = ANS_B_LEN;
 		output_size += ANS_B_LEN;
-		queue_cursor += 1;
+		m_queue_cursor += 1;
 
 		// Developers, developers, developers
 		// printf("\tE | %u\n", bits);
 	}
 
-	// Write bits to output in reverse order
-	if (writer != nullptr)
-	{
-		while (queue_cursor != 0)
-		{
-			queue_cursor -= 1;
-			if (writer->Write(s_queue[queue_cursor].v, s_queue[queue_cursor].l) != 0)
-				return 0;
-		}
-	}
-
 	// Bye!
 	return output_size;
 }
+
+
+uint32_t AnsEncoder::Write(BitWriter* writer)
+{
+	// Write bits to output in reverse order
+	if (writer != nullptr)
+	{
+		while (m_queue_cursor != 0)
+		{
+			m_queue_cursor -= 1;
+			if (writer->Write(m_queue[m_queue_cursor].v, m_queue[m_queue_cursor].l) != 0)
+				return 1;
+		}
+	}
+
+	return 0;
+}
+
 
 } // namespace ako

@@ -32,10 +32,12 @@ class CompressorKagari final : public Compressor<int16_t>
 {
   private:
 	static const unsigned RLE_TRIGGER = 2;
-	static const unsigned HISTOGRAM_LENGTH = 0xFFFF;
+	// static const unsigned HISTOGRAM_LENGTH = 0xFFFF;
 
 	BitWriter m_writer;
-	Histogram m_histogram[HISTOGRAM_LENGTH + 1];
+	// Histogram m_histogram[HISTOGRAM_LENGTH + 1];
+
+	AnsEncoder m_ans_encoder;
 
 	int16_t* m_block_start = nullptr;
 	int16_t* m_block_end;
@@ -61,8 +63,8 @@ class CompressorKagari final : public Compressor<int16_t>
 			// printf("']\n");
 		}
 
-		m_histogram[literal_length - 1].i += 1; // Notice the '- 1'
-		m_histogram[rle_length].i += 1;
+		// m_histogram[literal_length - 1].i += 1; // Notice the '- 1'
+		// m_histogram[rle_length].i += 1;
 
 		if (rle_length > 0xFFFF || literal_length > 0xFFFF) // Block size don't allow this to happen
 			return 1;
@@ -77,7 +79,7 @@ class CompressorKagari final : public Compressor<int16_t>
 			const auto value = ZigZagEncode(literal_values[i]);
 			*m_mini_buffer++ = value;
 
-			m_histogram[value].d += 1;
+			// m_histogram[value].d += 1;
 		}
 
 		// Bye!
@@ -144,7 +146,7 @@ class CompressorKagari final : public Compressor<int16_t>
 		// Check if Ans provide us improvements on top of Rle
 		uint32_t ans_compress = 0;
 		{
-			const auto ans_size = AnsEncode(rle_compressed_length, m_mini_buffer_start, nullptr);
+			const auto ans_size = m_ans_encoder.Encode(rle_compressed_length, m_mini_buffer_start);
 
 			if (ans_size != 0)
 			{
@@ -171,7 +173,7 @@ class CompressorKagari final : public Compressor<int16_t>
 		}
 		else
 		{
-			if (AnsEncode(rle_compressed_length, m_mini_buffer_start, &m_writer) == 0)
+			if (m_ans_encoder.Write(&m_writer) != 0)
 				return 1;
 		}
 
@@ -189,8 +191,8 @@ class CompressorKagari final : public Compressor<int16_t>
 
 	~CompressorKagari()
 	{
-		free(m_block_start);
-		free(m_mini_buffer_start);
+		std::free(m_block_start);
+		std::free(m_mini_buffer_start);
 	}
 
 	void Reset(unsigned block_length, size_t output_size, void* output)
@@ -206,8 +208,8 @@ class CompressorKagari final : public Compressor<int16_t>
 			if (m_mini_buffer_start != nullptr)
 				free(m_mini_buffer_start);
 
-			m_block_start = reinterpret_cast<int16_t*>(malloc(block_length * sizeof(int16_t)));
-			m_mini_buffer_start = reinterpret_cast<uint16_t*>(malloc((block_length + 1) * sizeof(uint16_t)));
+			m_block_start = reinterpret_cast<int16_t*>(std::malloc(block_length * sizeof(int16_t)));
+			m_mini_buffer_start = reinterpret_cast<uint16_t*>(std::malloc((block_length + 1) * sizeof(uint16_t)));
 		}
 
 		m_block_end = m_block_start + block_length;
@@ -215,7 +217,7 @@ class CompressorKagari final : public Compressor<int16_t>
 
 		m_mini_buffer = m_mini_buffer_start;
 
-		Memset(m_histogram, 0, sizeof(Histogram) * (HISTOGRAM_LENGTH + 1));
+		// Memset(m_histogram, 0, sizeof(Histogram) * (HISTOGRAM_LENGTH + 1));
 	}
 
 	int Step(QuantizationCallback<int16_t> quantize, float quantization, unsigned width, unsigned height,
@@ -262,12 +264,14 @@ class CompressorKagari final : public Compressor<int16_t>
 
 	unsigned GetHistogramLength() const
 	{
-		return HISTOGRAM_LENGTH + 1;
+		// return HISTOGRAM_LENGTH + 1;
+		return 0;
 	}
 
 	const Histogram* GetHistogram() const
 	{
-		return m_histogram;
+		// return m_histogram;
+		return nullptr;
 	}
 };
 

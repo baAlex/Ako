@@ -27,7 +27,10 @@ static void sFixedTest(const uint16_t* values, unsigned input_length)
 	uint32_t write_length; // In 'accumulators' (what BitWriter() returns)
 	{
 		auto writer = ako::BitWriter(output_buffer_length, buffer_a);
-		write_size = ako::AnsEncode(input_length, values, &writer);
+		auto encoder = ako::AnsEncoder();
+
+		write_size = encoder.Encode(input_length, values);
+		encoder.Write(&writer);
 		write_length = writer.Finish();
 
 		assert(write_size != 0);
@@ -85,7 +88,10 @@ static void sLongUniformTest(uint16_t value, unsigned input_length)
 	uint32_t write_length; // In 'accumulators' (what BitWriter() returns)
 	{
 		auto writer = ako::BitWriter(output_buffer_length, buffer_a);
-		write_size = ako::AnsEncode(input_length, values, &writer);
+		auto encoder = ako::AnsEncoder();
+
+		write_size = encoder.Encode(input_length, values);
+		encoder.Write(&writer);
 		write_length = writer.Finish();
 
 		assert(write_size != 0);

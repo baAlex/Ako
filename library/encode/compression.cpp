@@ -144,7 +144,9 @@ static size_t sCompress1stPhase(const Callbacks& callbacks, const Settings& sett
 			    static_cast<size_t>(static_cast<float>((sizeof(T) >> 1) * width * height * channels) / settings.ratio);
 		}
 
-		// First floor
+		const auto error_margin = (target_size * 5) / 100;
+
+		// First floor (quantization as specified, may be zero)
 		{
 			compressor.Reset(BUFFER_SIZE, target_size, output);
 			if (callbacks.generic_event != nullptr)
@@ -160,7 +162,8 @@ static size_t sCompress1stPhase(const Callbacks& callbacks, const Settings& sett
 		}
 
 		// Iterate?
-		if (settings.quantization == 0.0F && settings.ratio >= 1.0F)
+		if (settings.quantization == 0.0F && settings.ratio >= 1.0F && //
+		    compressed_size - error_margin > target_size) // 'compressed_size - error_margin' underflows in case of 0
 		{
 			// Find ceil
 			while (1)
@@ -177,7 +180,7 @@ static size_t sCompress1stPhase(const Callbacks& callbacks, const Settings& sett
 				if ((compressed_size = sCompress2ndPhase(compressor, s, width, height, channels, input)) != 0)
 					break;
 
-				if (s.quantization > 4096.0F)
+				if (s.quantization > 4096.0F) // TODO, horribly hardcoded!
 					goto fallback;
 			}
 
@@ -195,7 +198,11 @@ static size_t sCompress1stPhase(const Callbacks& callbacks, const Settings& sett
 				compressed_size = sCompress2ndPhase(compressor, s, width, height, channels, input);
 
 				if (compressed_size < target_size && compressed_size != 0)
+				{
 					q_ceil = q;
+					if (target_size - compressed_size < error_margin)
+						break;
+				}
 				else
 					q_floor = q;
 			}

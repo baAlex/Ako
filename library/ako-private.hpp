@@ -174,8 +174,27 @@ const uint32_t ANS_M_MASK = ANS_M - 1; // (in 0.0, 1.0 range) with integers (as 
 
 const uint32_t ANS_INITIAL_STATE = ANS_L + 123; // 123 addition is arbitrary.
 
+class AnsEncoder
+{
+	const uint32_t QUEUE_LENGTH = 65536 * 4;
+
+	struct QueueToWrite
+	{
+		uint16_t v;
+		uint16_t l;
+	};
+
+	QueueToWrite* m_queue = nullptr;
+	uint32_t m_queue_cursor = 0;
+
+  public:
+	AnsEncoder();
+	~AnsEncoder();
+	uint32_t Encode(uint32_t input_length, const uint16_t* input);
+	uint32_t Write(BitWriter* writer);
+};
+
 uint32_t AnsDecode(BitReader& reader, uint32_t output_length, uint16_t* output);
-uint32_t AnsEncode(uint32_t input_length, const uint16_t* input, BitWriter* writer);
 
 
 // decode/bit.cpp:
