@@ -209,7 +209,7 @@ class CompressorKagari final : public Compressor<int16_t>
 				free(m_mini_buffer_start);
 
 			m_block_start = reinterpret_cast<int16_t*>(std::malloc(block_length * sizeof(int16_t)));
-			m_mini_buffer_start = reinterpret_cast<uint16_t*>(std::malloc((block_length + 1) * sizeof(uint16_t)));
+			m_mini_buffer_start = reinterpret_cast<uint16_t*>(std::malloc((block_length + 2) * sizeof(uint16_t)));
 		}
 
 		m_block_end = m_block_start + block_length;

@@ -132,8 +132,8 @@ static size_t sCompress1stPhase(const Callbacks& callbacks, const Settings& sett
 
 		auto s = settings;
 		auto q_floor = settings.quantization;
-		auto q_ceil = q_floor;
-		s.quantization = q_floor;
+		auto q_ceil = settings.quantization;
+		s.quantization = settings.quantization;
 
 		if (settings.quantization == 0.0F && settings.ratio >= 1.0F) // TODO, repeated check
 		{
@@ -162,8 +162,8 @@ static size_t sCompress1stPhase(const Callbacks& callbacks, const Settings& sett
 		}
 
 		// Iterate?
-		if (settings.quantization == 0.0F && settings.ratio >= 1.0F && //
-		    compressed_size - error_margin > target_size) // 'compressed_size - error_margin' underflows in case of 0
+		if (settings.quantization == 0.0F && settings.ratio >= 1.0F &&                         //
+		    ((compressed_size != 0 && compressed_size > target_size) || compressed_size == 0)) // Artificial inteligence
 		{
 			// Find ceil
 			while (1)
