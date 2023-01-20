@@ -86,15 +86,13 @@ static int sDecompress(Decompressor<T>& decompressor, unsigned width, unsigned h
 }
 
 
-const unsigned BUFFER_SIZE = 256 * 256;
-
 template <>
 int Decompress(Compression compression, size_t compressed_size, unsigned width, unsigned height, unsigned channels,
                const void* input, int16_t* output, Status& status)
 {
 	if (compression == Compression::Kagari)
 	{
-		auto decompressor = DecompressorKagari(BUFFER_SIZE, compressed_size, input);
+		auto decompressor = DecompressorKagari(BLOCK_LENGTH, compressed_size, input);
 		return sDecompress(decompressor, width, height, channels, output, status);
 	}
 

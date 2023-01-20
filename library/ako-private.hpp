@@ -66,6 +66,11 @@ enum class Endianness
 
 template <typename T> using QuantizationCallback = void (*)(float, unsigned, const T*, T*);
 
+
+const unsigned BLOCK_LENGTH_BIT_LEN = 18;
+const unsigned BLOCK_LENGTH = 1 << BLOCK_LENGTH_BIT_LEN;
+
+
 template <typename T> class Compressor
 {
   public:
@@ -176,7 +181,7 @@ const uint32_t ANS_INITIAL_STATE = ANS_L + 123; // 123 addition is arbitrary.
 
 class AnsEncoder
 {
-	const uint32_t QUEUE_LENGTH = 65536 * 4;
+	const uint32_t QUEUE_LENGTH = BLOCK_LENGTH * 2;
 
 	struct QueueToWrite
 	{

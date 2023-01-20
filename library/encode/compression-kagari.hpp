@@ -31,7 +31,7 @@ namespace ako
 class CompressorKagari final : public Compressor<int16_t>
 {
   private:
-	static const unsigned RLE_TRIGGER = 2;
+	static const unsigned RLE_TRIGGER = 4;
 	// static const unsigned HISTOGRAM_LENGTH = 0xFFFF;
 
 	BitWriter m_writer;
@@ -66,9 +66,6 @@ class CompressorKagari final : public Compressor<int16_t>
 		// m_histogram[literal_length - 1].i += 1; // Notice the '- 1'
 		// m_histogram[rle_length].i += 1;
 
-		if (rle_length > 0xFFFF || literal_length > 0xFFFF) // Block size don't allow this to happen
-			return 1;
-
 		// Instructions
 		*m_mini_buffer++ = static_cast<uint16_t>(rle_length);
 		*m_mini_buffer++ = static_cast<uint16_t>(literal_length - 1); // Notice the '- 1'
@@ -99,7 +96,7 @@ class CompressorKagari final : public Compressor<int16_t>
 			// Main loop
 			for (uint32_t i = 0; i < block_length; i += 1)
 			{
-				if (m_block[i] == rle_value)
+				if (m_block[i] == rle_value && rle_length != 0xFFFF)
 					rle_length += 1;
 				else
 				{
@@ -108,7 +105,8 @@ class CompressorKagari final : public Compressor<int16_t>
 					{
 						uint32_t repetitions = 0; // Inside our literal
 
-						for (uint32_t u = i + 1; u < block_length && repetitions < RLE_TRIGGER; u += 1)
+						for (uint32_t u = i + 1;
+						     u < block_length && repetitions < RLE_TRIGGER && literal_length < 0xFFFF; u += 1)
 						{
 							literal_length += 1;
 							if (m_block[u] == m_block[u - 1])
@@ -158,7 +156,7 @@ class CompressorKagari final : public Compressor<int16_t>
 		// Output block head
 		{
 			const auto block_head = (rle_compressed_length << 1) | ans_compress;
-			if (m_writer.Write(block_head, 18) != 0)
+			if (m_writer.Write(block_head, (BLOCK_LENGTH_BIT_LEN + 1 + 1)) != 0)
 				return 1;
 		}
 
@@ -186,7 +184,12 @@ class CompressorKagari final : public Compressor<int16_t>
   public:
 	CompressorKagari(unsigned block_length, size_t output_size, void* output)
 	{
-		Reset(block_length, output_size, output);
+		Reset(output_size, output);
+
+		m_block_start = reinterpret_cast<int16_t*>(std::malloc(block_length * sizeof(int16_t)));
+		m_block_end = m_block_start + block_length;
+
+		m_mini_buffer_start = reinterpret_cast<uint16_t*>(std::malloc((block_length + 2) * sizeof(uint16_t)));
 	}
 
 	~CompressorKagari()
@@ -195,26 +198,10 @@ class CompressorKagari final : public Compressor<int16_t>
 		std::free(m_mini_buffer_start);
 	}
 
-	void Reset(unsigned block_length, size_t output_size, void* output)
+	void Reset(size_t output_size, void* output)
 	{
-		// assert(output_size / sizeof(uint32_t) <= 0xFFFFFFFF); // TODO
-
 		m_writer.Reset(static_cast<uint32_t>(output_size / sizeof(uint32_t)), reinterpret_cast<uint32_t*>(output));
-
-		if (m_block_start == nullptr || static_cast<unsigned>(m_block_end - m_block_start) < block_length)
-		{
-			if (m_block_start != nullptr) // TODO?, use realloc()?
-				free(m_block_start);
-			if (m_mini_buffer_start != nullptr)
-				free(m_mini_buffer_start);
-
-			m_block_start = reinterpret_cast<int16_t*>(std::malloc(block_length * sizeof(int16_t)));
-			m_mini_buffer_start = reinterpret_cast<uint16_t*>(std::malloc((block_length + 2) * sizeof(uint16_t)));
-		}
-
-		m_block_end = m_block_start + block_length;
 		m_block = m_block_start;
-
 		m_mini_buffer = m_mini_buffer_start;
 
 		// Memset(m_histogram, 0, sizeof(Histogram) * (HISTOGRAM_LENGTH + 1));

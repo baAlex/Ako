@@ -60,7 +60,7 @@ class DecompressorKagari final : public Decompressor<int16_t>
 		uint32_t block_head;
 		{
 			// Input block head
-			if (m_reader.Read(18, block_head) != 0)
+			if (m_reader.Read((BLOCK_LENGTH_BIT_LEN + 1 + 1), block_head) != 0)
 				return 1;
 
 			// Input block data
@@ -134,14 +134,12 @@ class DecompressorKagari final : public Decompressor<int16_t>
   public:
 	DecompressorKagari(unsigned block_length, size_t input_size, const void* input)
 	{
-		// assert(input_size / sizeof(uint32_t) <= 0xFFFFFFFF); // TODO
-
 		m_reader.Reset(static_cast<uint32_t>(input_size / sizeof(uint32_t)), reinterpret_cast<const uint32_t*>(input));
 
 		m_block_start = reinterpret_cast<int16_t*>(std::malloc(block_length * sizeof(int16_t)));
 		m_block_end = m_block_start + block_length;
 
-		m_mini_buffer_start = reinterpret_cast<uint16_t*>(std::malloc((block_length + 1) * sizeof(uint16_t)));
+		m_mini_buffer_start = reinterpret_cast<uint16_t*>(std::malloc((block_length + 2) * sizeof(uint16_t)));
 
 		m_block_usage = 0;
 		m_block_cursor = m_block_start;

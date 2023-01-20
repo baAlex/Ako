@@ -112,7 +112,6 @@ static size_t sCompress2ndPhase(Compressor<T>& compressor, const Settings& setti
 }
 
 
-const unsigned BUFFER_SIZE = 256 * 256;
 const unsigned TRY = 8;
 const float ITERATION_SCALE = 4.0F;
 
@@ -127,7 +126,7 @@ static size_t sCompress1stPhase(const Callbacks& callbacks, const Settings& sett
 	{
 		// Initialization
 		auto target_size = sizeof(T) * width * height * channels;
-		auto compressor = CompressorKagari(BUFFER_SIZE, target_size, output);
+		auto compressor = CompressorKagari(BLOCK_LENGTH, target_size, output);
 		out_compression = Compression::Kagari;
 
 		auto s = settings;
@@ -148,12 +147,12 @@ static size_t sCompress1stPhase(const Callbacks& callbacks, const Settings& sett
 
 		// First floor (quantization as specified, may be zero)
 		{
-			compressor.Reset(BUFFER_SIZE, target_size, output);
+			compressor.Reset(target_size, output);
 			if (callbacks.generic_event != nullptr)
 				callbacks.generic_event(GenericEvent::RatioIteration, 0, 0, 0,
 				                        GenericTypeDesignatedInitialization(s.quantization), callbacks.user_data);
 
-			compressor.Reset(BUFFER_SIZE, target_size, output);
+			compressor.Reset(target_size, output);
 			if ((compressed_size = sCompress2ndPhase(compressor, s, width, height, channels, input)) == 0)
 			{
 				if (settings.ratio < 1.0F)
@@ -176,7 +175,7 @@ static size_t sCompress1stPhase(const Callbacks& callbacks, const Settings& sett
 					callbacks.generic_event(GenericEvent::RatioIteration, 0, 0, 0,
 					                        GenericTypeDesignatedInitialization(s.quantization), callbacks.user_data);
 
-				compressor.Reset(BUFFER_SIZE, target_size, output);
+				compressor.Reset(target_size, output);
 				if ((compressed_size = sCompress2ndPhase(compressor, s, width, height, channels, input)) != 0)
 					break;
 
@@ -194,7 +193,7 @@ static size_t sCompress1stPhase(const Callbacks& callbacks, const Settings& sett
 					callbacks.generic_event(GenericEvent::RatioIteration, 0, 0, 0,
 					                        GenericTypeDesignatedInitialization(s.quantization), callbacks.user_data);
 
-				compressor.Reset(BUFFER_SIZE, target_size, output);
+				compressor.Reset(target_size, output);
 				compressed_size = sCompress2ndPhase(compressor, s, width, height, channels, input);
 
 				if (compressed_size < target_size && compressed_size != 0)
@@ -216,7 +215,7 @@ static size_t sCompress1stPhase(const Callbacks& callbacks, const Settings& sett
 					callbacks.generic_event(GenericEvent::RatioIteration, 0, 0, 0,
 					                        GenericTypeDesignatedInitialization(s.quantization), callbacks.user_data);
 
-				compressor.Reset(BUFFER_SIZE, target_size, output);
+				compressor.Reset(target_size, output);
 				compressed_size = sCompress2ndPhase(compressor, s, width, height, channels, input);
 			}
 		}
@@ -230,7 +229,7 @@ static size_t sCompress1stPhase(const Callbacks& callbacks, const Settings& sett
 
 fallback:
 {
-	auto compressor = CompressorNone<T>(BUFFER_SIZE, output);
+	auto compressor = CompressorNone<T>(BLOCK_LENGTH, output);
 	out_compression = Compression::None;
 
 	return sCompress2ndPhase(compressor, settings, width, height, channels, input);
