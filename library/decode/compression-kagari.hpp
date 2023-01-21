@@ -36,10 +36,12 @@ class DecompressorKagari final : public Decompressor<int16_t>
 	int16_t* m_block_start;
 	int16_t* m_block_end;
 
-	unsigned m_block_usage;
+	uint32_t m_block_usage;
 	int16_t* m_block_cursor;
 
-	uint16_t* m_mini_buffer_start = nullptr;
+	uint16_t* m_instructions_segment_start = nullptr;
+	uint16_t* m_data_segment_start = nullptr;
+
 
 	int16_t ZigZagDecode(uint16_t value) const
 	{
@@ -54,44 +56,62 @@ class DecompressorKagari final : public Decompressor<int16_t>
 		auto out = m_block_start;
 		int16_t rle_value = 0;
 
-		auto mini_buffer = m_mini_buffer_start;
+		auto instructions = m_instructions_segment_start;
+		auto data = m_data_segment_start;
 
 		// Input
-		uint32_t block_head;
+		uint32_t i_block_head;
 		{
-			// Input block head
-			if (m_reader.Read((BLOCK_LENGTH_BIT_LEN + 1 + 1), block_head) != 0)
+			uint32_t d_block_head;
+
+			// Input block heads
+			if (m_reader.Read((BLOCK_LENGTH_BIT_LEN + 1 + 1), i_block_head) != 0)
 				return 1;
 
-			// Input block data
-			if ((block_head & 0x01) == 0)
+			if (m_reader.Read((BLOCK_LENGTH_BIT_LEN + 1), d_block_head) != 0)
+				return 1;
+
+			// Developers, developers, developers
+			// printf("\tD [Block heads: %u, %u]\n", i_block_head, d_block_head);
+
+			// Input block segments
+			// if ((block_head & 0x01) == 0)
 			{
-				for (uint32_t i = 0; i < (block_head >> 1); i += 1)
+				uint32_t v;
+				for (uint32_t i = 0; i < (i_block_head >> 1); i += 1)
 				{
-					uint32_t v;
 					if (m_reader.Read(16, v) != 0) // TODO
 						return 1;
-					mini_buffer[i] = static_cast<uint16_t>(v);
+
+					instructions[i] = static_cast<uint16_t>(v);
+				}
+
+				for (uint32_t i = 0; i < d_block_head; i += 1)
+				{
+					if (m_reader.Read(16, v) != 0)
+						return 1;
+
+					data[i] = static_cast<uint16_t>(v);
 				}
 			}
-			else
+			/*else
 			{
-				if (AnsDecode(m_reader, block_head >> 1, mini_buffer) == 0)
-					return 1;
-			}
+			    if (AnsDecode(m_reader, block_head >> 1, instructions) == 0)
+			        return 1;
+			}*/
 		}
 
 		// Rle decompress
 		while (out < out_end)
 		{
-			if (mini_buffer - m_mini_buffer_start >= (block_head >> 1)) // TODO
+			if (instructions - m_instructions_segment_start >= (i_block_head >> 1)) // TODO
 				break;
 
 			// Read Rle and literal lengths
-			uint32_t rle_length = *mini_buffer++;
-			uint32_t literal_length = *mini_buffer++;
+			uint32_t rle_length = *instructions++;
+			uint32_t literal_length = *instructions++;
 
-			literal_length += 1; // [A]
+			literal_length += 1;
 
 			// Checks
 			if (out + rle_length + literal_length > out_end)
@@ -104,21 +124,18 @@ class DecompressorKagari final : public Decompressor<int16_t>
 			// Write literal values
 			for (uint32_t i = 0; i < literal_length; i += 1)
 			{
-				const uint32_t value = *mini_buffer++;
-				// if (m_reader.Read(16, value) != 0) // TODO
-				//	return 1;
-
-				out[rle_length + i] = static_cast<int16_t>(ZigZagDecode(static_cast<uint16_t>(value)));
+				const uint32_t v = *data++;
+				out[rle_length + i] = static_cast<int16_t>(ZigZagDecode(static_cast<uint16_t>(v)));
 			}
 
-			rle_value = out[rle_length + literal_length - 1]; // [B]
+			rle_value = out[rle_length + literal_length - 1];
 
 			// Developers, developers, developers
 			{
 				// printf("\tD [Rle, l: %u, v: '%c']", rle_length, static_cast<char>(rle_value));
 				// printf(" [Lit, l: %u, v: '", literal_length);
 				// for (uint32_t i = 0; i < literal_length; i += 1)
-				// 	printf("%c", static_cast<char>(out[rle_length + i]));
+				//	printf("%c", static_cast<char>(out[rle_length + i]));
 				// printf("']\n");
 			}
 
@@ -139,7 +156,8 @@ class DecompressorKagari final : public Decompressor<int16_t>
 		m_block_start = reinterpret_cast<int16_t*>(std::malloc(block_length * sizeof(int16_t)));
 		m_block_end = m_block_start + block_length;
 
-		m_mini_buffer_start = reinterpret_cast<uint16_t*>(std::malloc((block_length + 2) * sizeof(uint16_t)));
+		m_instructions_segment_start = reinterpret_cast<uint16_t*>(std::malloc((block_length + 2) * sizeof(uint16_t)));
+		m_data_segment_start = reinterpret_cast<uint16_t*>(std::malloc((block_length + 2) * sizeof(uint16_t)));
 
 		m_block_usage = 0;
 		m_block_cursor = m_block_start;
@@ -148,7 +166,8 @@ class DecompressorKagari final : public Decompressor<int16_t>
 	~DecompressorKagari()
 	{
 		std::free(m_block_start);
-		std::free(m_mini_buffer_start);
+		std::free(m_instructions_segment_start);
+		std::free(m_data_segment_start);
 	}
 
 	Status Step(unsigned width, unsigned height, int16_t* out) override
@@ -171,14 +190,7 @@ class DecompressorKagari final : public Decompressor<int16_t>
 				const auto length = Min(m_block_usage, output_length);
 
 				for (unsigned i = 0; i < length; i += 1)
-					out[i] = m_block_cursor[i]; // NOLINT
-
-				// False positive, as procedure [A] (which makes [B] be valid)
-				// is confusing Clang Tidy. With encoder cooperation by
-				// disabling '- 1' operations there, our linter then will not
-				// report this here section but [B] (which is correct, and can
-				// be fix with an extra comparision)... so yeah, closer but not
-				// really an error (I think)
+					out[i] = m_block_cursor[i];
 
 				m_block_usage -= length;
 				m_block_cursor += length;
