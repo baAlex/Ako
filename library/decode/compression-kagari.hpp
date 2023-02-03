@@ -39,7 +39,7 @@ class DecompressorKagari final : public Decompressor<int16_t>
 	uint32_t m_block_usage;
 	int16_t* m_block_cursor;
 
-	uint16_t* m_instructions_segment_start = nullptr;
+	uint16_t* m_code_segment_start = nullptr;
 	uint16_t* m_data_segment_start = nullptr;
 
 
@@ -56,34 +56,33 @@ class DecompressorKagari final : public Decompressor<int16_t>
 		auto out = m_block_start;
 		int16_t rle_value = 0;
 
-		auto instructions = m_instructions_segment_start;
+		auto code = m_code_segment_start;
 		auto data = m_data_segment_start;
 
 		// Input
-		uint32_t i_block_head;
+		uint32_t c_block_head;
+		uint32_t d_block_head;
 		{
-			uint32_t d_block_head;
-
 			// Input block heads
-			if (m_reader.Read((BLOCK_LENGTH_BIT_LEN + 1 + 1), i_block_head) != 0)
+			if (m_reader.Read((BLOCK_LENGTH_BIT_LEN + 1 + 1), c_block_head) != 0)
 				return 1;
 
 			if (m_reader.Read((BLOCK_LENGTH_BIT_LEN + 1), d_block_head) != 0)
 				return 1;
 
 			// Developers, developers, developers
-			// printf("\tD [Block heads: %u, %u]\n", i_block_head, d_block_head);
+			// printf("\tD [Block heads: %u, %u]\n", c_block_head, d_block_head);
 
 			// Input block segments
-			// if ((block_head & 0x01) == 0)
+			if ((c_block_head & 0x01) == 0)
 			{
 				uint32_t v;
-				for (uint32_t i = 0; i < (i_block_head >> 1); i += 1)
+				for (uint32_t i = 0; i < (c_block_head >> 1); i += 1)
 				{
 					if (m_reader.Read(16, v) != 0) // TODO
 						return 1;
 
-					instructions[i] = static_cast<uint16_t>(v);
+					code[i] = static_cast<uint16_t>(v);
 				}
 
 				for (uint32_t i = 0; i < d_block_head; i += 1)
@@ -94,22 +93,24 @@ class DecompressorKagari final : public Decompressor<int16_t>
 					data[i] = static_cast<uint16_t>(v);
 				}
 			}
-			/*else
+			else
 			{
-			    if (AnsDecode(m_reader, block_head >> 1, instructions) == 0)
-			        return 1;
-			}*/
+				if (AnsDecode(m_reader, c_block_head >> 1, code) == 0)
+					return 1;
+				if (AnsDecode(m_reader, d_block_head, data) == 0)
+					return 1;
+			}
 		}
 
 		// Rle decompress
 		while (out < out_end)
 		{
-			if (instructions - m_instructions_segment_start >= (i_block_head >> 1)) // TODO
+			if (code - m_code_segment_start >= (c_block_head >> 1))
 				break;
 
 			// Read Rle and literal lengths
-			uint32_t rle_length = *instructions++;
-			uint32_t literal_length = *instructions++;
+			uint32_t rle_length = *code++;
+			uint32_t literal_length = *code++;
 
 			literal_length += 1;
 
@@ -156,7 +157,7 @@ class DecompressorKagari final : public Decompressor<int16_t>
 		m_block_start = reinterpret_cast<int16_t*>(std::malloc(block_length * sizeof(int16_t)));
 		m_block_end = m_block_start + block_length;
 
-		m_instructions_segment_start = reinterpret_cast<uint16_t*>(std::malloc((block_length + 2) * sizeof(uint16_t)));
+		m_code_segment_start = reinterpret_cast<uint16_t*>(std::malloc((block_length + 2) * sizeof(uint16_t)));
 		m_data_segment_start = reinterpret_cast<uint16_t*>(std::malloc((block_length + 2) * sizeof(uint16_t)));
 
 		m_block_usage = 0;
@@ -166,7 +167,7 @@ class DecompressorKagari final : public Decompressor<int16_t>
 	~DecompressorKagari()
 	{
 		std::free(m_block_start);
-		std::free(m_instructions_segment_start);
+		std::free(m_code_segment_start);
 		std::free(m_data_segment_start);
 	}
 

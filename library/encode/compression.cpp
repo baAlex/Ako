@@ -34,7 +34,7 @@ template <typename T> static void sQuantizer(float q, unsigned length, const T* 
 {
 	if (std::isinf(q) == false)
 	{
-		const auto nq = static_cast<T>(q); // TODO, funny phenomena, float quantization overshoots
+		const auto nq = static_cast<T>(Min(q, 32767.0F)); // TODO, funny phenomena, float quantization overshoots
 		if (nq != 0)
 		{
 			for (unsigned i = 0; i < length; i += 1)

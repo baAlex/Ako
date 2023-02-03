@@ -33,17 +33,18 @@ class CompressorKagari final : public Compressor<int16_t>
   private:
 	static const unsigned RLE_TRIGGER = 4;
 
-	BitWriter m_writer;
-	AnsEncoder m_ans_encoder;
-
 	int16_t* m_block_start = nullptr;
 	int16_t* m_block_end;
 	int16_t* m_block;
 
-	uint16_t* m_instructions_segment_start = nullptr;
-	uint16_t* m_instructions_segment;
+	uint16_t* m_code_segment_start = nullptr;
+	uint16_t* m_code_segment;
 	uint16_t* m_data_segment_start = nullptr;
 	uint16_t* m_data_segment;
+
+	AnsEncoder m_code_ans_encoder;
+	AnsEncoder m_data_ans_encoder;
+	BitWriter m_writer;
 
 
 	uint16_t ZigZagEncode(int16_t in) const
@@ -64,8 +65,8 @@ class CompressorKagari final : public Compressor<int16_t>
 		}
 
 		// Instructions
-		*m_instructions_segment++ = static_cast<uint16_t>(rle_length);
-		*m_instructions_segment++ = static_cast<uint16_t>(literal_length - 1); // Notice the '- 1'
+		*m_code_segment++ = static_cast<uint16_t>(rle_length);
+		*m_code_segment++ = static_cast<uint16_t>(literal_length - 1); // Notice the '- 1'
 
 		// Literal data
 		for (uint32_t i = 0; i < literal_length; i += 1)
@@ -134,39 +135,41 @@ class CompressorKagari final : public Compressor<int16_t>
 			}
 		}
 
-		const auto i_segment_length = static_cast<uint32_t>(m_instructions_segment - m_instructions_segment_start);
-		const auto d_segment_length = static_cast<uint32_t>(m_data_segment - m_data_segment_start);
+		const auto code_length = static_cast<uint32_t>(m_code_segment - m_code_segment_start);
+		const auto data_length = static_cast<uint32_t>(m_data_segment - m_data_segment_start);
 
 		// Check if Ans provide us improvements on top of Rle
 		uint32_t ans_compress = 0;
-		/*{
-		    const auto ans_size = m_ans_encoder.Encode(rle_compressed_length, m_mini_buffer_start);
+		{
+			const auto ans_code_size = m_code_ans_encoder.Encode(code_length, m_code_segment_start);
+			const auto ans_data_size = m_data_ans_encoder.Encode(data_length, m_data_segment_start);
 
-		    if (ans_size != 0)
-		    {
-		        if (ans_size < rle_compressed_length * sizeof(uint16_t) * 8) // x8 as AnsEncode() returns size in bits
-		            ans_compress = 1;
-		    }
-		}*/
+			if (ans_code_size != 0 && ans_data_size != 0)
+			{
+				if ((ans_code_size + ans_data_size) <
+				    (code_length + data_length) * sizeof(uint16_t) * 8) // x8 as AnsEncode() returns size in bits
+					ans_compress = 1;
+			}
+		}
 
 		// Output block heads
 		{
-			const auto i_block_head = (i_segment_length << 1) | ans_compress;
-			if (m_writer.Write(i_block_head, (BLOCK_LENGTH_BIT_LEN + 1 + 1)) != 0)
+			const auto code_block_head = (code_length << 1) | ans_compress;
+			if (m_writer.Write(code_block_head, (BLOCK_LENGTH_BIT_LEN + 1 + 1)) != 0)
 				return 1;
 
-			const auto d_block_head = d_segment_length;
-			if (m_writer.Write(d_block_head, (BLOCK_LENGTH_BIT_LEN + 1)) != 0)
+			const auto data_block_head = data_length;
+			if (m_writer.Write(data_block_head, (BLOCK_LENGTH_BIT_LEN + 1)) != 0)
 				return 1;
 
 			// Developers, developers, developers
-			// printf("\tE [Block heads: %u, %u]\n", i_block_head, d_block_head);
+			// printf("\tE [Block heads: %u, %u]\n", code_block_head, data_block_head);
 		}
 
 		// Output block segments
-		// if (ans_compress == 0)
+		if (ans_compress == 0)
 		{
-			for (auto v = m_instructions_segment_start; v < m_instructions_segment; v += 1)
+			for (auto v = m_code_segment_start; v < m_code_segment; v += 1)
 			{
 				if (m_writer.Write(*v, 16) != 0)
 					return 1;
@@ -178,13 +181,15 @@ class CompressorKagari final : public Compressor<int16_t>
 					return 1;
 			}
 		}
-		/*else
+		else
 		{
-		    if (m_ans_encoder.Write(&m_writer) != 0)
-		        return 1;
-		}*/
+			if (m_code_ans_encoder.Write(&m_writer) != 0)
+				return 1;
+			if (m_data_ans_encoder.Write(&m_writer) != 0)
+				return 1;
+		}
 
-		m_instructions_segment = m_instructions_segment_start;
+		m_code_segment = m_code_segment_start;
 		m_data_segment = m_data_segment_start;
 
 		// Bye!
@@ -197,7 +202,7 @@ class CompressorKagari final : public Compressor<int16_t>
 		m_block_start = reinterpret_cast<int16_t*>(std::malloc(block_length * sizeof(int16_t)));
 		m_block_end = m_block_start + block_length;
 
-		m_instructions_segment_start = reinterpret_cast<uint16_t*>(std::malloc((block_length + 2) * sizeof(uint16_t)));
+		m_code_segment_start = reinterpret_cast<uint16_t*>(std::malloc((block_length + 2) * sizeof(uint16_t)));
 		m_data_segment_start = reinterpret_cast<uint16_t*>(std::malloc((block_length + 2) * sizeof(uint16_t)));
 
 		Reset(output_size, output);
@@ -206,7 +211,7 @@ class CompressorKagari final : public Compressor<int16_t>
 	~CompressorKagari()
 	{
 		std::free(m_block_start);
-		std::free(m_instructions_segment_start);
+		std::free(m_code_segment_start);
 		std::free(m_data_segment_start);
 	}
 
@@ -214,7 +219,7 @@ class CompressorKagari final : public Compressor<int16_t>
 	{
 		m_writer.Reset(static_cast<uint32_t>(output_size / sizeof(uint32_t)), reinterpret_cast<uint32_t*>(output));
 		m_block = m_block_start;
-		m_instructions_segment = m_instructions_segment_start;
+		m_code_segment = m_code_segment_start;
 		m_data_segment = m_data_segment_start;
 	}
 
