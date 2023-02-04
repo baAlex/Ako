@@ -205,6 +205,8 @@ uint32_t AnsDecode(BitReader& reader, uint32_t output_length, uint16_t* output);
 // decode/bit.cpp:
 // encode/bit.cpp:
 
+const uint32_t RICE_MAX_VALUE = 0xEFFFF; // Inclusive
+
 class BitReader
 {
 	const uint32_t* m_input_end;
@@ -219,6 +221,7 @@ class BitReader
 	BitReader(uint32_t input_length = 0, const uint32_t* input = nullptr);
 	void Reset(uint32_t input_length, const uint32_t* input);
 	int Read(uint32_t bit_length, uint32_t& value);
+	int ReadRice(uint32_t& value);
 	uint32_t Finish(const uint32_t* input_start) const;
 };
 
@@ -241,6 +244,7 @@ class BitWriter
 	BitWriter(uint32_t output_length = 0, uint32_t* output = nullptr);
 	void Reset(uint32_t output_length, uint32_t* output);
 	int Write(uint32_t value, uint32_t bit_length);
+	int WriteRice(uint32_t value);
 	uint32_t Finish();
 };
 

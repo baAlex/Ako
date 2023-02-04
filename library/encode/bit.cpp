@@ -33,6 +33,7 @@ BitWriter::BitWriter(uint32_t output_length, uint32_t* output)
 	Reset(output_length, output);
 }
 
+
 void BitWriter::Reset(uint32_t output_length, uint32_t* output)
 {
 	m_output_start = output;
@@ -44,6 +45,7 @@ void BitWriter::Reset(uint32_t output_length, uint32_t* output)
 	m_accumulator = 0;
 	m_accumulator_usage = 0;
 }
+
 
 int BitWriter::Write(uint32_t value, uint32_t bit_length)
 {
@@ -83,6 +85,31 @@ int BitWriter::Write(uint32_t value, uint32_t bit_length)
 	m_wrote_values += 1;
 	return 0;
 }
+
+
+static uint32_t sBitlength(uint32_t v)
+{
+	uint32_t x = 0;
+	while (v >= (1 << x))
+		x += 1;
+
+	return x;
+}
+
+int BitWriter::WriteRice(uint32_t value)
+{
+	value += 1;
+
+	const auto length = sBitlength(value);
+	const auto unary_length = (length + 1) / 2;
+	const auto binary_length = unary_length * 2;
+
+	// Developers, developers, developers
+	// printf("\tE | v: %2u -> %u.%u (%u)\n", value - 1, unary_length, binary_length, length);
+
+	return Write(((value << 1) | 1) << (unary_length - 1), unary_length + binary_length);
+}
+
 
 uint32_t BitWriter::Finish()
 {

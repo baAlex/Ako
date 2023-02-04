@@ -33,6 +33,7 @@ BitReader::BitReader(uint32_t input_length, const uint32_t* input)
 	Reset(input_length, input);
 }
 
+
 void BitReader::Reset(uint32_t input_length, const uint32_t* input)
 {
 	m_input_end = input + input_length;
@@ -41,6 +42,7 @@ void BitReader::Reset(uint32_t input_length, const uint32_t* input)
 	m_accumulator = 0;
 	m_accumulator_usage = 0;
 }
+
 
 int BitReader::Read(uint32_t bit_length, uint32_t& value)
 {
@@ -64,11 +66,11 @@ int BitReader::Read(uint32_t bit_length, uint32_t& value)
 		const auto min = m_accumulator_usage;
 		value = m_accumulator;
 
-		// Read, make value with remainder part
+		// Read, make value with remainder, update
 		m_accumulator = *m_input++;
 		m_accumulator_usage = ACCUMULATOR_LEN - (bit_length - min);
 
-		value = (value | (m_accumulator << min)) & mask;
+		value = ((m_accumulator << min) | value) & mask;
 		m_accumulator >>= (bit_length - min);
 
 		// Developers, developers, developers
@@ -82,6 +84,64 @@ int BitReader::Read(uint32_t bit_length, uint32_t& value)
 	// Bye!
 	return 0;
 }
+
+
+int BitReader::ReadRice(uint32_t& value)
+{
+	if (m_accumulator != 0)
+	{
+		const auto unary_length = static_cast<uint32_t>(__builtin_ctz(m_accumulator)) + 1;
+		const auto binary_length = unary_length * 2;
+		const auto total_length = unary_length + binary_length;
+
+		if (total_length <= m_accumulator_usage)
+		{
+			const auto mask = ~(0xFFFFFFFF << total_length);
+			value = ((m_accumulator & mask) >> unary_length) - 1;
+
+			// Developers, developers, developers
+			// printf("\tD | v: %2u <- %u.%u\n", value, unary_length, binary_length);
+
+			m_accumulator >>= total_length;
+			m_accumulator_usage -= total_length;
+			return 0;
+		}
+	}
+
+	{
+		if (m_input + 1 > m_input_end)
+			return 1;
+
+		// Keep what accumulator has
+		const auto min = m_accumulator_usage;
+		value = m_accumulator;
+
+		// Read
+		m_accumulator = *m_input++;
+
+		// Make value with remainder
+		value = (m_accumulator << min) | value;
+		if (value == 0)
+			return 2;
+
+		const auto unary_length = static_cast<uint32_t>(__builtin_ctz(value)) + 1;
+		const auto binary_length = unary_length * 2;
+		const auto total_length = unary_length + binary_length;
+
+		const auto mask = ~(0xFFFFFFFF << total_length);
+		value = ((value & mask) >> unary_length) - 1;
+
+		// Developers, developers, developers
+		// printf("\tD | v: %2u <- %u.%u\n", value, unary_length, binary_length);
+
+		// Update
+		m_accumulator_usage = ACCUMULATOR_LEN - (total_length - min);
+		m_accumulator >>= (total_length - min);
+	}
+
+	return 0;
+}
+
 
 uint32_t BitReader::Finish(const uint32_t* input_start) const
 {
