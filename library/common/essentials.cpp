@@ -38,7 +38,7 @@ unsigned Ctz(unsigned x)
 #ifdef _MSC_VER
 	unsigned long ret;
 	_BitScanForward(&ret, static_cast<unsigned long>(x));
-	return static_cast<unsigned>(__ret);
+	return static_cast<unsigned>(ret);
 #else
 	return static_cast<unsigned>(__builtin_ctz(x));
 #endif
