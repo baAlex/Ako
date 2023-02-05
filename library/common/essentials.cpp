@@ -36,9 +36,9 @@ namespace ako
 unsigned Ctz(unsigned x)
 {
 #ifdef _MSC_VER
-	uint32_t ret;
-	_BitScanForward(&ret, x);
-	return ret;
+	unsigned long ret;
+	_BitScanForward(&ret, static_cast<unsigned long>(x));
+	return static_cast<unsigned>(__ret);
 #else
 	return static_cast<unsigned>(__builtin_ctz(x));
 #endif
