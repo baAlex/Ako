@@ -90,7 +90,7 @@ int BitWriter::Write(uint32_t value, uint32_t bit_length)
 static uint32_t sBitlength(uint32_t v)
 {
 	uint32_t x = 0;
-	while (v >= (1 << x))
+	while (v >= static_cast<uint32_t>(1 << x))
 		x += 1;
 
 	return x;
@@ -98,6 +98,9 @@ static uint32_t sBitlength(uint32_t v)
 
 int BitWriter::WriteRice(uint32_t value)
 {
+	if (value > RICE_MAX_VALUE)
+		return 1;
+
 	value += 1;
 
 	const auto length = sBitlength(value);

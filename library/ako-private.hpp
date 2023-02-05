@@ -115,6 +115,8 @@ Compression ToCompression(uint32_t number, Status& out_status);
 
 // common/essentials.cpp:
 
+unsigned Ctz(unsigned x);
+
 unsigned Half(unsigned length);            // By convention yields highpass length
 unsigned HalfPlusOneRule(unsigned length); // By convention yields lowpass length
 unsigned NearPowerOfTwo(unsigned v);

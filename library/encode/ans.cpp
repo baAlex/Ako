@@ -142,7 +142,7 @@ uint32_t AnsEncoder::Encode(uint32_t input_length, const uint16_t* input)
 			if (m_queue_cursor == QUEUE_LENGTH)
 				return 0;
 
-			m_queue[m_queue_cursor].v = input[i] - e.root;
+			m_queue[m_queue_cursor].v = static_cast<uint16_t>(input[i] - e.root);
 			m_queue[m_queue_cursor].l = e.suffix_length;
 			output_size += e.suffix_length;
 			m_queue_cursor += 1;

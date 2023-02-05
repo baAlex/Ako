@@ -25,8 +25,25 @@ SOFTWARE.
 
 #include "ako-private.hpp"
 
+#ifdef _MSC_VER
+#include <intrin.h>
+#endif
+
+
 namespace ako
 {
+
+unsigned Ctz(unsigned x)
+{
+#ifdef _MSC_VER
+	uint32_t ret;
+	_BitScanForward(&ret, x);
+	return ret;
+#else
+	return static_cast<unsigned>(__builtin_ctz(x));
+#endif
+}
+
 
 unsigned Half(unsigned length)
 {

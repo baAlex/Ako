@@ -51,11 +51,11 @@ uint32_t AnsDecode(BitReader& reader, uint32_t output_length, uint16_t* output)
 		const auto modulo = state & ANS_M_MASK;
 		auto e = g_cdf1[G_CDF1_LEN - 1];
 
-		for (uint32_t i = 1; i < G_CDF1_LEN; i += 1)
+		for (uint32_t u = 1; u < G_CDF1_LEN; u += 1)
 		{
-			if (g_cdf1[i].cumulative > modulo)
+			if (g_cdf1[u].cumulative > modulo)
 			{
-				e = g_cdf1[i - 1];
+				e = g_cdf1[u - 1];
 				break;
 			}
 		}

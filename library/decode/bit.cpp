@@ -88,12 +88,14 @@ int BitReader::Read(uint32_t bit_length, uint32_t& value)
 
 int BitReader::ReadRice(uint32_t& value)
 {
+	// Unary stop mark in accumulator?
 	if (m_accumulator != 0)
 	{
-		const auto unary_length = static_cast<uint32_t>(__builtin_ctz(m_accumulator)) + 1;
+		const auto unary_length = static_cast<uint32_t>(Ctz(m_accumulator)) + 1;
 		const auto binary_length = unary_length * 2;
 		const auto total_length = unary_length + binary_length;
 
+		// Entire number in accumulator?
 		if (total_length <= m_accumulator_usage)
 		{
 			const auto mask = ~(0xFFFFFFFF << total_length);
@@ -108,6 +110,7 @@ int BitReader::ReadRice(uint32_t& value)
 		}
 	}
 
+	// One of above two conditions wasn't meet
 	{
 		if (m_input + 1 > m_input_end)
 			return 1;
@@ -124,7 +127,7 @@ int BitReader::ReadRice(uint32_t& value)
 		if (value == 0)
 			return 2;
 
-		const auto unary_length = static_cast<uint32_t>(__builtin_ctz(value)) + 1;
+		const auto unary_length = static_cast<uint32_t>(Ctz(value)) + 1;
 		const auto binary_length = unary_length * 2;
 		const auto total_length = unary_length + binary_length;
 
