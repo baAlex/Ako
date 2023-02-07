@@ -2,7 +2,7 @@
 
 MIT License
 
-Copyright (c) 2021-2022 Alexander Brandt
+Copyright (c) 2021-2023 Alexander Brandt
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -92,7 +92,7 @@ int Decompress(Compression compression, size_t compressed_size, unsigned width, 
 {
 	if (compression == Compression::Kagari)
 	{
-		auto decompressor = DecompressorKagari(BLOCK_LENGTH, compressed_size, input);
+		auto decompressor = DecompressorKagari(BLOCK_WIDTH, BLOCK_HEIGHT, compressed_size, input);
 		return sDecompress(decompressor, width, height, channels, output, status);
 	}
 

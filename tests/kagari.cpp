@@ -13,11 +13,17 @@
 #include "encode/compression-kagari.hpp"
 
 
-static void sQuantizer(float q, unsigned length, const int16_t* in, int16_t* out)
+static void sQuantizer(float q, unsigned width, unsigned height, unsigned input_stride, unsigned output_stride,
+                       const int16_t* in, int16_t* out)
 {
 	(void)q;
-	for (unsigned i = 0; i < length; i += 1)
-		out[i] = in[i];
+	for (unsigned row = 0; row < height; row += 1)
+	{
+		for (unsigned col = 0; col < width; col += 1)
+			out[col] = in[col];
+		in += input_stride;
+		out += output_stride;
+	}
 }
 
 
@@ -86,7 +92,7 @@ static uint32_t sAdler32(const void* input, size_t input_size)
 
 static void sTestFile(const char* filename)
 {
-	const unsigned BUFFER_LENGTH = 256 * 256;
+	const unsigned BLOCK_LENGTH = 256 * 256;
 	const unsigned READS_MAX_LENGTH = (256 * 256) * 2;
 
 	printf(" - File Test, filename '%s'\n", filename);
@@ -109,7 +115,7 @@ static void sTestFile(const char* filename)
 	uint32_t input_data_hash = 0x12345678;
 	size_t compressed_size = 0;
 	{
-		auto compressor = ako::CompressorKagari(BUFFER_LENGTH, static_cast<size_t>(filesize), big_buffer);
+		auto compressor = ako::CompressorKagari(BLOCK_LENGTH, 1, static_cast<size_t>(filesize), big_buffer);
 		uint32_t random_state = 1;
 		size_t buffers_no = 0;
 
@@ -141,7 +147,7 @@ static void sTestFile(const char* filename)
 	// Decompress, same intricacies
 	uint32_t decoded_data_hash = 0x12345678;
 	{
-		auto decompressor = ako::DecompressorKagari(BUFFER_LENGTH, compressed_size, big_buffer);
+		auto decompressor = ako::DecompressorKagari(BLOCK_LENGTH, 1, compressed_size, big_buffer);
 		uint32_t random_state = 1;
 		size_t buffers_no = 0;
 
@@ -170,7 +176,7 @@ static void sTestFile(const char* filename)
 }
 
 
-static void sTest(unsigned buffer_length, const char* input)
+static void sTest(unsigned block_width, unsigned block_height, const char* input)
 {
 	const size_t input_length = strlen(input);
 	const size_t buffer_size_a = input_length * sizeof(int16_t);
@@ -191,7 +197,7 @@ static void sTest(unsigned buffer_length, const char* input)
 	// Compress
 	size_t compressed_size = 0;
 	{
-		auto compressor = ako::CompressorKagari(buffer_length, buffer_size_b, buffer_b);
+		auto compressor = ako::CompressorKagari(block_width, block_height, buffer_size_b, buffer_b);
 
 		assert(compressor.Step(sQuantizer, 1.0F, static_cast<unsigned>(input_length), 1, buffer_a) == 0);
 		compressed_size = compressor.Finish();
@@ -202,7 +208,7 @@ static void sTest(unsigned buffer_length, const char* input)
 
 	// Decompress
 	{
-		auto decompressor = ako::DecompressorKagari(buffer_length, compressed_size, buffer_b);
+		auto decompressor = ako::DecompressorKagari(block_width, block_height, compressed_size, buffer_b);
 		assert(decompressor.Step(static_cast<unsigned>(input_length), 1, buffer_a) == ako::Status::Ok);
 	}
 
@@ -230,14 +236,14 @@ int main(int argc, const char* argv[])
 		return EXIT_SUCCESS;
 	}
 
-	const size_t BUFFER_LENGTH = 16;
+	const size_t BLOCK_LENGTH = 16;
 
-	sTest(BUFFER_LENGTH, "123456");       // Literal only
-	sTest(BUFFER_LENGTH, "111123456666"); // Literal only, since doesn'int16_t meets a minimum for a Rle
-	sTest(BUFFER_LENGTH, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"); // Rle
-	sTest(BUFFER_LENGTH, "aaaaaaaaaaaabcdefgaaaaaaaaaaaaaa"); // Both
-	sTest(BUFFER_LENGTH, "11111111222222223333333344444444555555556666666677777777");
-	sTest(BUFFER_LENGTH, "13525465112222221566664441111223333452123456666666111101"); // Case ending in a literal
+	sTest(BLOCK_LENGTH, 1, "123456");       // Literal only
+	sTest(BLOCK_LENGTH, 1, "111123456666"); // Literal only, since doesn'int16_t meets a minimum for a Rle
+	sTest(BLOCK_LENGTH, 1, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"); // Rle
+	sTest(BLOCK_LENGTH, 1, "aaaaaaaaaaaabcdefgaaaaaaaaaaaaaa"); // Both
+	sTest(BLOCK_LENGTH, 1, "11111111222222223333333344444444555555556666666677777777");
+	sTest(BLOCK_LENGTH, 1, "13525465112222221566664441111223333452123456666666111101"); // Case ending in a literal
 
 	return EXIT_SUCCESS;
 }

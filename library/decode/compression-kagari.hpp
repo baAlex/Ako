@@ -33,6 +33,9 @@ class DecompressorKagari final : public Decompressor<int16_t>
   private:
 	BitReader m_reader;
 
+	unsigned m_block_width;
+	unsigned m_block_height;
+
 	int16_t* m_block_start;
 	int16_t* m_block_end;
 
@@ -60,24 +63,24 @@ class DecompressorKagari final : public Decompressor<int16_t>
 		auto data = m_data_segment_start;
 
 		// Input
-		uint32_t c_block_head;
-		uint32_t d_block_head;
+		uint32_t code_length;
 		{
-			// Input block heads
-			if (m_reader.Read((BLOCK_LENGTH_BIT_LEN + 1 + 1), c_block_head) != 0)
-				return 1;
+			uint32_t ans_compressed;
+			uint32_t data_length;
 
-			if (m_reader.Read((BLOCK_LENGTH_BIT_LEN + 1), d_block_head) != 0)
+			// Input block metadata
+			if (m_reader.Read(1, ans_compressed) != 0)
 				return 1;
-
-			// Developers, developers, developers
-			// printf("\tD [Block heads: %u, %u]\n", c_block_head, d_block_head);
+			if (m_reader.ReadRice(code_length) != 0)
+				return 1;
+			if (m_reader.ReadRice(data_length) != 0)
+				return 1;
 
 			// Input block segments
-			if ((c_block_head & 0x01) == 0)
+			if (ans_compressed == 0)
 			{
 				uint32_t v;
-				for (uint32_t i = 0; i < (c_block_head >> 1); i += 1)
+				for (uint32_t i = 0; i < code_length; i += 1)
 				{
 					if (m_reader.Read(16, v) != 0) // TODO
 						return 1;
@@ -85,7 +88,7 @@ class DecompressorKagari final : public Decompressor<int16_t>
 					code[i] = static_cast<uint16_t>(v);
 				}
 
-				for (uint32_t i = 0; i < d_block_head; i += 1)
+				for (uint32_t i = 0; i < data_length; i += 1)
 				{
 					if (m_reader.Read(16, v) != 0)
 						return 1;
@@ -95,9 +98,9 @@ class DecompressorKagari final : public Decompressor<int16_t>
 			}
 			else
 			{
-				if (AnsDecode(m_reader, c_block_head >> 1, code) == 0)
+				if (AnsDecode(m_reader, code_length, code) == 0)
 					return 1;
-				if (AnsDecode(m_reader, d_block_head, data) == 0)
+				if (AnsDecode(m_reader, data_length, data) == 0)
 					return 1;
 			}
 		}
@@ -105,7 +108,7 @@ class DecompressorKagari final : public Decompressor<int16_t>
 		// Rle decompress
 		while (out < out_end)
 		{
-			if (code - m_code_segment_start >= (c_block_head >> 1))
+			if (code - m_code_segment_start >= code_length)
 				break;
 
 			// Read Rle and literal lengths
@@ -150,8 +153,12 @@ class DecompressorKagari final : public Decompressor<int16_t>
 	}
 
   public:
-	DecompressorKagari(unsigned block_length, size_t input_size, const void* input)
+	DecompressorKagari(unsigned block_width, unsigned block_height, size_t input_size, const void* input)
 	{
+		const auto block_length = block_width * block_height;
+		m_block_width = block_width;
+		m_block_height = block_height;
+
 		m_reader.Reset(static_cast<uint32_t>(input_size / sizeof(uint32_t)), reinterpret_cast<const uint32_t*>(input));
 
 		m_block_start = reinterpret_cast<int16_t*>(std::malloc(block_length * sizeof(int16_t)));
@@ -171,13 +178,19 @@ class DecompressorKagari final : public Decompressor<int16_t>
 		std::free(m_data_segment_start);
 	}
 
-	Status Step(unsigned width, unsigned height, int16_t* out) override
+	Status Step(unsigned width, unsigned height, int16_t* output) override
 	{
 		auto output_length = (width * height);
+		unsigned x = 0;
+		unsigned y = 0;
 
 		while (output_length != 0)
 		{
-			// If needed, decompress an entire block
+			const auto block_w = Min(m_block_width, width - x);
+			const auto block_h = Min(m_block_height, height - y);
+			const auto block_length = block_w * block_h;
+
+			// If needed, decompress an entire or more blocks
 			if (m_block_usage == 0)
 			{
 				if (Decompress() != 0)
@@ -186,17 +199,21 @@ class DecompressorKagari final : public Decompressor<int16_t>
 					return Status::Error;
 			}
 
-			// Move values that this block can provide
+			// Move values that this block provides
 			{
-				const auto length = Min(m_block_usage, output_length);
+				Memcpy2d(block_w, block_h, block_w, width, m_block_cursor, output + x);
 
-				for (unsigned i = 0; i < length; i += 1)
-					out[i] = m_block_cursor[i];
+				m_block_usage -= block_length;
+				m_block_cursor += block_length;
+				output_length -= block_length;
+				x += m_block_width;
 
-				m_block_usage -= length;
-				m_block_cursor += length;
-				output_length -= length;
-				out += length;
+				if (x >= width)
+				{
+					x = 0;
+					y += m_block_height;
+					output += width * m_block_height;
+				}
 			}
 		}
 

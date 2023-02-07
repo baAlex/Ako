@@ -33,6 +33,9 @@ class CompressorKagari final : public Compressor<int16_t>
   private:
 	static const unsigned RLE_TRIGGER = 4;
 
+	unsigned m_block_width;
+	unsigned m_block_height;
+
 	int16_t* m_block_start = nullptr;
 	int16_t* m_block_end;
 	int16_t* m_block;
@@ -152,18 +155,14 @@ class CompressorKagari final : public Compressor<int16_t>
 			}
 		}
 
-		// Output block heads
+		// Output block metadata
 		{
-			const auto code_block_head = (code_length << 1) | ans_compress;
-			if (m_writer.Write(code_block_head, (BLOCK_LENGTH_BIT_LEN + 1 + 1)) != 0)
+			if (m_writer.Write(ans_compress, 1) != 0)
 				return 1;
-
-			const auto data_block_head = data_length;
-			if (m_writer.Write(data_block_head, (BLOCK_LENGTH_BIT_LEN + 1)) != 0)
+			if (m_writer.WriteRice(code_length) != 0)
 				return 1;
-
-			// Developers, developers, developers
-			// printf("\tE [Block heads: %u, %u]\n", code_block_head, data_block_head);
+			if (m_writer.WriteRice(data_length) != 0)
+				return 1;
 		}
 
 		// Output block segments
@@ -197,8 +196,12 @@ class CompressorKagari final : public Compressor<int16_t>
 	}
 
   public:
-	CompressorKagari(unsigned block_length, size_t output_size, void* output)
+	CompressorKagari(unsigned block_width, unsigned block_height, size_t output_size, void* output)
 	{
+		const auto block_length = block_width * block_height;
+		m_block_width = block_width;
+		m_block_height = block_height;
+
 		m_block_start = reinterpret_cast<int16_t*>(std::malloc(block_length * sizeof(int16_t)));
 		m_block_end = m_block_start + block_length;
 
@@ -227,10 +230,17 @@ class CompressorKagari final : public Compressor<int16_t>
 	         const int16_t* input) override
 	{
 		auto input_length = (width * height);
+		unsigned x = 0;
+		unsigned y = 0;
+
 		do
 		{
+			const auto block_w = Min(m_block_width, width - x);
+			const auto block_h = Min(m_block_height, height - y);
+			const auto block_length = block_w * block_h;
+
 			// No space in block, compress what we have so far
-			if (m_block == m_block_end)
+			if (m_block == m_block_end || m_block + block_length > m_block_end)
 			{
 				if (Compress() != 0)
 					return 1;
@@ -238,12 +248,18 @@ class CompressorKagari final : public Compressor<int16_t>
 
 			// Quantize input
 			{
-				const auto length = Min(static_cast<unsigned>(m_block_end - m_block), input_length);
+				quantize(quantization, block_w, block_h, width, block_w, input + x, m_block);
 
-				quantize(quantization, length, input, m_block);
-				m_block += length;
-				input_length -= length;
-				input += length;
+				m_block += block_length;
+				input_length -= block_length;
+				x += m_block_width;
+
+				if (x >= width)
+				{
+					x = 0;
+					y += m_block_height;
+					input += width * m_block_height;
+				}
 			}
 
 		} while (input_length != 0);

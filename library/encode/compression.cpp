@@ -2,7 +2,7 @@
 
 MIT License
 
-Copyright (c) 2021-2022 Alexander Brandt
+Copyright (c) 2021-2023 Alexander Brandt
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -30,22 +30,34 @@ SOFTWARE.
 namespace ako
 {
 
-template <typename T> static void sQuantizer(float q, unsigned length, const T* in, T* out)
+template <typename T>
+static void sQuantizer(float q, unsigned width, unsigned height, unsigned input_stride, unsigned output_stride,
+                       const T* in, T* out)
 {
 	if (std::isinf(q) == false)
 	{
 		const auto nq = static_cast<T>(Min(q, 32767.0F)); // TODO, funny phenomena, float quantization overshoots
 		if (nq != 0)
 		{
-			for (unsigned i = 0; i < length; i += 1)
-				out[i] = static_cast<T>(((in[i]) / nq) * nq);
+			for (unsigned row = 0; row < height; row += 1)
+			{
+				for (unsigned col = 0; col < width; col += 1)
+					out[col] = static_cast<T>(((in[col]) / nq) * nq);
+				in += input_stride;
+				out += output_stride;
+			}
 
 			return;
 		}
 	}
 
-	for (unsigned i = 0; i < length; i += 1)
-		out[i] = 0;
+	for (unsigned row = 0; row < height; row += 1)
+	{
+		for (unsigned col = 0; col < width; col += 1)
+			out[col] = in[col];
+		in += input_stride;
+		out += output_stride;
+	}
 }
 
 
@@ -80,7 +92,7 @@ static size_t sCompress2ndPhase(Compressor<T>& compressor, const Settings& setti
 
 		// Quantization step
 		const auto x = (static_cast<float>(lifts_no) - static_cast<float>(lift + 1)) / static_cast<float>(lifts_no - 1);
-		const auto q = std::pow(2.0F, std::pow(x, 3.0F) * settings.quantization);
+		const auto q = std::pow(2.0F, std::pow(x, 3.0F) * (settings.quantization / 2.0F));
 		const float q_diagonal = (settings.quantization > 0.0F) ? 2.0F : 1.0F;
 
 		// printf("x: %f, q: %f\n", x, (x > 0.0) ? q : 1.0F);
@@ -88,20 +100,22 @@ static size_t sCompress2ndPhase(Compressor<T>& compressor, const Settings& setti
 		// Iterate in Yuv order
 		for (unsigned ch = 0; ch < channels; ch += 1)
 		{
+			const float q_sub = (ch == 0 || settings.quantization == 0.0F) ? 1.0F : 2.0F;
+
 			// Quadrant C
-			if (compressor.Step(sQuantizer, (x > 0.0) ? q : 1.0F, lp_w, hp_h, in) != 0)
+			if (compressor.Step(sQuantizer, (x > 0.0) ? (q * q_sub) : 1.0F, lp_w, hp_h, in) != 0)
 				return 0;
 
 			in += (lp_w * hp_h);
 
 			// Quadrant B
-			if (compressor.Step(sQuantizer, (x > 0.0) ? q : 1.0F, hp_w, lp_h, in) != 0)
+			if (compressor.Step(sQuantizer, (x > 0.0) ? (q * q_sub) : 1.0F, hp_w, lp_h, in) != 0)
 				return 0;
 
 			in += (hp_w * lp_h);
 
 			// Quadrant D
-			if (compressor.Step(sQuantizer, (x > 0.0) ? (q * q_diagonal) : 1.0F, hp_w, hp_h, in) != 0)
+			if (compressor.Step(sQuantizer, (x > 0.0) ? (q * q_sub * q_diagonal) : 1.0F, hp_w, hp_h, in) != 0)
 				return 0;
 
 			in += (hp_w * hp_h);
@@ -126,7 +140,7 @@ static size_t sCompress1stPhase(const Callbacks& callbacks, const Settings& sett
 	{
 		// Initialization
 		auto target_size = sizeof(T) * width * height * channels;
-		auto compressor = CompressorKagari(BLOCK_LENGTH, target_size, output);
+		auto compressor = CompressorKagari(BLOCK_WIDTH, BLOCK_HEIGHT, target_size, output);
 		out_compression = Compression::Kagari;
 
 		auto s = settings;
@@ -143,7 +157,7 @@ static size_t sCompress1stPhase(const Callbacks& callbacks, const Settings& sett
 			    static_cast<size_t>(static_cast<float>((sizeof(T) >> 1) * width * height * channels) / settings.ratio);
 		}
 
-		const auto error_margin = (target_size * 5) / 100;
+		const auto error_margin = (target_size * 2) / 100;
 
 		// First floor (quantization as specified, may be zero)
 		{
@@ -161,8 +175,8 @@ static size_t sCompress1stPhase(const Callbacks& callbacks, const Settings& sett
 		}
 
 		// Iterate?
-		if (settings.quantization == 0.0F && settings.ratio >= 1.0F &&                         //
-		    ((compressed_size != 0 && compressed_size > target_size) || compressed_size == 0)) // Artificial inteligence
+		if (settings.quantization == 0.0F && settings.ratio >= 1.0F && //
+		    ((compressed_size != 0 && compressed_size > target_size) || compressed_size == 0))
 		{
 			// Find ceil
 			while (1)

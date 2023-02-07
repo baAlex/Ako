@@ -28,8 +28,10 @@ static void sFixedTest()
 			assert(ret == 0);
 		}
 
-		const auto ret = writer.WriteRice(ako::RICE_MAX_VALUE);
-		assert(ret == 0);
+		{
+			const auto ret = writer.WriteRice(ako::RICE_MAX_VALUE);
+			assert(ret == 0);
+		}
 
 		for (uint32_t i = 0; i < 16; i += 1)
 		{
@@ -54,9 +56,11 @@ static void sFixedTest()
 			assert(v == i);
 		}
 
-		const auto ret = reader.ReadRice(v);
-		assert(ret == 0);
-		assert(v == ako::RICE_MAX_VALUE);
+		{
+			const auto ret = reader.ReadRice(v);
+			assert(ret == 0);
+			assert(v == ako::RICE_MAX_VALUE);
+		}
 
 		for (uint32_t i = 0; i < 16; i += 1)
 		{

@@ -61,7 +61,7 @@ template <typename T> class CompressorNone final : public Compressor<T>
 			const auto length = Min(m_buffer_length, input_length);
 
 			// Quantize input
-			quantize(quantization, length, input, m_buffer);
+			quantize(quantization, length, 1, length, length, input, m_buffer);
 			input_length -= length;
 			input += length;
 

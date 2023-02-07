@@ -64,11 +64,14 @@ enum class Endianness
 	Big
 };
 
-template <typename T> using QuantizationCallback = void (*)(float, unsigned, const T*, T*);
+template <typename T>
+using QuantizationCallback = void (*)(float, unsigned, unsigned, unsigned, unsigned, const T*, T*);
 
 
-const unsigned BLOCK_LENGTH_BIT_LEN = 18;
-const unsigned BLOCK_LENGTH = 1 << BLOCK_LENGTH_BIT_LEN;
+const unsigned BLOCK_DIMENSION = 9;
+const unsigned BLOCK_LENGTH = (1 << BLOCK_DIMENSION) << BLOCK_DIMENSION;
+const unsigned BLOCK_WIDTH = 1 << BLOCK_DIMENSION;
+const unsigned BLOCK_HEIGHT = 1 << BLOCK_DIMENSION;
 
 
 template <typename T> class Compressor
