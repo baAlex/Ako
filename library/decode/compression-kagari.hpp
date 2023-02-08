@@ -98,9 +98,9 @@ class DecompressorKagari final : public Decompressor<int16_t>
 			}
 			else
 			{
-				if (AnsDecode(m_reader, code_length, code) == 0)
+				if (AnsDecode(m_reader, g_cdf_c, code_length, code) == 0)
 					return 1;
-				if (AnsDecode(m_reader, data_length, data) == 0)
+				if (AnsDecode(m_reader, g_cdf_d, data_length, data) == 0)
 					return 1;
 			}
 		}

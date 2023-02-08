@@ -243,13 +243,13 @@ void CallbackHistogramEvent(const ako::Histogram* histogram, unsigned length, vo
 	using namespace std;
 	auto& data = *reinterpret_cast<CallbacksData*>(user_data);
 
+	unsigned c_last = 0;
+	unsigned c_peak_value = 0;
+	unsigned c_peak_at = 0;
+
 	unsigned d_last = 0;
 	unsigned d_peak_value = 0;
 	unsigned d_peak_at = 0;
-
-	unsigned i_last = 0;
-	unsigned i_peak_value = 0;
-	unsigned i_peak_at = 0;
 
 	if (histogram == nullptr || length == 0)
 		return;
@@ -257,6 +257,16 @@ void CallbackHistogramEvent(const ako::Histogram* histogram, unsigned length, vo
 	// Find peaks
 	for (unsigned i = 0; i < length; i += 1)
 	{
+		if (histogram[i].c != 0)
+		{
+			c_last = i;
+			if (histogram[i].c > c_peak_value)
+			{
+				c_peak_value = histogram[i].c;
+				c_peak_at = i;
+			}
+		}
+
 		if (histogram[i].d != 0)
 		{
 			d_last = i;
@@ -266,26 +276,16 @@ void CallbackHistogramEvent(const ako::Histogram* histogram, unsigned length, vo
 				d_peak_at = i;
 			}
 		}
-
-		if (histogram[i].i != 0)
-		{
-			i_last = i;
-			if (histogram[i].i > i_peak_value)
-			{
-				i_peak_value = histogram[i].i;
-				i_peak_at = i;
-			}
-		}
 	}
 
 	// Feedback
 	if (data.print == true)
 	{
 		printf("%s\t\t - Histogram:\n", data.prefix);
+		printf("%s\t\t\t - C, last: %u, peak value: %u, at: %u\n", data.prefix, c_last + 1, c_peak_value,
+		       c_peak_at + 1);
 		printf("%s\t\t\t - D, last: %u, peak value: %u, at: %u\n", data.prefix, d_last + 1, d_peak_value,
 		       d_peak_at + 1);
-		printf("%s\t\t\t - I, last: %u, peak value: %u, at: %u\n", data.prefix, i_last + 1, i_peak_value,
-		       i_peak_at + 1);
 	}
 
 	// Write to file
@@ -313,8 +313,8 @@ void CallbackHistogramEvent(const ako::Histogram* histogram, unsigned length, vo
 		auto fp = fopen(filename.c_str(), "w");
 		if (fp != nullptr)
 		{
-			for (unsigned i = 0; i < std::max(d_last, i_last) + 1; i += 1)
-				fprintf(fp, "%u,%u\n", histogram[i].d, histogram[i].i);
+			for (unsigned i = 0; i < std::max(c_last, d_last) + 1; i += 1)
+				fprintf(fp, "%u,%u\n", histogram[i].c, histogram[i].d);
 			fclose(fp);
 
 			if (data.print == true)

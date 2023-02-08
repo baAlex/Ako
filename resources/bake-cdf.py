@@ -27,13 +27,12 @@ def Print(cdf):
 	print("};")
 
 
-def AddFile(cdf, filename):
-	print("Reading '{}'".format(filename))
+def AddFile(cdf, filename, row_no):
+	print("Reading '{}' row {}".format(filename, row_no))
 	with open(filename) as fp:
 		reader = csv.reader(fp)
 		for v, row in enumerate(reader): # Value implicit in row number
-			cdf[code.Encode(v)].f += int(row[0]) # For now, merge both data and
-			cdf[code.Encode(v)].f += int(row[1]) # instructions frequencies (each column)
+			cdf[code.Encode(v)].f += int(row[row_no])
 
 
 def FillZeros(cdf):
@@ -108,17 +107,24 @@ def Accumulate(cdf):
 if __name__ == '__main__':
 
 	CDF_LEN = 255 + 1
-	cdf = [CdfEntry(i) for i in range(CDF_LEN)]
+	c_cdf = [CdfEntry(i) for i in range(CDF_LEN)]
+	d_cdf = [CdfEntry(i) for i in range(CDF_LEN)]
 
 	for filename in sys.argv[1:]:
-		AddFile(cdf, filename)
+		AddFile(c_cdf, filename, 0)
+		AddFile(d_cdf, filename, 1)
 
-	FillZeros(cdf)
+	FillZeros(c_cdf)
+	c_cdf = sorted(c_cdf, key = lambda entry: (-entry.f))
+	Normalize(c_cdf)
+	c_cdf = sorted(c_cdf, key = lambda entry: (-entry.f, entry.r))
+	Accumulate(c_cdf)
 
-	cdf = sorted(cdf, key = lambda entry: (-entry.f))
-	Normalize(cdf)
+	FillZeros(d_cdf)
+	d_cdf = sorted(d_cdf, key = lambda entry: (-entry.f))
+	Normalize(d_cdf)
+	d_cdf = sorted(d_cdf, key = lambda entry: (-entry.f, entry.r))
+	Accumulate(d_cdf)
 
-	cdf = sorted(cdf, key = lambda entry: (-entry.f, entry.r))
-	Accumulate(cdf)
-
-	Print(cdf)
+	Print(c_cdf)
+	Print(d_cdf)

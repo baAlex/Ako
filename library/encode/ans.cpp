@@ -69,7 +69,7 @@ AnsEncoder::~AnsEncoder()
 }
 
 
-uint32_t AnsEncoder::Encode(uint32_t input_length, const uint16_t* input)
+uint32_t AnsEncoder::Encode(const CdfEntry* cdf, uint32_t input_length, const uint16_t* input)
 {
 	uint32_t state = ANS_INITIAL_STATE;
 	uint32_t output_size = 0;
@@ -81,17 +81,17 @@ uint32_t AnsEncoder::Encode(uint32_t input_length, const uint16_t* input)
 	for (uint32_t i = input_length - 1; i < input_length; i -= 1) // Underflows, Ans operates in reverse
 	{
 		// Find root Cdf entry
-		auto e = g_cdf1[255];
+		auto e = cdf[255];
 		{
 			const auto code = sEncode(input[i]);
 			const auto root = sRoot(code);       // Cdf is decoder-centric, encoding
 			const auto sl = sSuffixLength(code); // requires extra steps
 
-			for (uint32_t u = 0; u < G_CDF1_LEN; u += 1)
+			for (uint32_t u = 0; u < G_CDF_C_LEN; u += 1)
 			{
-				if (g_cdf1[u].root == root && g_cdf1[u].suffix_length == sl)
+				if (cdf[u].root == root && cdf[u].suffix_length == sl)
 				{
-					e = g_cdf1[u];
+					e = cdf[u];
 					break;
 				}
 			}

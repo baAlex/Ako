@@ -28,7 +28,7 @@ SOFTWARE.
 namespace ako
 {
 
-uint32_t AnsDecode(BitReader& reader, uint32_t output_length, uint16_t* output)
+uint32_t AnsDecode(BitReader& reader, const CdfEntry* cdf, uint32_t output_length, uint16_t* output)
 {
 	uint32_t state = 0;
 	uint32_t read_size = 0;
@@ -49,13 +49,13 @@ uint32_t AnsDecode(BitReader& reader, uint32_t output_length, uint16_t* output)
 
 		// Find root Cdf entry
 		const auto modulo = state & ANS_M_MASK;
-		auto e = g_cdf1[G_CDF1_LEN - 1];
+		auto e = cdf[G_CDF_C_LEN - 1];
 
-		for (uint32_t u = 1; u < G_CDF1_LEN; u += 1)
+		for (uint32_t u = 1; u < G_CDF_C_LEN; u += 1)
 		{
-			if (g_cdf1[u].cumulative > modulo)
+			if (cdf[u].cumulative > modulo)
 			{
-				e = g_cdf1[u - 1];
+				e = cdf[u - 1];
 				break;
 			}
 		}

@@ -31,7 +31,7 @@ namespace ako
 class CompressorKagari final : public Compressor<int16_t>
 {
   private:
-	static const unsigned RLE_TRIGGER = 4;
+	static const unsigned RLE_TRIGGER = 2;
 
 	unsigned m_block_width;
 	unsigned m_block_height;
@@ -48,6 +48,9 @@ class CompressorKagari final : public Compressor<int16_t>
 	AnsEncoder m_code_ans_encoder;
 	AnsEncoder m_data_ans_encoder;
 	BitWriter m_writer;
+
+	Histogram m_histogram[65536 + 1];
+	unsigned m_histogram_last = 0;
 
 
 	uint16_t ZigZagEncode(int16_t in) const
@@ -67,15 +70,23 @@ class CompressorKagari final : public Compressor<int16_t>
 			// printf("']\n");
 		}
 
-		// Instructions
+		// Code/Instructions
 		*m_code_segment++ = static_cast<uint16_t>(rle_length);
 		*m_code_segment++ = static_cast<uint16_t>(literal_length - 1); // Notice the '- 1'
+
+		m_histogram[rle_length].c += 1;
+		m_histogram[literal_length - 1].c += 1;
+		m_histogram_last = Max(m_histogram_last, rle_length);
+		m_histogram_last = Max(m_histogram_last, literal_length - 1);
 
 		// Literal data
 		for (uint32_t i = 0; i < literal_length; i += 1)
 		{
 			const auto value = ZigZagEncode(literal_values[i]);
 			*m_data_segment++ = value;
+
+			m_histogram[value].d += 1;
+			m_histogram_last = Max(m_histogram_last, static_cast<unsigned>(value));
 		}
 
 		// Bye!
@@ -144,8 +155,10 @@ class CompressorKagari final : public Compressor<int16_t>
 		// Check if Ans provide us improvements on top of Rle
 		uint32_t ans_compress = 0;
 		{
-			const auto ans_code_size = m_code_ans_encoder.Encode(code_length, m_code_segment_start);
-			const auto ans_data_size = m_data_ans_encoder.Encode(data_length, m_data_segment_start);
+			const auto ans_code_size = m_code_ans_encoder.Encode(g_cdf_c, code_length, m_code_segment_start);
+			const auto ans_data_size = m_data_ans_encoder.Encode(g_cdf_d, data_length, m_data_segment_start);
+
+			// printf("ANS: %u, %u\n", ans_code_size, ans_data_size);
 
 			if (ans_code_size != 0 && ans_data_size != 0)
 			{
@@ -224,6 +237,9 @@ class CompressorKagari final : public Compressor<int16_t>
 		m_block = m_block_start;
 		m_code_segment = m_code_segment_start;
 		m_data_segment = m_data_segment_start;
+
+		Memset(m_histogram, 0, sizeof(Histogram) * (65536 + 1));
+		m_histogram_last = 0;
 	}
 
 	int Step(QuantizationCallback<int16_t> quantize, float quantization, unsigned width, unsigned height,
@@ -283,12 +299,12 @@ class CompressorKagari final : public Compressor<int16_t>
 
 	unsigned GetHistogramLength() const
 	{
-		return 0;
+		return m_histogram_last + 1;
 	}
 
 	const Histogram* GetHistogram() const
 	{
-		return nullptr;
+		return m_histogram;
 	}
 };
 

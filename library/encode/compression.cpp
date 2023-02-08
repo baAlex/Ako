@@ -34,21 +34,18 @@ template <typename T>
 static void sQuantizer(float q, unsigned width, unsigned height, unsigned input_stride, unsigned output_stride,
                        const T* in, T* out)
 {
-	if (std::isinf(q) == false)
+	if (std::isinf(q) == false && std::isnan(q) == false)
 	{
-		const auto nq = static_cast<T>(Min(q, 32767.0F)); // TODO, funny phenomena, float quantization overshoots
-		if (nq != 0)
+		for (unsigned row = 0; row < height; row += 1)
 		{
-			for (unsigned row = 0; row < height; row += 1)
-			{
-				for (unsigned col = 0; col < width; col += 1)
-					out[col] = static_cast<T>(((in[col]) / nq) * nq);
-				in += input_stride;
-				out += output_stride;
-			}
+			for (unsigned col = 0; col < width; col += 1)
+				out[col] = (fabsf(static_cast<float>(in[col])) < q) ? 0 : in[col];
 
-			return;
+			in += input_stride;
+			out += output_stride;
 		}
+
+		return;
 	}
 
 	for (unsigned row = 0; row < height; row += 1)
@@ -92,10 +89,10 @@ static size_t sCompress2ndPhase(Compressor<T>& compressor, const Settings& setti
 
 		// Quantization step
 		const auto x = (static_cast<float>(lifts_no) - static_cast<float>(lift + 1)) / static_cast<float>(lifts_no - 1);
-		const auto q = std::pow(2.0F, std::pow(x, 3.0F) * (settings.quantization / 2.0F));
+		const auto q = std::pow(2.0F, std::pow(x, 3.0F) * (log2f(settings.quantization)));
 		const float q_diagonal = (settings.quantization > 0.0F) ? 2.0F : 1.0F;
 
-		// printf("x: %f, q: %f\n", x, (x > 0.0) ? q : 1.0F);
+		printf("x: %f, q: %f\n", x, q);
 
 		// Iterate in Yuv order
 		for (unsigned ch = 0; ch < channels; ch += 1)
@@ -103,19 +100,19 @@ static size_t sCompress2ndPhase(Compressor<T>& compressor, const Settings& setti
 			const float q_sub = (ch == 0 || settings.quantization == 0.0F) ? 1.0F : 2.0F;
 
 			// Quadrant C
-			if (compressor.Step(sQuantizer, (x > 0.0) ? (q * q_sub) : 1.0F, lp_w, hp_h, in) != 0)
+			if (compressor.Step(sQuantizer, (q * q_sub), lp_w, hp_h, in) != 0)
 				return 0;
 
 			in += (lp_w * hp_h);
 
 			// Quadrant B
-			if (compressor.Step(sQuantizer, (x > 0.0) ? (q * q_sub) : 1.0F, hp_w, lp_h, in) != 0)
+			if (compressor.Step(sQuantizer, (q * q_sub), hp_w, lp_h, in) != 0)
 				return 0;
 
 			in += (hp_w * lp_h);
 
 			// Quadrant D
-			if (compressor.Step(sQuantizer, (x > 0.0) ? (q * q_sub * q_diagonal) : 1.0F, hp_w, hp_h, in) != 0)
+			if (compressor.Step(sQuantizer, (q * q_sub * q_diagonal), hp_w, hp_h, in) != 0)
 				return 0;
 
 			in += (hp_w * hp_h);

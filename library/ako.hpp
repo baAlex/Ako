@@ -119,7 +119,7 @@ enum class GenericEvent
 
 struct Histogram
 {
-	unsigned i;
+	unsigned c;
 	unsigned d;
 };
 
