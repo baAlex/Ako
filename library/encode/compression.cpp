@@ -92,7 +92,7 @@ static size_t sCompress2ndPhase(Compressor<T>& compressor, const Settings& setti
 		const auto q = std::pow(2.0F, std::pow(x, 3.0F) * (log2f(settings.quantization)));
 		const float q_diagonal = (settings.quantization > 0.0F) ? 2.0F : 1.0F;
 
-		printf("x: %f, q: %f\n", x, q);
+		// printf("x: %f, q: %f\n", x, q);
 
 		// Iterate in Yuv order
 		for (unsigned ch = 0; ch < channels; ch += 1)
