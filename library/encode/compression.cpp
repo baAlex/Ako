@@ -34,12 +34,29 @@ template <typename T>
 static void sQuantizer(float q, unsigned width, unsigned height, unsigned input_stride, unsigned output_stride,
                        const T* in, T* out)
 {
-	if (std::isinf(q) == false && std::isnan(q) == false)
+	if (std::isnan(q) == false && q > 1.0F)
 	{
+		if (std::isinf(q) == true)
+		{
+			for (unsigned col = 0; col < width; col += 1)
+				out[col] = 0;
+			out += output_stride;
+			return;
+		}
+
 		for (unsigned row = 0; row < height; row += 1)
 		{
 			for (unsigned col = 0; col < width; col += 1)
-				out[col] = (fabsf(static_cast<float>(in[col])) < q) ? 0 : in[col];
+			{
+				// Quantization with integers (Butteraugli favourite)
+				// out[col] = (in[col] / static_cast<T>(q)) * static_cast<T>(q);
+
+				// Quantization with floats (DSSIM favourite and to my eyes as well, overshoots though)
+				out[col] = static_cast<T>(std::floor(static_cast<float>(in[col]) / q + 0.5F) * q);
+
+				// Gate (middle point according to Butteraugli, but it looks horribly pixelated than previous two):
+				// out[col] = (std::abs(static_cast<float>(in[col])) < q) ? 0 : in[col];
+			}
 
 			in += input_stride;
 			out += output_stride;
@@ -88,8 +105,8 @@ static size_t sCompress2ndPhase(Compressor<T>& compressor, const Settings& setti
 		LiftMeasures(lift, width, height, lp_w, lp_h, hp_w, hp_h);
 
 		// Quantization step
-		const auto x = (static_cast<float>(lifts_no) - static_cast<float>(lift + 1)) / static_cast<float>(lifts_no - 1);
-		const auto q = std::pow(2.0F, std::pow(x, 3.0F) * (log2f(settings.quantization)));
+		const auto x = (static_cast<float>(lifts_no) - static_cast<float>(lift)) / static_cast<float>(lifts_no);
+		const auto q = std::pow(2.0F, std::pow(x, 3.0F) * (std::log2f(settings.quantization)));
 		const float q_diagonal = (settings.quantization > 0.0F) ? 2.0F : 1.0F;
 
 		// printf("x: %f, q: %f\n", x, q);

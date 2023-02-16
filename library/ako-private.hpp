@@ -169,6 +169,13 @@ template <typename T> T SaturateToLower(T v);
 class BitReader;
 class BitWriter;
 
+struct NewCdfEntry
+{
+	uint16_t value;
+	uint16_t frequency;
+	uint16_t cumulative;
+};
+
 const uint32_t ANS_STATE_LEN = 32;
 
 const uint32_t ANS_B_LEN = 15;         // Output/input base, Duda's paper uses '1 << 0' as an example
@@ -180,7 +187,7 @@ const uint32_t ANS_L = 1 << 16; // Needs to be multiple of the sum of frequencie
                                 // known as 'last cumulative' or M), and such number is hardcoded to
                                 // '1 << 16'. So no choice here.
 
-const uint32_t ANS_M_LEN = 16;         // So called M, Cdf tables are normalized to this number. It can
+const uint32_t ANS_M_LEN = 14;         // So called M, Cdf tables are normalized to this number. It can
 const uint32_t ANS_M = 1 << ANS_M_LEN; // be thought as 'precision' to represent frequencies
 const uint32_t ANS_M_MASK = ANS_M - 1; // (in 0.0, 1.0 range) with integers (as a 0, M range).
 
@@ -198,6 +205,10 @@ class AnsEncoder
 
 	QueueToWrite* m_queue = nullptr;
 	uint32_t m_queue_cursor = 0;
+
+	NewCdfEntry* m_cdf = nullptr;
+	uint32_t m_cdf_len = 0;
+	uint32_t m_cdf_m_len = 0;
 
   public:
 	AnsEncoder();

@@ -28,11 +28,57 @@ SOFTWARE.
 namespace ako
 {
 
-uint32_t AnsDecode(BitReader& reader, const CdfEntry* cdf, uint32_t output_length, uint16_t* output)
+
+static NewCdfEntry s_cdf[65536 + 1];
+
+
+uint32_t AnsDecode(BitReader& reader, const CdfEntry* nope, uint32_t output_length, uint16_t* output)
 {
+	(void)nope;
+
 	uint32_t state = 0;
 	uint32_t read_size = 0;
 
+	uint32_t cdf_len = 0;
+	uint32_t m_len = 0;
+	uint32_t m_mask = 0;
+
+	{
+		if (reader.ReadRice(m_len) != 0)
+			return 0;
+
+		if (reader.ReadRice(cdf_len) != 0)
+			return 0;
+
+		// printf("%u\n", m_len);
+		// printf("%u\n", cdf_len);
+
+		m_mask = ~(0xFFFFFFFF << m_len);
+
+		uint32_t prev_f;
+		uint16_t cumulative = 0;
+		for (uint32_t i = 0; i < cdf_len; i += 1)
+		{
+			uint32_t value;
+			uint32_t frequency;
+
+			if (reader.ReadRice(value) != 0)
+				return 0;
+			if (reader.ReadRice(frequency) != 0)
+				return 0;
+
+			s_cdf[i].value = static_cast<uint16_t>(value);
+			s_cdf[i].frequency = static_cast<uint16_t>((i != 0) ? (prev_f - frequency) : frequency);
+			prev_f = s_cdf[i].frequency;
+			s_cdf[i].cumulative = cumulative;
+			cumulative += s_cdf[i].frequency;
+
+			// if (i < 5)
+			//	printf(" %u -> %u (%u)\n", frequency, s_cdf[i].frequency, s_cdf[i].cumulative);
+		}
+	}
+
+	// Decode
 	for (uint32_t i = 0; i < output_length; i += 1)
 	{
 		// Normalize state (fill it)
@@ -48,14 +94,14 @@ uint32_t AnsDecode(BitReader& reader, const CdfEntry* cdf, uint32_t output_lengt
 		}
 
 		// Find root Cdf entry
-		const auto modulo = state & ANS_M_MASK;
-		auto e = cdf[G_CDF_C_LEN - 1];
+		const auto modulo = state & m_mask;
+		auto e = s_cdf[cdf_len - 1];
 
-		for (uint32_t u = 1; u < G_CDF_C_LEN; u += 1)
+		for (uint32_t u = 1; u < cdf_len; u += 1)
 		{
-			if (cdf[u].cumulative > modulo)
+			if (s_cdf[u].cumulative > modulo)
 			{
-				e = cdf[u - 1];
+				e = s_cdf[u - 1];
 				break;
 			}
 		}
@@ -63,12 +109,12 @@ uint32_t AnsDecode(BitReader& reader, const CdfEntry* cdf, uint32_t output_lengt
 		// Output value
 		{
 			// Suffix raw from bitstream
-			uint32_t suffix = 0;
-			reader.Read(e.suffix_length, suffix); // Do not check, let it fail
-			read_size += e.suffix_length;
+			// uint32_t suffix = 0;
+			// reader.Read(e.suffix_length, suffix); // Do not check, let it fail
+			// read_size += e.suffix_length;
 
 			// Value is 'root + suffix'
-			const auto value = static_cast<uint16_t>(e.root + suffix);
+			const auto value = static_cast<uint16_t>(e.value);
 			*output++ = value; // TODO, check?
 
 			// Developers, developers, developers
@@ -77,7 +123,7 @@ uint32_t AnsDecode(BitReader& reader, const CdfEntry* cdf, uint32_t output_lengt
 		}
 
 		// Update state
-		state = e.frequency * (state >> ANS_M_LEN) + modulo - e.cumulative;
+		state = e.frequency * (state >> m_len) + modulo - e.cumulative;
 	}
 
 	// Normalize state
