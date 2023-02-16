@@ -110,7 +110,7 @@ static size_t sQuicksortPartition(NewCdfEntry* cdf, const size_t lo, const size_
 
 static void sQuicksort(NewCdfEntry* cdf, const size_t lo, const size_t hi)
 {
-	if (lo >= 0 && hi >= 0 && lo < hi)
+	if (lo < hi)
 	{
 		const auto p = sQuicksortPartition(cdf, lo, hi);
 		sQuicksort(cdf, lo, p);
@@ -138,7 +138,11 @@ uint32_t AnsEncoder::Encode(const CdfEntry* hardcoded_cdf, uint32_t input_length
 		for (uint32_t i = 0; i < input_length; i += 1)
 		{
 			const auto value = input[i];
-			m_cdf[value].frequency += 1;
+
+			if (m_cdf[value].frequency == 0xFFFF)
+				return 0;
+
+			m_cdf[value].frequency = static_cast<uint16_t>(m_cdf[value].frequency + 1); // Pedantic Gcc
 
 			if (m_cdf[value].frequency == 1)
 			{
@@ -178,17 +182,18 @@ uint32_t AnsEncoder::Encode(const CdfEntry* hardcoded_cdf, uint32_t input_length
 			while (summation >= m)
 			{
 				summation -= 1;
-				m_cdf[last_up_one].frequency -= 1;
+				m_cdf[last_up_one].frequency =
+				    static_cast<uint16_t>(m_cdf[last_up_one].frequency - 1); // More Gcc's pedantry
 				while (m_cdf[last_up_one].frequency == 1)
 					last_up_one -= 1;
 			}
 		}
 
 		// Accumulate them
-		uint16_t summation = 0;
+		uint32_t summation = 0;
 		for (uint32_t i = 0; i < unique_values; i += 1)
 		{
-			m_cdf[i].cumulative = summation;
+			m_cdf[i].cumulative = static_cast<uint16_t>(summation);
 			summation += m_cdf[i].frequency;
 		}
 
@@ -247,7 +252,7 @@ uint32_t AnsEncoder::Encode(const CdfEntry* hardcoded_cdf, uint32_t input_length
 			// so yeah, I'm the cause of problems here.
 
 			// However we can check wraps/overflows:
-			if ((state / e.frequency) > (1 << (ANS_STATE_LEN - m_cdf_m_len)) - 1)
+			if ((state / e.frequency) > static_cast<uint32_t>((1 << (ANS_STATE_LEN - m_cdf_m_len)) - 1))
 				goto proceed_with_normalization_as_check_will_wrap; // Gotos are bad ÒwÓ
 
 			// Check

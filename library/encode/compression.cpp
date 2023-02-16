@@ -34,7 +34,7 @@ template <typename T>
 static void sQuantizer(float q, unsigned width, unsigned height, unsigned input_stride, unsigned output_stride,
                        const T* in, T* out)
 {
-	if (std::isnan(q) == false && q > 1.0F)
+	if (std::isnan(q) == false && q > 1.0F && width > 32 && height > 32)
 	{
 		if (std::isinf(q) == true)
 		{

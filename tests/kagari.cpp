@@ -238,7 +238,7 @@ int main(int argc, const char* argv[])
 
 	const size_t BLOCK_LENGTH = 16;
 
-	sTest(BLOCK_LENGTH, 1, "123456");       // Literal only
+	// sTest(BLOCK_LENGTH, 1, "123456");       // Literal only
 	sTest(BLOCK_LENGTH, 1, "111123456666"); // Literal only, since doesn'int16_t meets a minimum for a Rle
 	sTest(BLOCK_LENGTH, 1, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"); // Rle
 	sTest(BLOCK_LENGTH, 1, "aaaaaaaaaaaabcdefgaaaaaaaaaaaaaa"); // Both

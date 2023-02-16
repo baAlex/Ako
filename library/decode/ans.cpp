@@ -55,8 +55,8 @@ uint32_t AnsDecode(BitReader& reader, const CdfEntry* nope, uint32_t output_leng
 
 		m_mask = ~(0xFFFFFFFF << m_len);
 
-		uint32_t prev_f;
-		uint16_t cumulative = 0;
+		uint32_t prev_f = 0;
+		uint32_t cumulative = 0;
 		for (uint32_t i = 0; i < cdf_len; i += 1)
 		{
 			uint32_t value;
@@ -70,7 +70,7 @@ uint32_t AnsDecode(BitReader& reader, const CdfEntry* nope, uint32_t output_leng
 			s_cdf[i].value = static_cast<uint16_t>(value);
 			s_cdf[i].frequency = static_cast<uint16_t>((i != 0) ? (prev_f - frequency) : frequency);
 			prev_f = s_cdf[i].frequency;
-			s_cdf[i].cumulative = cumulative;
+			s_cdf[i].cumulative = static_cast<uint16_t>(cumulative);
 			cumulative += s_cdf[i].frequency;
 
 			// if (i < 5)
