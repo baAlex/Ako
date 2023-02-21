@@ -98,9 +98,9 @@ class DecompressorKagari final : public Decompressor<int16_t>
 			}
 			else
 			{
-				if (AnsDecode(m_reader, g_cdf_c, code_length, code) == 0)
+				if (AnsDecode(m_reader, code_length, code) == 0)
 					return 1;
-				if (AnsDecode(m_reader, g_cdf_d, data_length, data) == 0)
+				if (AnsDecode(m_reader, data_length, data) == 0)
 					return 1;
 			}
 		}
@@ -178,8 +178,10 @@ class DecompressorKagari final : public Decompressor<int16_t>
 		std::free(m_data_segment_start);
 	}
 
-	Status Step(unsigned width, unsigned height, int16_t* output) override
+	Status Step(bool vertical, unsigned width, unsigned height, int16_t* output) override
 	{
+		(void)vertical;
+
 		auto output_length = (width * height);
 		unsigned x = 0;
 		unsigned y = 0;

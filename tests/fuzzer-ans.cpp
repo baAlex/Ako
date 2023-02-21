@@ -38,7 +38,7 @@ static int sTest(const uint16_t* values, size_t input_length)
 		auto writer = ako::BitWriter(BUFFER_A_LENGTH, s_buffer_a);
 		auto encoder = ako::AnsEncoder();
 
-		write_size = encoder.Encode(ako::g_cdf_c, static_cast<uint32_t>(input_length), values);
+		write_size = encoder.Encode(static_cast<uint32_t>(input_length), values);
 		encoder.Write(&writer);
 		write_length = writer.Finish();
 
@@ -55,7 +55,7 @@ static int sTest(const uint16_t* values, size_t input_length)
 	// Decode
 	{
 		auto reader = ako::BitReader(write_length, s_buffer_a);
-		const auto read_size = ako::AnsDecode(reader, ako::g_cdf_c, static_cast<uint32_t>(input_length), s_buffer_b);
+		const auto read_size = ako::AnsDecode(reader, static_cast<uint32_t>(input_length), s_buffer_b);
 		const auto read_length = reader.Finish(s_buffer_a);
 
 		assert(read_size == write_size);

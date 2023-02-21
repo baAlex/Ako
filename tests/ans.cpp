@@ -29,7 +29,7 @@ static void sFixedTest(const uint16_t* values, unsigned input_length)
 		auto writer = ako::BitWriter(output_buffer_length, buffer_a);
 		auto encoder = ako::AnsEncoder();
 
-		write_size = encoder.Encode(ako::g_cdf_c, input_length, values);
+		write_size = encoder.Encode(input_length, values);
 		encoder.Write(&writer);
 		write_length = writer.Finish();
 
@@ -42,7 +42,7 @@ static void sFixedTest(const uint16_t* values, unsigned input_length)
 	uint32_t read_length; // Same
 	{
 		auto reader = ako::BitReader(write_length, buffer_a);
-		read_size = ako::AnsDecode(reader, ako::g_cdf_c, input_length, buffer_b);
+		read_size = ako::AnsDecode(reader, input_length, buffer_b);
 		read_length = reader.Finish(buffer_a);
 
 		assert(read_size == write_size);
@@ -90,7 +90,7 @@ static void sLongUniformTest(uint16_t value, unsigned input_length)
 		auto writer = ako::BitWriter(output_buffer_length, buffer_a);
 		auto encoder = ako::AnsEncoder();
 
-		write_size = encoder.Encode(ako::g_cdf_c, input_length, values);
+		write_size = encoder.Encode(input_length, values);
 		encoder.Write(&writer);
 		write_length = writer.Finish();
 
@@ -103,7 +103,7 @@ static void sLongUniformTest(uint16_t value, unsigned input_length)
 	uint32_t read_length; // Same
 	{
 		auto reader = ako::BitReader(write_length, buffer_a);
-		read_size = ako::AnsDecode(reader, ako::g_cdf_c, input_length, buffer_b);
+		read_size = ako::AnsDecode(reader, input_length, buffer_b);
 		read_length = reader.Finish(buffer_a);
 
 		assert(read_size == write_size);

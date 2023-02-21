@@ -155,8 +155,8 @@ class CompressorKagari final : public Compressor<int16_t>
 		// Check if Ans provide us improvements on top of Rle
 		uint32_t ans_compress = 0;
 		{
-			const auto ans_code_size = m_code_ans_encoder.Encode(g_cdf_c, code_length, m_code_segment_start);
-			const auto ans_data_size = m_data_ans_encoder.Encode(g_cdf_d, data_length, m_data_segment_start);
+			const auto ans_code_size = m_code_ans_encoder.Encode(code_length, m_code_segment_start);
+			const auto ans_data_size = m_data_ans_encoder.Encode(data_length, m_data_segment_start);
 
 			// printf("ANS: %u, %u\n", ans_code_size, ans_data_size);
 
@@ -242,7 +242,7 @@ class CompressorKagari final : public Compressor<int16_t>
 		m_histogram_last = 0;
 	}
 
-	int Step(QuantizationCallback<int16_t> quantize, float quantization, unsigned width, unsigned height,
+	int Step(QuantizationCallback<int16_t> quantize, float quantization, bool vertical, unsigned width, unsigned height,
 	         const int16_t* input) override
 	{
 		auto input_length = (width * height);
@@ -264,7 +264,7 @@ class CompressorKagari final : public Compressor<int16_t>
 
 			// Quantize input
 			{
-				quantize(quantization, block_w, block_h, width, block_w, input + x, m_block);
+				quantize(vertical, quantization, block_w, block_h, width, block_w, input + x, m_block);
 
 				m_block += block_length;
 				input_length -= block_length;

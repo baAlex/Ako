@@ -32,10 +32,8 @@ namespace ako
 static NewCdfEntry s_cdf[65536 + 1];
 
 
-uint32_t AnsDecode(BitReader& reader, const CdfEntry* nope, uint32_t output_length, uint16_t* output)
+uint32_t AnsDecode(BitReader& reader, uint32_t output_length, uint16_t* output)
 {
-	(void)nope;
-
 	uint32_t state = 0;
 	uint32_t read_size = 0;
 

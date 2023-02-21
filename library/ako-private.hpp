@@ -65,7 +65,7 @@ enum class Endianness
 };
 
 template <typename T>
-using QuantizationCallback = void (*)(float, unsigned, unsigned, unsigned, unsigned, const T*, T*);
+using QuantizationCallback = void (*)(bool, float, unsigned, unsigned, unsigned, unsigned, const T*, T*);
 
 
 const unsigned BLOCK_DIMENSION = 9;
@@ -77,7 +77,7 @@ const unsigned BLOCK_HEIGHT = 1 << BLOCK_DIMENSION;
 template <typename T> class Compressor
 {
   public:
-	virtual int Step(QuantizationCallback<T>, float quantization_step, unsigned width, unsigned height,
+	virtual int Step(QuantizationCallback<T>, float quantization_step, bool vertical, unsigned width, unsigned height,
 	                 const T* in) = 0;
 	virtual size_t Finish() = 0;
 };
@@ -85,24 +85,8 @@ template <typename T> class Compressor
 template <typename T> class Decompressor
 {
   public:
-	virtual Status Step(unsigned width, unsigned height, T* out) = 0;
+	virtual Status Step(bool vertical, unsigned width, unsigned height, T* out) = 0;
 };
-
-
-// common/cdf-tables.cpp:
-
-struct CdfEntry
-{
-	uint16_t root;
-	uint16_t suffix_length;
-	uint16_t frequency;
-	uint16_t cumulative;
-};
-
-extern const uint32_t G_CDF_C_LEN;
-extern const uint32_t G_CDF_D_LEN;
-extern const CdfEntry g_cdf_c[];
-extern const CdfEntry g_cdf_d[];
 
 
 // common/conversions.cpp:
@@ -213,11 +197,11 @@ class AnsEncoder
   public:
 	AnsEncoder();
 	~AnsEncoder();
-	uint32_t Encode(const CdfEntry* cdf, uint32_t input_length, const uint16_t* input);
+	uint32_t Encode(uint32_t input_length, const uint16_t* input);
 	uint32_t Write(BitWriter* writer);
 };
 
-uint32_t AnsDecode(BitReader& reader, const CdfEntry* cdf, uint32_t output_length, uint16_t* output);
+uint32_t AnsDecode(BitReader& reader, uint32_t output_length, uint16_t* output);
 
 
 // decode/bit.cpp:

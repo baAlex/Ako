@@ -31,16 +31,21 @@ namespace ako
 {
 
 template <typename T>
-static void sQuantizer(float q, unsigned width, unsigned height, unsigned input_stride, unsigned output_stride,
-                       const T* in, T* out)
+static void sQuantizer(bool vertical, float q, unsigned width, unsigned height, unsigned input_stride,
+                       unsigned output_stride, const T* in, T* out)
 {
+	(void)vertical;
+
 	if (std::isnan(q) == false && q > 1.0F && width > 32 && height > 32)
 	{
 		if (std::isinf(q) == true)
 		{
-			for (unsigned col = 0; col < width; col += 1)
-				out[col] = 0;
-			out += output_stride;
+			for (unsigned row = 0; row < height; row += 1)
+			{
+				for (unsigned col = 0; col < width; col += 1)
+					out[col] = 0;
+				out += output_stride;
+			}
 			return;
 		}
 
@@ -48,13 +53,13 @@ static void sQuantizer(float q, unsigned width, unsigned height, unsigned input_
 		{
 			for (unsigned col = 0; col < width; col += 1)
 			{
-				// Quantization with integers (Butteraugli favourite)
-				// out[col] = (in[col] / static_cast<T>(q)) * static_cast<T>(q);
+				// Quantization with integers
+				out[col] = static_cast<T>((in[col] / static_cast<T>(q)) * static_cast<T>(q));
 
-				// Quantization with floats (DSSIM favourite and to my eyes as well, overshoots though)
-				out[col] = static_cast<T>(std::floor(static_cast<float>(in[col]) / q + 0.5F) * q);
+				// Quantization with floats
+				// out[col] = static_cast<T>(std::floor(static_cast<float>(in[col]) / q + 0.5F) * q);
 
-				// Gate (middle point according to Butteraugli, but it looks horribly pixelated than previous two):
+				// Gate (looks horribly pixelated than previous two):
 				// out[col] = (std::abs(static_cast<float>(in[col])) < q) ? 0 : in[col];
 			}
 
@@ -93,7 +98,7 @@ static size_t sCompress2ndPhase(Compressor<T>& compressor, const Settings& setti
 	// Lowpasses
 	for (unsigned ch = 0; ch < channels; ch += 1)
 	{
-		if (compressor.Step(sQuantizer, 1.0F, lp_w, lp_h, in) != 0)
+		if (compressor.Step(sQuantizer, 1.0F, true, lp_w, lp_h, in) != 0)
 			return 0;
 
 		in += (lp_w * lp_h); // Quadrant A
@@ -117,19 +122,19 @@ static size_t sCompress2ndPhase(Compressor<T>& compressor, const Settings& setti
 			const float q_sub = (ch == 0 || settings.quantization == 0.0F) ? 1.0F : 2.0F;
 
 			// Quadrant C
-			if (compressor.Step(sQuantizer, (q * q_sub), lp_w, hp_h, in) != 0)
+			if (compressor.Step(sQuantizer, (q * q_sub), true, lp_w, hp_h, in) != 0)
 				return 0;
 
 			in += (lp_w * hp_h);
 
 			// Quadrant B
-			if (compressor.Step(sQuantizer, (q * q_sub), hp_w, lp_h, in) != 0)
+			if (compressor.Step(sQuantizer, (q * q_sub), true, hp_w, lp_h, in) != 0)
 				return 0;
 
 			in += (hp_w * lp_h);
 
 			// Quadrant D
-			if (compressor.Step(sQuantizer, (q * q_sub * q_diagonal), hp_w, hp_h, in) != 0)
+			if (compressor.Step(sQuantizer, (q * q_sub * q_diagonal), true, hp_w, hp_h, in) != 0)
 				return 0;
 
 			in += (hp_w * hp_h);
@@ -141,7 +146,7 @@ static size_t sCompress2ndPhase(Compressor<T>& compressor, const Settings& setti
 
 
 const unsigned TRY = 8;
-const float ITERATION_SCALE = 4.0F;
+const float ITERATION_SCALE = 2.0F;
 
 
 template <typename T>
@@ -171,7 +176,7 @@ static size_t sCompress1stPhase(const Callbacks& callbacks, const Settings& sett
 			    static_cast<size_t>(static_cast<float>((sizeof(T) >> 1) * width * height * channels) / settings.ratio);
 		}
 
-		const auto error_margin = (target_size * 2) / 100;
+		const auto error_margin = (target_size * 4) / 100;
 
 		// First floor (quantization as specified, may be zero)
 		{

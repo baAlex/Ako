@@ -27,6 +27,7 @@ SOFTWARE.
 #include <string>
 
 #include "callbacks.hpp"
+#include "developer.hpp"
 
 
 // TODO, copy-paste hell
@@ -208,6 +209,9 @@ void CallbackLiftingEvent(unsigned tile_no, ako::Wavelet wavelet, ako::Wrap wrap
 		const auto diff = chrono::duration_cast<chrono::microseconds>(chrono::steady_clock::now() - data.clock);
 		data.lifting_duration += diff;
 		data.total_duration += diff;
+
+		// SavePlanarPgm(tile_no, data.tile_width, data.tile_height, data.channels, 8, data.tile_width, image_data,
+		//               std::string(data.prefix));
 	}
 }
 

@@ -119,10 +119,8 @@ static void sQuicksort(NewCdfEntry* cdf, const size_t lo, const size_t hi)
 }
 
 
-uint32_t AnsEncoder::Encode(const CdfEntry* hardcoded_cdf, uint32_t input_length, const uint16_t* input)
+uint32_t AnsEncoder::Encode(uint32_t input_length, const uint16_t* input)
 {
-	(void)hardcoded_cdf;
-
 	uint32_t state = ANS_INITIAL_STATE;
 	uint32_t output_size = 0;
 	uint32_t m = 0;

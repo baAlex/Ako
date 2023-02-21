@@ -48,7 +48,7 @@ static int sDecompress(Decompressor<T>& decompressor, unsigned width, unsigned h
 	// Lowpasses
 	for (unsigned ch = 0; ch < channels; ch += 1)
 	{
-		if ((status = decompressor.Step(lp_w, lp_h, out)) != Status::Ok)
+		if ((status = decompressor.Step(true, lp_w, lp_h, out)) != Status::Ok)
 			return 1;
 
 		out += (lp_w * lp_h); // Quadrant A
@@ -63,19 +63,19 @@ static int sDecompress(Decompressor<T>& decompressor, unsigned width, unsigned h
 		for (unsigned ch = 0; ch < channels; ch += 1)
 		{
 			// Quadrant C
-			if ((status = decompressor.Step(lp_w, hp_h, out)) != Status::Ok)
+			if ((status = decompressor.Step(true, lp_w, hp_h, out)) != Status::Ok)
 				return 1;
 
 			out += (lp_w * hp_h);
 
 			// Quadrant B
-			if ((status = decompressor.Step(hp_w, lp_h, out)) != Status::Ok)
+			if ((status = decompressor.Step(true, hp_w, lp_h, out)) != Status::Ok)
 				return 1;
 
 			out += (hp_w * lp_h);
 
 			// Quadrant D
-			if ((status = decompressor.Step(hp_w, hp_h, out)) != Status::Ok)
+			if ((status = decompressor.Step(true, hp_w, hp_h, out)) != Status::Ok)
 				return 1;
 
 			out += (hp_w * hp_h);
