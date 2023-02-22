@@ -105,7 +105,7 @@ enum class GenericEvent
 	TilesNo,
 	TilesDimension,
 
-	WorkareaSize,
+	WorkAreaSize,
 
 	TileDimensions,
 	TilePosition,

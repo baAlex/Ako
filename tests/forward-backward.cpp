@@ -35,7 +35,7 @@ struct GatheredGeneralInfo
 	unsigned tiles_no;
 	unsigned tiles_dimension;
 
-	size_t workarea_size;
+	size_t work_area_size;
 
 	GatheredTileInfo tile[MAX_TILE_INFO];
 
@@ -63,7 +63,7 @@ static void sCallbackGenericEvent(ako::GenericEvent e, unsigned arg_a, unsigned 
 	case ako::GenericEvent::ImageDepth: data.depth = arg_a; break;
 	case ako::GenericEvent::TilesNo: data.tiles_no = arg_a; break;
 	case ako::GenericEvent::TilesDimension: data.tiles_dimension = arg_a; break;
-	case ako::GenericEvent::WorkareaSize: data.workarea_size = arg_d.u; break;
+	case ako::GenericEvent::WorkAreaSize: data.work_area_size = arg_d.u; break;
 
 	case ako::GenericEvent::TileDimensions:
 		assert(arg_a < MAX_TILE_INFO);
@@ -209,7 +209,7 @@ static void sTest(const char* out_filename, const ako::Settings& settings, unsig
 
 		// If some of above happens, the encoder/decoder may allocate wrong amounts of memory, and/or process
 		// non-existing tiles (Valgrind may also warn us if this happens)
-		assert(s_encoded_info.workarea_size == s_decoded_info.workarea_size);
+		assert(s_encoded_info.work_area_size == s_decoded_info.work_area_size);
 		assert(s_encoded_info.tiles_no == s_decoded_info.tiles_no);
 
 		// Now with tiles
@@ -225,9 +225,9 @@ static void sTest(const char* out_filename, const ako::Settings& settings, unsig
 			assert(s_encoded_info.tile[i].y == s_decoded_info.tile[i].y);
 			assert(s_encoded_info.tile[i].data_size == s_decoded_info.tile[i].data_size);
 
-			// Tile data size should fit inside a workarea (Valgrind also detects this one)
-			assert(s_encoded_info.tile[i].data_size <= s_decoded_info.workarea_size);
-			assert(s_encoded_info.tile[i].data_size <= s_decoded_info.workarea_size);
+			// Tile data size should fit inside a work area (Valgrind also detects this one)
+			assert(s_encoded_info.tile[i].data_size <= s_decoded_info.work_area_size);
+			assert(s_encoded_info.tile[i].data_size <= s_decoded_info.work_area_size);
 		}
 	}
 

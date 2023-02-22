@@ -2,7 +2,7 @@
 
 MIT License
 
-Copyright (c) 2021-2022 Alexander Brandt
+Copyright (c) 2021-2023 Alexander Brandt
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -45,15 +45,15 @@ static size_t sEncodeInternal(const Callbacks& callbacks, const Settings& settin
 	auto status = Status::Ok;
 
 	const unsigned tiles_no = TilesNo(settings.tiles_dimension, image_w, image_h);
-	const size_t workarea_size = WorkareaSize<TCoeff>(settings.tiles_dimension, image_w, image_h, channels);
-	const size_t workareas_no = 2;
+	const size_t work_area_size = WorkAreaSize<TCoeff>(settings.tiles_dimension, image_w, image_h, channels);
+	const size_t work_areas_no = 2;
 
-	void* workarea[workareas_no] = {nullptr, nullptr}; // Where work
-	void* blob = nullptr;                              // Where output our work
+	void* work_area[work_areas_no] = {nullptr, nullptr}; // Where work
+	void* blob = nullptr;                                // Where output our work
 
 	size_t blob_cursor = 0;
 	size_t blob_size =
-	    (tiles_no == 1) ? workarea_size : 0; // With only one tile (the whole image) we can recycle memory
+	    (tiles_no == 1) ? work_area_size : 0; // With only one tile (the whole image) we can recycle memory
 
 	// Feedback
 	if (callbacks.generic_event != nullptr)
@@ -65,27 +65,27 @@ static size_t sEncodeInternal(const Callbacks& callbacks, const Settings& settin
 		callbacks.generic_event(GenericEvent::TilesNo, tiles_no, 0, 0, {0}, callbacks.user_data);
 		callbacks.generic_event(GenericEvent::TilesDimension, settings.tiles_dimension, 0, 0, {0}, callbacks.user_data);
 
-		callbacks.generic_event(GenericEvent::WorkareaSize, 0, 0, 0, {workarea_size}, callbacks.user_data);
+		callbacks.generic_event(GenericEvent::WorkAreaSize, 0, 0, 0, {work_area_size}, callbacks.user_data);
 	}
 
 	// Allocate memory
 	{
-		for (size_t i = 0; i < workareas_no; i += 1)
+		for (size_t i = 0; i < work_areas_no; i += 1)
 		{
-			if ((workarea[i] = callbacks.malloc(workarea_size)) == nullptr)
+			if ((work_area[i] = callbacks.malloc(work_area_size)) == nullptr)
 			{
 				status = Status::NoEnoughMemory;
 				goto return_failure;
 			}
 
 			// Developers, developers, developers
-			// Memset(workarea[i], 0, workarea_size);
+			// Memset(work_area[i], 0, work_area_size);
 		}
 
 		if (tiles_no == 1)
 		{
-			blob = workarea[0];
-			workarea[0] = (reinterpret_cast<uint8_t*>(workarea[0]) + sizeof(ImageHead) + sizeof(TileHead)); // HACK
+			blob = work_area[0];
+			work_area[0] = (reinterpret_cast<uint8_t*>(work_area[0]) + sizeof(ImageHead) + sizeof(TileHead)); // HACK
 		}
 	}
 
@@ -130,10 +130,10 @@ static size_t sEncodeInternal(const Callbacks& callbacks, const Settings& settin
 				callbacks.format_event(t, settings.color, nullptr, callbacks.user_data);
 
 			FormatToInternal(settings.color, settings.discard, tile_w, tile_h, channels, image_w,
-			                 input + (tile_x + image_w * tile_y) * channels, reinterpret_cast<TCoeff*>(workarea[0]));
+			                 input + (tile_x + image_w * tile_y) * channels, reinterpret_cast<TCoeff*>(work_area[0]));
 
 			if (callbacks.format_event != nullptr)
-				callbacks.format_event(t, settings.color, workarea[0], callbacks.user_data);
+				callbacks.format_event(t, settings.color, work_area[0], callbacks.user_data);
 		}
 
 		// 2. Wavelet transform
@@ -141,11 +141,11 @@ static size_t sEncodeInternal(const Callbacks& callbacks, const Settings& settin
 			if (callbacks.lifting_event != nullptr)
 				callbacks.lifting_event(t, settings.wavelet, settings.wrap, nullptr, callbacks.user_data);
 
-			Lift(callbacks, settings.wavelet, tile_w, tile_h, channels, reinterpret_cast<TCoeff*>(workarea[0]),
-			     reinterpret_cast<TCoeff*>(workarea[1]));
+			Lift(callbacks, settings.wavelet, tile_w, tile_h, channels, reinterpret_cast<TCoeff*>(work_area[0]),
+			     reinterpret_cast<TCoeff*>(work_area[1]));
 
 			if (callbacks.lifting_event != nullptr)
-				callbacks.lifting_event(t, settings.wavelet, settings.wrap, workarea[1], callbacks.user_data);
+				callbacks.lifting_event(t, settings.wavelet, settings.wrap, work_area[1], callbacks.user_data);
 		}
 
 		// 3. Compression
@@ -154,13 +154,13 @@ static size_t sEncodeInternal(const Callbacks& callbacks, const Settings& settin
 				callbacks.compression_event(t, settings.compression, nullptr, callbacks.user_data);
 
 			tile_data_size = Compress(callbacks, settings, tile_w, tile_h, channels,
-			                          reinterpret_cast<TCoeff*>(workarea[1]), workarea[0], tile_compression);
+			                          reinterpret_cast<TCoeff*>(work_area[1]), work_area[0], tile_compression);
 
 			if (callbacks.compression_event != nullptr)
-				callbacks.compression_event(t, tile_compression, workarea[0], callbacks.user_data);
+				callbacks.compression_event(t, tile_compression, work_area[0], callbacks.user_data);
 
 			// Developers, developers, developers
-			// printf("Hash: %8x \n", Adler32(workarea[0], tile_data_size));
+			// printf("Hash: %8x \n", Adler32(work_area[0], tile_data_size));
 		}
 
 		// 4. Write tile head
@@ -187,7 +187,7 @@ static size_t sEncodeInternal(const Callbacks& callbacks, const Settings& settin
 			if (tiles_no != 1) // HACK
 			{
 				auto out = reinterpret_cast<uint8_t*>(blob) + blob_cursor;
-				Memcpy(out, workarea[0], tile_data_size);
+				Memcpy(out, work_area[0], tile_data_size);
 			}
 
 			blob_cursor += tile_data_size;
@@ -196,12 +196,12 @@ static size_t sEncodeInternal(const Callbacks& callbacks, const Settings& settin
 
 	// Bye!
 	if (tiles_no == 1)
-		workarea[0] = (reinterpret_cast<uint8_t*>(workarea[0]) - sizeof(ImageHead) - sizeof(TileHead)); // HACK
+		work_area[0] = (reinterpret_cast<uint8_t*>(work_area[0]) - sizeof(ImageHead) - sizeof(TileHead)); // HACK
 
-	for (size_t i = 0; i < workareas_no; i += 1)
+	for (size_t i = 0; i < work_areas_no; i += 1)
 	{
-		if (workarea[i] != blob)         // Do not free recycled memory,
-			callbacks.free(workarea[i]); // we may need to return it [A]
+		if (work_area[i] != blob)         // Do not free recycled memory,
+			callbacks.free(work_area[i]); // we may need to return it [A]
 	}
 
 	if (output != nullptr)
@@ -217,12 +217,12 @@ static size_t sEncodeInternal(const Callbacks& callbacks, const Settings& settin
 
 return_failure:
 	if (tiles_no == 1)
-		workarea[0] = (reinterpret_cast<uint8_t*>(workarea[0]) - sizeof(ImageHead) - sizeof(TileHead)); // HACK
+		work_area[0] = (reinterpret_cast<uint8_t*>(work_area[0]) - sizeof(ImageHead) - sizeof(TileHead)); // HACK
 
-	for (size_t i = 0; i < workareas_no; i += 1)
+	for (size_t i = 0; i < work_areas_no; i += 1)
 	{
-		if (workarea[i] != nullptr && workarea[i] != blob)
-			callbacks.free(workarea[i]);
+		if (work_area[i] != nullptr && work_area[i] != blob)
+			callbacks.free(work_area[i]);
 	}
 
 	if (blob != nullptr)

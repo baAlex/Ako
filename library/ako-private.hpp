@@ -120,7 +120,7 @@ void TileMeasures(unsigned tile_no, unsigned tiles_dimension, unsigned image_w, 
 
 template <typename T> size_t TileDataSize(unsigned width, unsigned height, unsigned channels);
 template <typename T>
-size_t WorkareaSize(unsigned tiles_dimension, unsigned image_w, unsigned image_h, unsigned channels);
+size_t WorkAreaSize(unsigned tiles_dimension, unsigned image_w, unsigned image_h, unsigned channels);
 
 Status ValidateCallbacks(const Callbacks& callbacks);
 Status ValidateSettings(const Settings& settings);

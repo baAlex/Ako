@@ -68,8 +68,8 @@ void CallbackGenericEvent(ako::GenericEvent e, unsigned arg_a, unsigned arg_b, u
 			break;
 
 		// Memory info
-		case ako::GenericEvent::WorkareaSize:
-			data.workarea_size = arg_d.u;
+		case ako::GenericEvent::WorkAreaSize:
+			data.work_area_size = arg_d.u;
 			data.memory_events += 1;
 			break;
 
@@ -132,7 +132,7 @@ void CallbackGenericEvent(ako::GenericEvent e, unsigned arg_a, unsigned arg_b, u
 		// Memory info
 		if (data.memory_events == 1)
 		{
-			printf("%s\t\t - Workarea size: %zu byte(s)\n", data.prefix, data.workarea_size);
+			printf("%s\t\t - Work area size: %zu byte(s)\n", data.prefix, data.work_area_size);
 			data.memory_events = 0;
 		}
 	}

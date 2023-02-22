@@ -2,7 +2,7 @@
 
 MIT License
 
-Copyright (c) 2021-2022 Alexander Brandt
+Copyright (c) 2021-2023 Alexander Brandt
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -38,11 +38,11 @@ static void* sDecodeInternal(const Callbacks& callbacks, const Settings& setting
 	auto status = Status::Ok;
 
 	const unsigned tiles_no = TilesNo(settings.tiles_dimension, image_w, image_h);
-	const size_t workarea_size = WorkareaSize<TCoeff>(settings.tiles_dimension, image_w, image_h, channels);
-	const size_t workareas_no = 2;
+	const size_t work_area_size = WorkAreaSize<TCoeff>(settings.tiles_dimension, image_w, image_h, channels);
+	const size_t work_areas_no = 2;
 
-	void* workarea[workareas_no] = {nullptr, nullptr}; // Where work
-	void* image = nullptr;                             // Where output our work
+	void* work_area[work_areas_no] = {nullptr, nullptr}; // Where work
+	void* image = nullptr;                               // Where output our work
 
 	// Feedback
 	if (callbacks.generic_event != nullptr)
@@ -54,25 +54,25 @@ static void* sDecodeInternal(const Callbacks& callbacks, const Settings& setting
 		callbacks.generic_event(GenericEvent::TilesNo, tiles_no, 0, 0, {0}, callbacks.user_data);
 		callbacks.generic_event(GenericEvent::TilesDimension, settings.tiles_dimension, 0, 0, {0}, callbacks.user_data);
 
-		callbacks.generic_event(GenericEvent::WorkareaSize, 0, 0, 0, {workarea_size}, callbacks.user_data);
+		callbacks.generic_event(GenericEvent::WorkAreaSize, 0, 0, 0, {work_area_size}, callbacks.user_data);
 	}
 
 	// Allocate memory
 	{
-		for (size_t i = 0; i < workareas_no; i += 1)
+		for (size_t i = 0; i < work_areas_no; i += 1)
 		{
-			if ((workarea[i] = callbacks.malloc(workarea_size)) == nullptr)
+			if ((work_area[i] = callbacks.malloc(work_area_size)) == nullptr)
 			{
 				status = Status::NoEnoughMemory;
 				goto return_failure;
 			}
 
 			// Developers, developers, developers
-			// Memset(workarea[i], 0, workarea_size);
+			// Memset(work_area[i], 0, work_area_size);
 		}
 
 		if (tiles_no == 1)
-			image = workarea[0];
+			image = work_area[0];
 		else
 		{
 			if ((image = callbacks.malloc((image_w * image_h * channels) * sizeof(TOut))) == nullptr)
@@ -128,16 +128,16 @@ static void* sDecodeInternal(const Callbacks& callbacks, const Settings& setting
 				callbacks.compression_event(t, tile_compression, nullptr, callbacks.user_data);
 
 			if (Decompress(tile_compression, compressed_size, tile_w, tile_h, channels, input,
-			               reinterpret_cast<TCoeff*>(workarea[0]), status) != 0)
+			               reinterpret_cast<TCoeff*>(work_area[0]), status) != 0)
 				goto return_failure;
 
 			input = reinterpret_cast<const uint8_t*>(input) + compressed_size;
 
 			if (callbacks.compression_event != nullptr)
-				callbacks.compression_event(t, tile_compression, workarea[0], callbacks.user_data);
+				callbacks.compression_event(t, tile_compression, work_area[0], callbacks.user_data);
 
 			// Developers, developers, developers
-			// printf("Hash: %8x \n", Adler32(workarea[0], tile_data_size));
+			// printf("Hash: %8x \n", Adler32(work_area[0], tile_data_size));
 		}
 
 		// 3. Wavelet transformation
@@ -145,11 +145,11 @@ static void* sDecodeInternal(const Callbacks& callbacks, const Settings& setting
 			if (callbacks.lifting_event != nullptr)
 				callbacks.lifting_event(t, settings.wavelet, settings.wrap, nullptr, callbacks.user_data);
 
-			Unlift(callbacks, settings.wavelet, tile_w, tile_h, channels, reinterpret_cast<TCoeff*>(workarea[0]),
-			       reinterpret_cast<TCoeff*>(workarea[1]));
+			Unlift(callbacks, settings.wavelet, tile_w, tile_h, channels, reinterpret_cast<TCoeff*>(work_area[0]),
+			       reinterpret_cast<TCoeff*>(work_area[1]));
 
 			if (callbacks.lifting_event != nullptr)
-				callbacks.lifting_event(t, settings.wavelet, settings.wrap, workarea[1], callbacks.user_data);
+				callbacks.lifting_event(t, settings.wavelet, settings.wrap, work_area[1], callbacks.user_data);
 		}
 
 		// 4. Format
@@ -157,11 +157,11 @@ static void* sDecodeInternal(const Callbacks& callbacks, const Settings& setting
 			if (callbacks.format_event != nullptr)
 				callbacks.format_event(t, settings.color, nullptr, callbacks.user_data);
 
-			FormatToRgb(settings.color, tile_w, tile_h, channels, tile_w, reinterpret_cast<TCoeff*>(workarea[1]),
-			            reinterpret_cast<TOut*>(workarea[0]));
+			FormatToRgb(settings.color, tile_w, tile_h, channels, tile_w, reinterpret_cast<TCoeff*>(work_area[1]),
+			            reinterpret_cast<TOut*>(work_area[0]));
 
 			if (callbacks.format_event != nullptr)
-				callbacks.format_event(t, settings.color, workarea[0], callbacks.user_data);
+				callbacks.format_event(t, settings.color, work_area[0], callbacks.user_data);
 		}
 
 		// 5. Copy image data
@@ -171,7 +171,7 @@ static void* sDecodeInternal(const Callbacks& callbacks, const Settings& setting
 
 			for (size_t row = 0; row < tile_h; row += 1)
 			{
-				Memcpy(out, reinterpret_cast<TOut*>(workarea[0]) + row * tile_w * channels,
+				Memcpy(out, reinterpret_cast<TOut*>(work_area[0]) + row * tile_w * channels,
 				       tile_w * channels * sizeof(TOut));
 				out += (image_w * channels);
 			}
@@ -179,20 +179,20 @@ static void* sDecodeInternal(const Callbacks& callbacks, const Settings& setting
 	}
 
 	// Bye!
-	for (size_t i = 0; i < workareas_no; i += 1)
+	for (size_t i = 0; i < work_areas_no; i += 1)
 	{
-		if (workarea[i] != image)        // Do not free recycled memory,
-			callbacks.free(workarea[i]); // we may need to return it
+		if (work_area[i] != image)        // Do not free recycled memory,
+			callbacks.free(work_area[i]); // we may need to return it
 	}
 
 	out_status = status;
 	return image;
 
 return_failure:
-	for (size_t i = 0; i < workareas_no; i += 1)
+	for (size_t i = 0; i < work_areas_no; i += 1)
 	{
-		if (workarea[i] != nullptr && workarea[i] != image)
-			callbacks.free(workarea[i]);
+		if (work_area[i] != nullptr && work_area[i] != image)
+			callbacks.free(work_area[i]);
 	}
 
 	if (image != nullptr)

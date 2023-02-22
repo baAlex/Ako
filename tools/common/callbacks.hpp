@@ -2,7 +2,7 @@
 
 MIT License
 
-Copyright (c) 2021-2022 Alexander Brandt
+Copyright (c) 2021-2023 Alexander Brandt
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -28,6 +28,7 @@ SOFTWARE.
 
 #include <chrono>
 #include <cstdint>
+#include <string>
 
 #include "ako.hpp"
 
@@ -56,7 +57,7 @@ struct CallbacksData
 	unsigned tiles_dimension;
 
 	unsigned memory_events;
-	size_t workarea_size;
+	size_t work_area_size;
 
 	unsigned current_tile;
 	unsigned tile_width;

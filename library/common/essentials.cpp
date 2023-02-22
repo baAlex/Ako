@@ -2,7 +2,7 @@
 
 MIT License
 
-Copyright (c) 2021-2022 Alexander Brandt
+Copyright (c) 2021-2023 Alexander Brandt
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -175,7 +175,7 @@ template <> size_t TileDataSize<int32_t>(unsigned width, unsigned height, unsign
 
 
 template <typename T>
-static size_t sWorkareaSize(unsigned tiles_dimension, unsigned image_w, unsigned image_h, unsigned channels)
+static size_t sWorkAreaSize(unsigned tiles_dimension, unsigned image_w, unsigned image_h, unsigned channels)
 {
 	if (tiles_dimension != 0)
 		return (Min(tiles_dimension, image_w) * Min(tiles_dimension, image_h) * channels) * sizeof(T) +
@@ -185,15 +185,15 @@ static size_t sWorkareaSize(unsigned tiles_dimension, unsigned image_w, unsigned
 }
 
 template <>
-size_t WorkareaSize<int16_t>(unsigned tiles_dimension, unsigned image_w, unsigned image_h, unsigned channels)
+size_t WorkAreaSize<int16_t>(unsigned tiles_dimension, unsigned image_w, unsigned image_h, unsigned channels)
 {
-	return sWorkareaSize<int16_t>(tiles_dimension, image_w, image_h, channels);
+	return sWorkAreaSize<int16_t>(tiles_dimension, image_w, image_h, channels);
 }
 
 template <>
-size_t WorkareaSize<int32_t>(unsigned tiles_dimension, unsigned image_w, unsigned image_h, unsigned channels)
+size_t WorkAreaSize<int32_t>(unsigned tiles_dimension, unsigned image_w, unsigned image_h, unsigned channels)
 {
-	return sWorkareaSize<int32_t>(tiles_dimension, image_w, image_h, channels);
+	return sWorkAreaSize<int32_t>(tiles_dimension, image_w, image_h, channels);
 }
 
 
