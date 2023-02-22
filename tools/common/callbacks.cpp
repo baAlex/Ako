@@ -211,7 +211,7 @@ void CallbackLiftingEvent(unsigned tile_no, ako::Wavelet wavelet, ako::Wrap wrap
 		data.total_duration += diff;
 
 		// SavePlanarPgm(tile_no, data.tile_width, data.tile_height, data.channels, 8, data.tile_width, image_data,
-		//               std::string(data.prefix));
+		//              std::string(data.prefix) + " Lift");
 	}
 }
 
@@ -236,6 +236,9 @@ void CallbackCompressionEvent(unsigned tile_no, ako::Compression compression, co
 		const auto diff = chrono::duration_cast<chrono::microseconds>(chrono::steady_clock::now() - data.clock);
 		data.compression_duration += diff;
 		data.total_duration += diff;
+
+		// SavePlanarPgm(tile_no, data.tile_width, data.tile_height, data.channels, 8, data.tile_width, image_data,
+		//              std::string(data.prefix) + " Compression");
 	}
 }
 

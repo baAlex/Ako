@@ -178,10 +178,8 @@ class DecompressorKagari final : public Decompressor<int16_t>
 		std::free(m_data_segment_start);
 	}
 
-	Status Step(bool vertical, unsigned width, unsigned height, int16_t* output) override
+	Status Step(unsigned width, unsigned height, int16_t* output) override
 	{
-		(void)vertical;
-
 		auto output_length = (width * height);
 		unsigned x = 0;
 		unsigned y = 0;

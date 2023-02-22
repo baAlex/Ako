@@ -31,11 +31,9 @@ namespace ako
 {
 
 template <typename T>
-static void sQuantizer(bool vertical, float q, unsigned width, unsigned height, unsigned input_stride,
-                       unsigned output_stride, const T* in, T* out)
+static void sQuantizer(float q, unsigned width, unsigned height, unsigned input_stride, unsigned output_stride,
+                       const T* in, T* out)
 {
-	(void)vertical;
-
 	if (std::isnan(q) == false && q > 1.0F && width > 32 && height > 32)
 	{
 		if (std::isinf(q) == true)
@@ -98,7 +96,7 @@ static size_t sCompress2ndPhase(Compressor<T>& compressor, const Settings& setti
 	// Lowpasses
 	for (unsigned ch = 0; ch < channels; ch += 1)
 	{
-		if (compressor.Step(sQuantizer, 1.0F, true, lp_w, lp_h, in) != 0)
+		if (compressor.Step(sQuantizer, 1.0F, lp_w, lp_h, in) != 0)
 			return 0;
 
 		in += (lp_w * lp_h); // Quadrant A
@@ -122,19 +120,19 @@ static size_t sCompress2ndPhase(Compressor<T>& compressor, const Settings& setti
 			const float q_sub = (ch == 0 || settings.quantization == 0.0F) ? 1.0F : 2.0F;
 
 			// Quadrant C
-			if (compressor.Step(sQuantizer, (q * q_sub), true, lp_w, hp_h, in) != 0)
+			if (compressor.Step(sQuantizer, (q * q_sub), lp_w, hp_h, in) != 0)
 				return 0;
 
 			in += (lp_w * hp_h);
 
 			// Quadrant B
-			if (compressor.Step(sQuantizer, (q * q_sub), true, hp_w, lp_h, in) != 0)
+			if (compressor.Step(sQuantizer, (q * q_sub), hp_w, lp_h, in) != 0)
 				return 0;
 
 			in += (hp_w * lp_h);
 
 			// Quadrant D
-			if (compressor.Step(sQuantizer, (q * q_sub * q_diagonal), true, hp_w, hp_h, in) != 0)
+			if (compressor.Step(sQuantizer, (q * q_sub * q_diagonal), hp_w, hp_h, in) != 0)
 				return 0;
 
 			in += (hp_w * hp_h);

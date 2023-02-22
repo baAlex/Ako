@@ -41,10 +41,8 @@ template <typename T> class DecompressorNone final : public Decompressor<T>
 		m_input = reinterpret_cast<const T*>(input);
 	}
 
-	Status Step(bool vertical, unsigned width, unsigned height, T* out) override
+	Status Step(unsigned width, unsigned height, T* out) override
 	{
-		(void)vertical;
-
 		if (m_input + (width * height) > m_input_end)
 			return Status::TruncatedTileData;
 

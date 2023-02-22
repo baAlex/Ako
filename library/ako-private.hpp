@@ -65,7 +65,7 @@ enum class Endianness
 };
 
 template <typename T>
-using QuantizationCallback = void (*)(bool, float, unsigned, unsigned, unsigned, unsigned, const T*, T*);
+using QuantizationCallback = void (*)(float, unsigned, unsigned, unsigned, unsigned, const T*, T*);
 
 
 const unsigned BLOCK_DIMENSION = 9;
@@ -77,7 +77,7 @@ const unsigned BLOCK_HEIGHT = 1 << BLOCK_DIMENSION;
 template <typename T> class Compressor
 {
   public:
-	virtual int Step(QuantizationCallback<T>, float quantization_step, bool vertical, unsigned width, unsigned height,
+	virtual int Step(QuantizationCallback<T>, float quantization_step, unsigned width, unsigned height,
 	                 const T* in) = 0;
 	virtual size_t Finish() = 0;
 };
@@ -85,7 +85,7 @@ template <typename T> class Compressor
 template <typename T> class Decompressor
 {
   public:
-	virtual Status Step(bool vertical, unsigned width, unsigned height, T* out) = 0;
+	virtual Status Step(unsigned width, unsigned height, T* out) = 0;
 };
 
 

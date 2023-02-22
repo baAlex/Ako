@@ -242,7 +242,7 @@ class CompressorKagari final : public Compressor<int16_t>
 		m_histogram_last = 0;
 	}
 
-	int Step(QuantizationCallback<int16_t> quantize, float quantization, bool vertical, unsigned width, unsigned height,
+	int Step(QuantizationCallback<int16_t> quantize, float quantization, unsigned width, unsigned height,
 	         const int16_t* input) override
 	{
 		auto input_length = (width * height);
@@ -264,7 +264,7 @@ class CompressorKagari final : public Compressor<int16_t>
 
 			// Quantize input
 			{
-				quantize(vertical, quantization, block_w, block_h, width, block_w, input + x, m_block);
+				quantize(quantization, block_w, block_h, width, block_w, input + x, m_block);
 
 				m_block += block_length;
 				input_length -= block_length;

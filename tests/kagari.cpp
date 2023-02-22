@@ -13,10 +13,9 @@
 #include "encode/compression-kagari.hpp"
 
 
-static void sQuantizer(bool vertical, float q, unsigned width, unsigned height, unsigned input_stride,
-                       unsigned output_stride, const int16_t* in, int16_t* out)
+static void sQuantizer(float q, unsigned width, unsigned height, unsigned input_stride, unsigned output_stride,
+                       const int16_t* in, int16_t* out)
 {
-	(void)vertical;
 	(void)q;
 
 	for (unsigned row = 0; row < height; row += 1)
@@ -129,7 +128,7 @@ static void sTestFile(const char* filename)
 				break;
 
 			// Compress it
-			if (compressor.Step(sQuantizer, 1.0F, false, chunk_length, 1, tiny_buffer) != 0)
+			if (compressor.Step(sQuantizer, 1.0F, chunk_length, 1, tiny_buffer) != 0)
 			{
 				printf("Nope, try with a more quantized image\n");
 				assert(1 == 0); // NOLINT misc-static-assert
@@ -158,7 +157,7 @@ static void sTestFile(const char* filename)
 			// Decompress a chunk of variable length
 			const auto chunk_length = (sRandom32(&random_state) % (READS_MAX_LENGTH - 1)) + 1;
 
-			if (decompressor.Step(false, chunk_length, 1, tiny_buffer) != ako::Status::Ok)
+			if (decompressor.Step(chunk_length, 1, tiny_buffer) != ako::Status::Ok)
 				break;
 
 			// Keep information
@@ -201,7 +200,7 @@ static void sTest(unsigned block_width, unsigned block_height, const char* input
 	{
 		auto compressor = ako::CompressorKagari(block_width, block_height, buffer_size_b, buffer_b);
 
-		assert(compressor.Step(sQuantizer, 1.0F, false, static_cast<unsigned>(input_length), 1, buffer_a) == 0);
+		assert(compressor.Step(sQuantizer, 1.0F, static_cast<unsigned>(input_length), 1, buffer_a) == 0);
 		compressed_size = compressor.Finish();
 		assert(compressed_size != 0);
 
@@ -211,7 +210,7 @@ static void sTest(unsigned block_width, unsigned block_height, const char* input
 	// Decompress
 	{
 		auto decompressor = ako::DecompressorKagari(block_width, block_height, compressed_size, buffer_b);
-		assert(decompressor.Step(false, static_cast<unsigned>(input_length), 1, buffer_a) == ako::Status::Ok);
+		assert(decompressor.Step(static_cast<unsigned>(input_length), 1, buffer_a) == ako::Status::Ok);
 	}
 
 	// Compare
