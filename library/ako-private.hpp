@@ -68,7 +68,7 @@ template <typename T>
 using QuantizationCallback = void (*)(float, unsigned, unsigned, unsigned, unsigned, const T*, T*);
 
 
-const unsigned BLOCK_DIMENSION = 9;
+const unsigned BLOCK_DIMENSION = 8;
 const unsigned BLOCK_LENGTH = (1 << BLOCK_DIMENSION) << BLOCK_DIMENSION;
 const unsigned BLOCK_WIDTH = 1 << BLOCK_DIMENSION;
 const unsigned BLOCK_HEIGHT = 1 << BLOCK_DIMENSION;
@@ -153,9 +153,10 @@ template <typename T> T SaturateToLower(T v);
 class BitReader;
 class BitWriter;
 
-struct NewCdfEntry
+struct CdfEntry
 {
-	uint16_t value;
+	uint8_t value;         // Or code
+	uint8_t suffix_length; // In case is a code
 	uint16_t frequency;
 	uint16_t cumulative;
 };
@@ -171,7 +172,7 @@ const uint32_t ANS_L = 1 << 16; // Needs to be multiple of the sum of frequencie
                                 // known as 'last cumulative' or M), and such number is hardcoded to
                                 // '1 << 16'. So no choice here.
 
-const uint32_t ANS_M_LEN = 14;         // So called M, Cdf tables are normalized to this number. It can
+const uint32_t ANS_M_LEN = 13;         // So called M, Cdf tables are normalized to this number. It can
 const uint32_t ANS_M = 1 << ANS_M_LEN; // be thought as 'precision' to represent frequencies
 const uint32_t ANS_M_MASK = ANS_M - 1; // (in 0.0, 1.0 range) with integers (as a 0, M range).
 
@@ -190,7 +191,7 @@ class AnsEncoder
 	QueueToWrite* m_queue = nullptr;
 	uint32_t m_queue_cursor = 0;
 
-	NewCdfEntry* m_cdf = nullptr;
+	CdfEntry m_cdf[255 + 1];
 	uint32_t m_cdf_len = 0;
 	uint32_t m_cdf_m_len = 0;
 

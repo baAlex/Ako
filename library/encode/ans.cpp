@@ -28,52 +28,41 @@ SOFTWARE.
 namespace ako
 {
 
-/*static uint8_t sEncode(uint16_t value)
+static uint8_t sCode(uint16_t value)
 {
-    if (value < 247)
-        return static_cast<uint8_t>(value);
+	if (value < 247)
+		return static_cast<uint8_t>(value);
 
-    int e = 0;
-    while (value >= (1 << e))
-        e += 1;
+	int e = 0;
+	while (value >= (1 << e))
+		e += 1;
 
-    return static_cast<uint8_t>(247 + e - 8);
+	return static_cast<uint8_t>(247 + e - 8);
 }
 
-static uint16_t sRoot(uint8_t code)
+static uint8_t sSuffixLength(uint8_t code)
 {
-    if (code < 247)
-        return static_cast<uint8_t>(code);
+	if (code < 247)
+		return 0;
 
-    return 0;
+	return static_cast<uint8_t>(code - 247 + 8);
 }
-
-static uint16_t sSuffixLength(uint8_t code)
-{
-    if (code < 247)
-        return 0;
-
-    return static_cast<uint8_t>(code - 247 + 8);
-}*/
 
 
 AnsEncoder::AnsEncoder()
 {
 	m_queue = reinterpret_cast<QueueToWrite*>(std::malloc(sizeof(QueueToWrite) * QUEUE_LENGTH));
 	m_queue_cursor = 0;
-
-	m_cdf = reinterpret_cast<NewCdfEntry*>(std::malloc(sizeof(NewCdfEntry) * (65535 + 1)));
 	m_cdf_len = 0;
 }
 
 AnsEncoder::~AnsEncoder()
 {
 	std::free(m_queue);
-	std::free(m_cdf);
 }
 
 
-static size_t sQuicksortPartition(NewCdfEntry* cdf, const size_t lo, const size_t hi)
+static size_t sQuicksortPartition(CdfEntry* cdf, const size_t lo, const size_t hi)
 {
 	const auto pivot = static_cast<size_t>(cdf[(hi + lo) >> 1].frequency);
 	auto i = lo - 1;
@@ -108,7 +97,7 @@ static size_t sQuicksortPartition(NewCdfEntry* cdf, const size_t lo, const size_
 	return j;
 }
 
-static void sQuicksort(NewCdfEntry* cdf, const size_t lo, const size_t hi)
+static void sQuicksort(CdfEntry* cdf, const size_t lo, const size_t hi)
 {
 	if (lo < hi)
 	{
@@ -128,14 +117,15 @@ uint32_t AnsEncoder::Encode(uint32_t input_length, const uint16_t* input)
 	// Create Cdf
 	{
 		uint32_t unique_values = 0;
-		uint16_t largest_value = 0;
+		uint8_t largest_value = 0;
 
-		Memset(m_cdf, 0, sizeof(NewCdfEntry) * (65535 + 1));
+		Memset(m_cdf, 0, sizeof(CdfEntry) * (255 + 1));
 
 		// Count frequencies
-		for (uint32_t i = 0; i < input_length; i += 1)
+		for (uint32_t i = input_length - 1; i < input_length; i -= 1) // Underflows, Ans operates in reverse
 		{
-			const auto value = input[i];
+			// const auto value = input[i];
+			const auto value = sCode(input[i]);
 
 			if (m_cdf[value].frequency == 0xFFFF)
 				return 0;
@@ -145,6 +135,8 @@ uint32_t AnsEncoder::Encode(uint32_t input_length, const uint16_t* input)
 			if (m_cdf[value].frequency == 1)
 			{
 				m_cdf[value].value = value; // As silly it looks
+				m_cdf[value].suffix_length = sSuffixLength(value);
+
 				unique_values += 1;
 				largest_value = Max(largest_value, value);
 			}
@@ -182,7 +174,7 @@ uint32_t AnsEncoder::Encode(uint32_t input_length, const uint16_t* input)
 				summation -= 1;
 				m_cdf[last_up_one].frequency =
 				    static_cast<uint16_t>(m_cdf[last_up_one].frequency - 1); // More Gcc's pedantry
-				while (m_cdf[last_up_one].frequency == 1)
+				while (m_cdf[last_up_one].frequency == 1)                    // TODO, when it stops?
 					last_up_one -= 1;
 			}
 		}
@@ -228,10 +220,12 @@ uint32_t AnsEncoder::Encode(uint32_t input_length, const uint16_t* input)
 		// Find Cdf entry
 		auto e = m_cdf[m_cdf_len - 1];
 		{
-			const auto value = input[i];
+			const auto value = sCode(input[i]);
+			const auto suffix_length = sSuffixLength(value);
+
 			for (uint32_t u = 0; u < m_cdf_len; u += 1)
 			{
-				if (m_cdf[u].value == value)
+				if (m_cdf[u].value == value && m_cdf[u].suffix_length == suffix_length)
 				{
 					e = m_cdf[u];
 					break;
@@ -279,16 +273,16 @@ uint32_t AnsEncoder::Encode(uint32_t input_length, const uint16_t* input)
 		state = ((state / e.frequency) << m_cdf_m_len) + (state % e.frequency) + e.cumulative;
 
 		// Encode suffix, raw in bitstream
-		/*if (e.suffix_length != 0)
+		if (e.suffix_length != 0)
 		{
-		    if (m_queue_cursor == QUEUE_LENGTH)
-		        return 0;
+			if (m_queue_cursor == QUEUE_LENGTH)
+				return 0;
 
-		    m_queue[m_queue_cursor].v = static_cast<uint16_t>(input[i] - e.root);
-		    m_queue[m_queue_cursor].l = e.suffix_length;
-		    output_size += e.suffix_length;
-		    m_queue_cursor += 1;
-		}*/
+			m_queue[m_queue_cursor].v = static_cast<uint16_t>(input[i] - e.value);
+			m_queue[m_queue_cursor].l = e.suffix_length;
+			output_size += e.suffix_length;
+			m_queue_cursor += 1;
+		}
 
 		// Developers, developers, developers
 		// printf("\tE | 0x%x\t<- Value: %u (r: %u, sl: %u, f: %u, c: %u)\n", state, input[i], e.root,

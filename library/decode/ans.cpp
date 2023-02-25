@@ -28,8 +28,16 @@ SOFTWARE.
 namespace ako
 {
 
+static uint8_t sSuffixLength(uint8_t code)
+{
+	if (code < 247)
+		return 0;
 
-static NewCdfEntry s_cdf[65536 + 1];
+	return static_cast<uint8_t>(code - 247 + 8);
+}
+
+
+static CdfEntry s_cdf[255 + 1];
 
 
 uint32_t AnsDecode(BitReader& reader, uint32_t output_length, uint16_t* output)
@@ -65,11 +73,13 @@ uint32_t AnsDecode(BitReader& reader, uint32_t output_length, uint16_t* output)
 			if (reader.ReadRice(frequency) != 0)
 				return 0;
 
-			s_cdf[i].value = static_cast<uint16_t>(value);
+			s_cdf[i].value = static_cast<uint8_t>(value);
 			s_cdf[i].frequency = static_cast<uint16_t>((i != 0) ? (prev_f - frequency) : frequency);
-			prev_f = s_cdf[i].frequency;
 			s_cdf[i].cumulative = static_cast<uint16_t>(cumulative);
+			s_cdf[i].suffix_length = sSuffixLength(s_cdf[i].value);
+
 			cumulative += s_cdf[i].frequency;
+			prev_f = s_cdf[i].frequency;
 
 			// if (i < 5)
 			//	printf(" %u -> %u (%u)\n", frequency, s_cdf[i].frequency, s_cdf[i].cumulative);
@@ -107,12 +117,12 @@ uint32_t AnsDecode(BitReader& reader, uint32_t output_length, uint16_t* output)
 		// Output value
 		{
 			// Suffix raw from bitstream
-			// uint32_t suffix = 0;
-			// reader.Read(e.suffix_length, suffix); // Do not check, let it fail
-			// read_size += e.suffix_length;
+			uint32_t suffix = 0;
+			reader.Read(e.suffix_length, suffix); // Do not check, let it fail
+			read_size += e.suffix_length;
 
 			// Value is 'root + suffix'
-			const auto value = static_cast<uint16_t>(e.value);
+			const auto value = static_cast<uint16_t>(e.value + suffix);
 			*output++ = value; // TODO, check?
 
 			// Developers, developers, developers

@@ -34,7 +34,7 @@ template <typename T>
 static void sQuantizer(float q, unsigned width, unsigned height, unsigned input_stride, unsigned output_stride,
                        const T* in, T* out)
 {
-	if (std::isnan(q) == false && q > 1.0F && width > 32 && height > 32)
+	if (std::isnan(q) == false && q > 1.0F && width > 16 && height > 16)
 	{
 		if (std::isinf(q) == true)
 		{
@@ -52,10 +52,10 @@ static void sQuantizer(float q, unsigned width, unsigned height, unsigned input_
 			for (unsigned col = 0; col < width; col += 1)
 			{
 				// Quantization with integers
-				out[col] = static_cast<T>((in[col] / static_cast<T>(q)) * static_cast<T>(q));
+				// out[col] = static_cast<T>((in[col] / static_cast<T>(q)) * static_cast<T>(q));
 
 				// Quantization with floats
-				// out[col] = static_cast<T>(std::floor(static_cast<float>(in[col]) / q + 0.5F) * q);
+				out[col] = static_cast<T>(std::floor(static_cast<float>(in[col]) / q + 0.5F) * q);
 
 				// Gate (looks horribly pixelated than previous two):
 				// out[col] = (std::abs(static_cast<float>(in[col])) < q) ? 0 : in[col];
