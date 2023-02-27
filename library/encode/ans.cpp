@@ -346,12 +346,14 @@ uint32_t AnsEncoder::Encode(uint32_t input_length, const uint16_t* input)
 
 uint32_t AnsEncoder::Write(BitWriter* writer)
 {
+	uint32_t output_size = 0; // In bits
+
 	if (m_cdf_len < 1)
-		return 0; // TODO
+		return 0;
 
 	// Write Cdf
-	if (writer->WriteRice(m_cdf_len) == 0)
-		return 1;
+	if ((output_size += writer->WriteRice(m_cdf_len)) == 0)
+		return 0;
 
 	uint32_t prev_f = m_cdf[0].frequency;
 	for (uint32_t i = 0; i < m_cdf_len; i += 1)
@@ -359,21 +361,21 @@ uint32_t AnsEncoder::Write(BitWriter* writer)
 		const auto f_to_transmit = (i != 0) ? (prev_f - m_cdf[i].frequency) : m_cdf[i].frequency;
 		prev_f = m_cdf[i].frequency;
 
-		if (writer->WriteRice(m_cdf[i].code) == 0)
-			return 1;
-		if (writer->WriteRice(f_to_transmit) == 0)
-			return 1;
+		if ((output_size += writer->WriteRice(m_cdf[i].code)) == 0)
+			return 0;
+		if ((output_size += writer->WriteRice(f_to_transmit)) == 0)
+			return 0;
 	}
 
 	// Write bitstream (in reverse order)
 	while (m_queue_cursor != 0)
 	{
 		m_queue_cursor -= 1;
-		if (writer->Write(m_queue[m_queue_cursor].v, m_queue[m_queue_cursor].l) == 0)
-			return 1;
+		if ((output_size += writer->Write(m_queue[m_queue_cursor].v, m_queue[m_queue_cursor].l)) == 0)
+			return 0;
 	}
 
-	return 0; // TODO
+	return output_size;
 }
 
 } // namespace ako

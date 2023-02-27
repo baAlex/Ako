@@ -23,31 +23,33 @@ static void sFixedTest(const uint16_t* values, unsigned length)
 	assert(buffer_b != nullptr);
 
 	// Encode
-	uint32_t write_size;   // In bits
+	uint32_t encode_size;  // In bits
 	uint32_t write_length; // In 'accumulators' (what BitWriter() returns)
 	{
 		auto encoder = ako::AnsEncoder();
 		auto writer = ako::BitWriter(length * 4, buffer_a);
 
-		write_size = encoder.Encode(length, values);
-		assert(write_size != 0);
+		encode_size = encoder.Encode(length, values);
+		assert(encode_size != 0);
 
-		encoder.Write(&writer);
+		const auto ret = encoder.Write(&writer);
+		assert(ret == encode_size);
+
 		write_length = writer.Finish();
 
-		assert(write_size != 0);
+		assert(encode_size != 0);
 		assert(write_length != 0);
 	}
 
 	// Decode
-	uint32_t read_size;   // Same
-	uint32_t read_length; // Same
+	uint32_t decoded_size; // Same
+	uint32_t read_length;  // Same
 	{
 		auto reader = ako::BitReader(write_length, buffer_a);
-		read_size = ako::AnsDecode(reader, length, buffer_b);
+		decoded_size = ako::AnsDecode(reader, length, buffer_b);
 		read_length = reader.Finish(buffer_a);
 
-		assert(read_size == write_size);
+		assert(decoded_size == encode_size);
 		assert(read_length == write_length);
 	}
 

@@ -195,9 +195,9 @@ class CompressorKagari final : public Compressor<int16_t>
 		}
 		else
 		{
-			if (m_code_ans_encoder.Write(&m_writer) != 0)
+			if (m_code_ans_encoder.Write(&m_writer) == 0)
 				return 1;
-			if (m_data_ans_encoder.Write(&m_writer) != 0)
+			if (m_data_ans_encoder.Write(&m_writer) == 0)
 				return 1;
 		}
 
