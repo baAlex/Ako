@@ -25,18 +25,18 @@ static void sFixedTest()
 		for (uint32_t i = 0; i < 17; i += 1)
 		{
 			const auto ret = writer.WriteRice(i);
-			assert(ret == 0);
+			assert(ret != 0);
 		}
 
 		{
 			const auto ret = writer.WriteRice(ako::RICE_MAX_VALUE);
-			assert(ret == 0);
+			assert(ret != 0);
 		}
 
 		for (uint32_t i = 0; i < 16; i += 1)
 		{
 			const auto ret = writer.WriteRice(ako::RICE_MAX_VALUE - i);
-			assert(ret == 0);
+			assert(ret != 0);
 		}
 
 		encoded_length = writer.Finish();
@@ -52,20 +52,20 @@ static void sFixedTest()
 		for (uint32_t i = 0; i < 17; i += 1)
 		{
 			const auto ret = reader.ReadRice(v);
-			assert(ret == 0);
+			assert(ret != 0);
 			assert(v == i);
 		}
 
 		{
 			const auto ret = reader.ReadRice(v);
-			assert(ret == 0);
+			assert(ret != 0);
 			assert(v == ako::RICE_MAX_VALUE);
 		}
 
 		for (uint32_t i = 0; i < 16; i += 1)
 		{
 			const auto ret = reader.ReadRice(v);
-			assert(ret == 0);
+			assert(ret != 0);
 			assert(v == ako::RICE_MAX_VALUE - i);
 		}
 
@@ -115,7 +115,7 @@ static void sRandomTest(uint32_t length)
 		for (uint32_t i = 0; i < length; i += 1)
 		{
 			const auto ret = writer.WriteRice(buffer_a[i]);
-			assert(ret == 0);
+			assert(ret != 0);
 		}
 
 		encoded_length = writer.Finish();
@@ -134,7 +134,7 @@ static void sRandomTest(uint32_t length)
 			// if (ret != 0)
 			//	printf("error code: %u\n", ret);
 
-			assert(ret == 0);
+			assert(ret != 0);
 			assert(v == buffer_a[i]);
 		}
 

@@ -74,7 +74,7 @@ uint32_t AnsDecode(BitReader& reader, uint32_t output_length, uint16_t* output)
 			return 0;
 
 		uint32_t prev_f = 0;
-		uint16_t cumulative = 0;
+		uint32_t cumulative = 0;
 		for (uint32_t i = 0; i < cdf_len; i += 1)
 		{
 			uint32_t code;

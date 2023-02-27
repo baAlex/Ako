@@ -37,7 +37,7 @@ static void sFixedTest(const uint32_t* values, const unsigned values_no)
 		for (unsigned i = 0; i < values_no; i += 1)
 		{
 			const auto ret = writer.Write(values[i], sBitsLength(values[i]));
-			assert(ret == 0);
+			assert(ret == sBitsLength(values[i]));
 		}
 
 		encoded_length = writer.Finish();
@@ -51,7 +51,7 @@ static void sFixedTest(const uint32_t* values, const unsigned values_no)
 		{
 			uint32_t v = 0;
 			const auto ret = reader.Read(sBitsLength(values[i]), v);
-			assert(ret == 0);
+			assert(ret == sBitsLength(values[i]));
 			assert(v == values[i]);
 		}
 
@@ -167,7 +167,7 @@ static void sRandomTest(unsigned values_no, uint32_t seed = 4321)
 		for (unsigned i = 0; i < values_no; i += 1)
 		{
 			const auto ret = writer.Write(values[i], sBitsLength(values[i]));
-			assert(ret == 0);
+			assert(ret == sBitsLength(values[i]));
 		}
 
 		encoded_length = writer.Finish();
@@ -181,7 +181,7 @@ static void sRandomTest(unsigned values_no, uint32_t seed = 4321)
 		{
 			uint32_t v = 0;
 			const auto ret = reader.Read(sBitsLength(values[i]), v);
-			assert(ret == 0);
+			assert(ret == sBitsLength(values[i]));
 			assert(v == values[i]);
 		}
 

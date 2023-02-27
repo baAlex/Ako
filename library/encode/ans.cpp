@@ -146,8 +146,8 @@ uint32_t AnsEncoder::Encode(uint32_t input_length, const uint16_t* input)
 		{
 			const auto code = sCode(input[i]);
 
-			if (m_cdf[code].frequency < 0xFFFF) // Saturate, TODO: is enough?
-				m_cdf[code].frequency = m_cdf[code].frequency + 1;
+			if (m_cdf[code].frequency < 0xFFFF) // Saturate
+				m_cdf[code].frequency = static_cast<uint16_t>(m_cdf[code].frequency + 1);
 
 			if (m_cdf[code].frequency == 1)
 			{
@@ -186,19 +186,24 @@ uint32_t AnsEncoder::Encode(uint32_t input_length, const uint16_t* input)
 			while (summation > m)
 			{
 				summation -= 1;
-				m_cdf[last_up_one].frequency -= 1;
+
+				if (m_cdf[last_up_one].frequency <= 1) // Fail
+					return 0;
+
+				m_cdf[last_up_one].frequency = static_cast<uint16_t>(m_cdf[last_up_one].frequency - 1);
+
 				if (m_cdf[last_up_one].frequency == 1)
 					last_up_one -= 1;
 			}
 		}
 
 		// Accumulate them
-		uint16_t summation = 0;
+		uint32_t summation = 0;
 		uint32_t prev_f = m_cdf[0].frequency;
 		for (uint32_t i = 0; i < m_cdf_len; i += 1)
 		{
 			// Accumulate
-			m_cdf[i].cumulative = summation;
+			m_cdf[i].cumulative = static_cast<uint16_t>(summation);
 			summation += m_cdf[i].frequency;
 
 			// Count Cdf size
