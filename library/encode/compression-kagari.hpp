@@ -170,11 +170,11 @@ class CompressorKagari final : public Compressor<int16_t>
 
 		// Output block metadata
 		{
-			if (m_writer.Write(ans_compress, 1) != 0)
+			if (m_writer.Write(ans_compress, 1) == 0)
 				return 1;
-			if (m_writer.WriteRice(code_length) != 0)
+			if (m_writer.WriteRice(code_length) == 0)
 				return 1;
-			if (m_writer.WriteRice(data_length) != 0)
+			if (m_writer.WriteRice(data_length) == 0)
 				return 1;
 		}
 
@@ -183,13 +183,13 @@ class CompressorKagari final : public Compressor<int16_t>
 		{
 			for (auto v = m_code_segment_start; v < m_code_segment; v += 1)
 			{
-				if (m_writer.Write(*v, 16) != 0)
+				if (m_writer.Write(*v, 16) == 0)
 					return 1;
 			}
 
 			for (auto v = m_data_segment_start; v < m_data_segment; v += 1)
 			{
-				if (m_writer.Write(*v, 16) != 0)
+				if (m_writer.Write(*v, 16) == 0)
 					return 1;
 			}
 		}

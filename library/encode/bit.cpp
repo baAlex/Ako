@@ -47,7 +47,7 @@ void BitWriter::Reset(uint32_t output_length, uint32_t* output)
 }
 
 
-int BitWriter::Write(uint32_t value, uint32_t bit_length)
+uint32_t BitWriter::Write(uint32_t value, uint32_t bit_length)
 {
 	// Accumulator has space, ideal fast path
 	if (m_accumulator_usage + bit_length < ACCUMULATOR_LEN)
@@ -62,7 +62,7 @@ int BitWriter::Write(uint32_t value, uint32_t bit_length)
 	else
 	{
 		if (m_output + 1 > m_output_end || bit_length >= ACCUMULATOR_LEN)
-			return 1;
+			return 0;
 
 		// Accumulate what we can, then write
 		const auto min = ACCUMULATOR_LEN - m_accumulator_usage;
@@ -83,7 +83,7 @@ int BitWriter::Write(uint32_t value, uint32_t bit_length)
 
 	// Bye!
 	m_wrote_values += 1;
-	return 0;
+	return bit_length;
 }
 
 
@@ -96,7 +96,7 @@ static uint32_t sBitlength(uint32_t v)
 	return x;
 }
 
-int BitWriter::WriteRice(uint32_t value)
+uint32_t BitWriter::WriteRice(uint32_t value)
 {
 	if (value > RICE_MAX_VALUE)
 		return 1;
@@ -113,6 +113,19 @@ int BitWriter::WriteRice(uint32_t value)
 	return Write(((value << 1) | 1) << (unary_length - 1), unary_length + binary_length);
 }
 
+uint32_t BitWriter::RiceLength(uint32_t value)
+{
+	if (value > RICE_MAX_VALUE)
+		return 0;
+
+	value += 1;
+
+	const auto length = sBitlength(value);
+	const auto unary_length = (length + 1) / 2;
+	const auto binary_length = unary_length * 2;
+
+	return unary_length + binary_length;
+}
 
 uint32_t BitWriter::Finish()
 {

@@ -69,11 +69,11 @@ class DecompressorKagari final : public Decompressor<int16_t>
 			uint32_t data_length;
 
 			// Input block metadata
-			if (m_reader.Read(1, ans_compressed) != 0)
+			if (m_reader.Read(1, ans_compressed) == 0)
 				return 1;
-			if (m_reader.ReadRice(code_length) != 0)
+			if (m_reader.ReadRice(code_length) == 0)
 				return 1;
-			if (m_reader.ReadRice(data_length) != 0)
+			if (m_reader.ReadRice(data_length) == 0)
 				return 1;
 
 			// Input block segments
@@ -82,7 +82,7 @@ class DecompressorKagari final : public Decompressor<int16_t>
 				uint32_t v;
 				for (uint32_t i = 0; i < code_length; i += 1)
 				{
-					if (m_reader.Read(16, v) != 0) // TODO
+					if (m_reader.Read(16, v) == 0) // TODO
 						return 1;
 
 					code[i] = static_cast<uint16_t>(v);
@@ -90,7 +90,7 @@ class DecompressorKagari final : public Decompressor<int16_t>
 
 				for (uint32_t i = 0; i < data_length; i += 1)
 				{
-					if (m_reader.Read(16, v) != 0)
+					if (m_reader.Read(16, v) == 0)
 						return 1;
 
 					data[i] = static_cast<uint16_t>(v);

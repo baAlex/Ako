@@ -54,11 +54,11 @@ static void sQuantizer(float q, unsigned width, unsigned height, unsigned input_
 				// Quantization with integers
 				// out[col] = static_cast<T>((in[col] / static_cast<T>(q)) * static_cast<T>(q));
 
-				// Quantization with floats
-				out[col] = static_cast<T>(std::floor(static_cast<float>(in[col]) / q + 0.5F) * q);
+				// Gate, looks horribly pixelated if alone, but here is acting as dead-zone:
+				out[col] = (std::abs(static_cast<float>(in[col])) < std::floor(q) / 1.5F) ? 0 : in[col]; // 2.0 - 1.0
 
-				// Gate (looks horribly pixelated than previous two):
-				// out[col] = (std::abs(static_cast<float>(in[col])) < q) ? 0 : in[col];
+				// Quantization with floats
+				out[col] = static_cast<T>(std::floor(static_cast<float>(out[col]) / q + 0.5F) * q);
 			}
 
 			in += input_stride;
@@ -108,7 +108,7 @@ static size_t sCompress2ndPhase(Compressor<T>& compressor, const Settings& setti
 		LiftMeasures(lift, width, height, lp_w, lp_h, hp_w, hp_h);
 
 		// Quantization step
-		const auto x = (static_cast<float>(lifts_no) - static_cast<float>(lift)) / static_cast<float>(lifts_no);
+		const auto x = (static_cast<float>(lifts_no) - static_cast<float>(lift + 1)) / static_cast<float>(lifts_no - 1);
 		const auto q = std::pow(2.0F, std::pow(x, 3.0F) * (std::log2f(settings.quantization)));
 		const float q_diagonal = (settings.quantization > 0.0F) ? 2.0F : 1.0F;
 

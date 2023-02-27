@@ -28,38 +28,10 @@ SOFTWARE.
 namespace ako
 {
 
-static uint8_t sCode(uint16_t value)
-{
-	if (value < 247)
-		return static_cast<uint8_t>(value);
-
-	int e = 0;
-	while (value >= (1 << e))
-		e += 1;
-
-	return static_cast<uint8_t>(247 + e - 8);
-}
-
-static uint8_t sSuffixLength(uint8_t code)
-{
-	if (code < 247)
-		return 0;
-
-	return static_cast<uint8_t>(code - 247 + 8);
-}
-
-
-AnsEncoder::AnsEncoder()
-{
-	m_queue = reinterpret_cast<QueueToWrite*>(std::malloc(sizeof(QueueToWrite) * QUEUE_LENGTH));
-	m_queue_cursor = 0;
-	m_cdf_len = 0;
-}
-
-AnsEncoder::~AnsEncoder()
-{
-	std::free(m_queue);
-}
+#define LOOKUP_TABLE
+#ifdef LOOKUP_TABLE
+static uint8_t s_lookup[255 + 1];
+#endif
 
 
 static size_t sQuicksortPartition(CdfEntry* cdf, const size_t lo, const size_t hi)
@@ -108,130 +80,186 @@ static void sQuicksort(CdfEntry* cdf, const size_t lo, const size_t hi)
 }
 
 
+static uint8_t sCode(uint16_t value)
+{
+	if (value < 247)
+		return static_cast<uint8_t>(value);
+
+	auto e = 0;
+	while (value >= (1 << e))
+		e += 1;
+
+	return static_cast<uint8_t>(247 + e - 8);
+}
+
+static uint8_t sRoot(uint8_t code)
+{
+	if (code < 247)
+		return code;
+
+	return 0;
+}
+
+static uint8_t sSuffixLength(uint8_t code)
+{
+	if (code < 247)
+		return 0;
+
+	return static_cast<uint8_t>(code - 247 + 8);
+}
+
+
+AnsEncoder::AnsEncoder()
+{
+	m_queue = reinterpret_cast<QueueToWrite*>(std::malloc(sizeof(QueueToWrite) * QUEUE_LENGTH));
+}
+
+AnsEncoder::~AnsEncoder()
+{
+	std::free(m_queue);
+}
+
+
 uint32_t AnsEncoder::Encode(uint32_t input_length, const uint16_t* input)
 {
 	uint32_t state = ANS_INITIAL_STATE;
-	uint32_t output_size = 0;
+	uint32_t output_size = 0;  // In bits
+	uint32_t output_size2 = 0; // Ditto
 	uint32_t m = 0;
+	uint32_t m_exp = 0;
+
+	uint8_t largest_code = 0;
+
+	if (input_length < 1)
+		return 0;
+
+	// Reset
+	m_cdf_len = 0;
+	m_queue_cursor = 0;
 
 	// Create Cdf
 	{
-		uint32_t unique_values = 0;
-		uint8_t largest_value = 0;
-
 		Memset(m_cdf, 0, sizeof(CdfEntry) * (255 + 1));
 
 		// Count frequencies
 		for (uint32_t i = input_length - 1; i < input_length; i -= 1) // Underflows, Ans operates in reverse
 		{
-			// const auto value = input[i];
-			const auto value = sCode(input[i]);
+			const auto code = sCode(input[i]);
 
-			if (m_cdf[value].frequency == 0xFFFF)
-				return 0;
+			if (m_cdf[code].frequency < 0xFFFF) // Saturate, TODO: is enough?
+				m_cdf[code].frequency = m_cdf[code].frequency + 1;
 
-			m_cdf[value].frequency = static_cast<uint16_t>(m_cdf[value].frequency + 1); // Pedantic Gcc
-
-			if (m_cdf[value].frequency == 1)
+			if (m_cdf[code].frequency == 1)
 			{
-				m_cdf[value].value = value; // As silly it looks
-				m_cdf[value].suffix_length = sSuffixLength(value);
+				m_cdf[code].code = code;
+				m_cdf[code].root = sRoot(code);
+				m_cdf[code].suffix_length = sSuffixLength(code);
 
-				unique_values += 1;
-				largest_value = Max(largest_value, value);
+				m_cdf_len += 1;
+				largest_code = Max(largest_code, code);
 			}
 		}
 
-		m_cdf_len = unique_values;
-
 		// Sort them
-		sQuicksort(m_cdf, 0, largest_value);
+		sQuicksort(m_cdf, 0, largest_code);
 
 		// Normalize them
-		m = Max(static_cast<uint32_t>(256), Min(NearPowerOfTwo(input_length), ANS_M));
-		m_cdf_m_len = Ctz(m);
-
-		const auto scale = static_cast<float>(m) / static_cast<float>(input_length);
+		m = Max(ANS_MIN_M, Min(NearPowerOfTwo(input_length), ANS_MAX_M));
+		m_exp = Ctz(m);
 		{
+			const auto scale = static_cast<float>(m) / static_cast<float>(input_length);
 			uint32_t summation = 0;
 			uint32_t last_up_one = 0;
 
-			for (uint32_t i = 0; i < unique_values; i += 1)
+			for (uint32_t i = 0; i < m_cdf_len; i += 1)
 			{
 				m_cdf[i].frequency = static_cast<uint16_t>(std::ceil(static_cast<float>(m_cdf[i].frequency) * scale));
 
 				if (m_cdf[i].frequency == 0)
 					m_cdf[i].frequency = 1;
-
 				if (m_cdf[i].frequency > 1)
 					last_up_one = i;
 
 				summation += m_cdf[i].frequency;
 			}
 
-			while (summation >= m)
+			while (summation > m)
 			{
 				summation -= 1;
-				m_cdf[last_up_one].frequency =
-				    static_cast<uint16_t>(m_cdf[last_up_one].frequency - 1); // More Gcc's pedantry
-				while (m_cdf[last_up_one].frequency == 1)                    // TODO, when it stops?
+				m_cdf[last_up_one].frequency -= 1;
+				if (m_cdf[last_up_one].frequency == 1)
 					last_up_one -= 1;
 			}
 		}
 
 		// Accumulate them
-		uint32_t summation = 0;
-		for (uint32_t i = 0; i < unique_values; i += 1)
+		uint16_t summation = 0;
+		uint32_t prev_f = m_cdf[0].frequency;
+		for (uint32_t i = 0; i < m_cdf_len; i += 1)
 		{
-			m_cdf[i].cumulative = static_cast<uint16_t>(summation);
+			// Accumulate
+			m_cdf[i].cumulative = summation;
 			summation += m_cdf[i].frequency;
+
+			// Count Cdf size
+			const auto f_to_transmit = (i != 0) ? (prev_f - m_cdf[i].frequency) : m_cdf[i].frequency;
+			prev_f = m_cdf[i].frequency;
+
+			output_size += BitWriter::RiceLength(m_cdf[i].code) + BitWriter::RiceLength(f_to_transmit);
+			output_size2 += BitWriter::RiceLength(m_cdf[i].code) + BitWriter::RiceLength(f_to_transmit);
+
+			// printf("! %u-%u-%u (size: %u)\n", m_cdf[i].root, m_cdf[i].frequency, f_to_transmit,
+			//       BitWriter::RiceLength(m_cdf[i].root) + BitWriter::RiceLength(f_to_transmit));
 		}
 
-		// for (uint32_t i = 0; i < unique_values; i += 1)
-		//{
-		//	output_size += 16;
-		//	output_size += 16;
-		//}
+		// One more thing to count in ouput size
+		output_size += BitWriter::RiceLength(m_cdf_len);
+		output_size2 += BitWriter::RiceLength(m_cdf_len);
 
 		// Developers, developers, developers
-		// uint32_t prev_f = m_cdf[0].frequency;
-		// uint16_t fir[4] = {};
-		// uint32_t fir_i = 0;
-
-		/*for (uint32_t i = 0; i < unique_values; i += 1)
-		{
-		    const auto emit_f = (i != 0) ? (prev_f - m_cdf[i].frequency) : m_cdf[i].frequency;
-		    prev_f = m_cdf[i].frequency;
-
-		    printf("%2u [v: %u, f: %u, c: %u]\t->\t[%i, %u]\n", i, m_cdf[i].value, m_cdf[i].frequency,
-		           m_cdf[i].cumulative, m_cdf[i].value, emit_f);
-		}*/
-
-		// printf(" - Cdf length: %u, largest value: %u, summation: %u (from: %u, x%.2f)\n", m_cdf_len, largest_value,
-		//       summation, input_length, scale);
+		// for (uint32_t i = 0; i < m_cdf_len; i += 1)
+		//	printf("\tCdf %u: root: %u, sl: %u, f: %u, c: %u\n", i, m_cdf[i].root, m_cdf[i].suffix_length,
+		//	       m_cdf[i].frequency, m_cdf[i].cumulative);
+		// printf("\tCdf length: %u, m: %u\n", m_cdf_len, m);
 	}
 
-	// Reset
-	m_queue_cursor = 0;
-
-	// Iterate input
-	for (uint32_t i = input_length - 1; i < input_length; i -= 1) // Underflows, Ans operates in reverse
+#ifdef LOOKUP_TABLE
+	// Fill a look-up table
 	{
-		// Find Cdf entry
-		auto e = m_cdf[m_cdf_len - 1];
+		uint8_t code = largest_code;
+		do
 		{
-			const auto value = sCode(input[i]);
-			const auto suffix_length = sSuffixLength(value);
-
 			for (uint32_t u = 0; u < m_cdf_len; u += 1)
 			{
-				if (m_cdf[u].value == value && m_cdf[u].suffix_length == suffix_length)
+				if (m_cdf[u].code == code)
+				{
+					s_lookup[code] = static_cast<uint8_t>(u);
+					break;
+				}
+			}
+		} while (code-- != 0);
+	}
+#endif
+
+	// Encode
+	for (uint32_t i = input_length - 1; i < input_length; i -= 1) // Underflows, Ans operates in reverse
+	{
+#ifdef LOOKUP_TABLE
+		const auto e = m_cdf[s_lookup[sCode(input[i])]];
+#else
+		CdfEntry e;
+		{
+			const auto code = sCode(input[i]);
+			for (uint32_t u = 0; u < m_cdf_len; u += 1)
+			{
+				if (m_cdf[u].code == code)
 				{
 					e = m_cdf[u];
 					break;
 				}
 			}
 		}
+#endif
 
 		// Normalize state (make space)
 		while (1) // while (C(state, e) > ANS_L * ANS_B - 1)
@@ -244,33 +272,30 @@ uint32_t AnsEncoder::Encode(uint32_t input_length, const uint16_t* input)
 			// so yeah, I'm the cause of problems here.
 
 			// However we can check wraps/overflows:
-			if ((state / e.frequency) > static_cast<uint32_t>((1 << (ANS_STATE_LEN - m_cdf_m_len)) - 1))
+			if ((state / e.frequency) > static_cast<uint32_t>((1 << (ANS_STATE_LEN - m_exp)) - 1))
 				goto proceed_with_normalization_as_check_will_wrap; // Gotos are bad ÒwÓ
 
 			// Check
-			if (((state / e.frequency) << m_cdf_m_len) + (state % e.frequency) + e.cumulative <= ANS_L * ANS_B - 1)
+			if (((state / e.frequency) << m_exp) + (state % e.frequency) + e.cumulative <= ANS_L * ANS_B - 1)
 				break;
 
 		proceed_with_normalization_as_check_will_wrap:
 			// Extract bits and normalize state
 			const auto bits = static_cast<uint16_t>(state & ANS_B_MASK);
-			state = state >> ANS_B_LEN;
+			state = state >> ANS_B_EXP;
 
 			// Queue bits
 			if (m_queue_cursor == QUEUE_LENGTH)
 				return 0;
 
 			m_queue[m_queue_cursor].v = bits;
-			m_queue[m_queue_cursor].l = ANS_B_LEN;
-			output_size += ANS_B_LEN;
+			m_queue[m_queue_cursor].l = ANS_B_EXP;
+			output_size += ANS_B_EXP;
 			m_queue_cursor += 1;
-
-			// Developers, developers, developers
-			// printf("\tE | %u\n", bits);
 		}
 
-		// Encode root, ans-coded in state
-		state = ((state / e.frequency) << m_cdf_m_len) + (state % e.frequency) + e.cumulative;
+		// Encode root, Ans-coded in state
+		state = ((state / e.frequency) << m_exp) + (state % e.frequency) + e.cumulative;
 
 		// Encode suffix, raw in bitstream
 		if (e.suffix_length != 0)
@@ -278,79 +303,72 @@ uint32_t AnsEncoder::Encode(uint32_t input_length, const uint16_t* input)
 			if (m_queue_cursor == QUEUE_LENGTH)
 				return 0;
 
-			m_queue[m_queue_cursor].v = static_cast<uint16_t>(input[i] - e.value);
+			m_queue[m_queue_cursor].v = static_cast<uint16_t>(input[i] - e.root);
 			m_queue[m_queue_cursor].l = e.suffix_length;
 			output_size += e.suffix_length;
 			m_queue_cursor += 1;
 		}
 
 		// Developers, developers, developers
-		// printf("\tE | 0x%x\t<- Value: %u (r: %u, sl: %u, f: %u, c: %u)\n", state, input[i], e.root,
-		// e.suffix_length,
-		//       e.frequency, e.cumulative);
+		// printf("\tAns: %u -> %u\n", e.cumulative, state);
 	}
 
-	// Normalize remainder
+	// Encode remainder
 	while (state != 0)
 	{
+		// Developers, developers, developers
+		// printf("\tAns: %u\n", state);
+
 		// Extract bits and normalize state
 		const auto bits = static_cast<uint16_t>(state & ANS_B_MASK);
-		state = state >> ANS_B_LEN;
+		state = state >> ANS_B_EXP;
 
 		// Queue bits
 		if (m_queue_cursor == QUEUE_LENGTH)
 			return 0;
 
 		m_queue[m_queue_cursor].v = bits;
-		m_queue[m_queue_cursor].l = ANS_B_LEN;
-		output_size += ANS_B_LEN;
+		m_queue[m_queue_cursor].l = ANS_B_EXP;
+		output_size += ANS_B_EXP;
 		m_queue_cursor += 1;
-
-		// Developers, developers, developers
-		// printf("\tE | %u\n", bits);
 	}
 
 	// Bye!
+	// printf("\tAns encode size: %u bits (%u the Cdf)\n\n", output_size, output_size2);
 	return output_size;
 }
 
 
 uint32_t AnsEncoder::Write(BitWriter* writer)
 {
+	if (m_cdf_len < 1)
+		return 0; // TODO
+
+	// Write Cdf
+	if (writer->WriteRice(m_cdf_len) == 0)
+		return 1;
+
 	uint32_t prev_f = m_cdf[0].frequency;
-
-	// printf("%u\n", m_cdf_m_len);
-	// printf("%u\n", m_cdf_len);
-
-	if (writer->WriteRice(m_cdf_m_len) != 0)
-		return 1;
-
-	if (writer->WriteRice(m_cdf_len) != 0)
-		return 1;
-
 	for (uint32_t i = 0; i < m_cdf_len; i += 1)
 	{
-		const auto emit_f = (i != 0) ? (prev_f - m_cdf[i].frequency) : m_cdf[i].frequency;
+		const auto f_to_transmit = (i != 0) ? (prev_f - m_cdf[i].frequency) : m_cdf[i].frequency;
 		prev_f = m_cdf[i].frequency;
 
-		if (writer->WriteRice(m_cdf[i].value) != 0)
+		if (writer->WriteRice(m_cdf[i].code) == 0)
 			return 1;
-		if (writer->WriteRice(emit_f) != 0)
+		if (writer->WriteRice(f_to_transmit) == 0)
 			return 1;
-
-		// if (i < 5)
-		//	printf(" %u (%u) -> %u\n", m_cdf[i].frequency, m_cdf[i].cumulative, emit_f);
 	}
 
-	// Write bits to output in reverse order
+	// Write bitstream (in reverse order)
 	while (m_queue_cursor != 0)
 	{
 		m_queue_cursor -= 1;
-		if (writer->Write(m_queue[m_queue_cursor].v, m_queue[m_queue_cursor].l) != 0)
+		if (writer->Write(m_queue[m_queue_cursor].v, m_queue[m_queue_cursor].l) == 0)
 			return 1;
 	}
 
-	return 0;
+	return 0; // TODO
 }
 
 } // namespace ako

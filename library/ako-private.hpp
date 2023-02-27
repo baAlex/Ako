@@ -155,27 +155,35 @@ class BitWriter;
 
 struct CdfEntry
 {
-	uint8_t value;         // Or code
-	uint8_t suffix_length; // In case is a code
+	uint8_t code;
+	uint8_t root; // Or value if suffix length is zero
+	uint8_t suffix_length;
+	uint8_t padding;
 	uint16_t frequency;
 	uint16_t cumulative;
 };
 
+const uint32_t ANS_B_EXP = 15; // Output/input base, Duda's paper uses 1 as an example to extract
+                               // individual bits, also suggests 8 (for bytes).  A large number
+                               // reduces writes/reads. Here 15 bits is the maximum before our
+                               // 32 bits state wrap/overflows.
+
+const uint32_t ANS_L_EXP = 16; // Needs to be multiple of the sum of frequencies in the Cdf table
+                               // and such number is set to a maximum of 13. So choice here is
+                               // between 13-16.
+
+const uint32_t ANS_MAX_M_EXP = 13; // Precision or range. I'm trying to do not touch frequencies
+const uint32_t ANS_MIN_M_EXP = 2;  // too much, so they are normalized to range [0-M] depending
+                                   // on how much symbols we have. M with a maximum of 13 (in case
+                                   // there are many symbols) or a minimum or 2 (two or one symbols).
+
+const uint32_t ANS_B = 1 << ANS_B_EXP;
+const uint32_t ANS_B_MASK = ANS_B - 1;
+const uint32_t ANS_L = 1 << ANS_L_EXP;
+const uint32_t ANS_MAX_M = 1 << ANS_MAX_M_EXP;
+const uint32_t ANS_MIN_M = 1 << ANS_MIN_M_EXP;
+
 const uint32_t ANS_STATE_LEN = 32;
-
-const uint32_t ANS_B_LEN = 15;         // Output/input base, Duda's paper uses '1 << 0' as an example
-const uint32_t ANS_B = 1 << ANS_B_LEN; // to extract individual bits, also suggests '1 << 8' for bytes.
-const uint32_t ANS_B_MASK = ANS_B - 1; // A large number should reduce writes/reads. Here 15 bits is
-                                       // the maximum before our 32 bits state wrap/overflows.
-
-const uint32_t ANS_L = 1 << 16; // Needs to be multiple of the sum of frequencies in the Cdf table (also
-                                // known as 'last cumulative' or M), and such number is hardcoded to
-                                // '1 << 16'. So no choice here.
-
-const uint32_t ANS_M_LEN = 13;         // So called M, Cdf tables are normalized to this number. It can
-const uint32_t ANS_M = 1 << ANS_M_LEN; // be thought as 'precision' to represent frequencies
-const uint32_t ANS_M_MASK = ANS_M - 1; // (in 0.0, 1.0 range) with integers (as a 0, M range).
-
 const uint32_t ANS_INITIAL_STATE = ANS_L;
 
 class AnsEncoder
@@ -193,7 +201,6 @@ class AnsEncoder
 
 	CdfEntry m_cdf[255 + 1];
 	uint32_t m_cdf_len = 0;
-	uint32_t m_cdf_m_len = 0;
 
   public:
 	AnsEncoder();
@@ -223,8 +230,8 @@ class BitReader
 
 	BitReader(uint32_t input_length = 0, const uint32_t* input = nullptr);
 	void Reset(uint32_t input_length, const uint32_t* input);
-	int Read(uint32_t bit_length, uint32_t& value);
-	int ReadRice(uint32_t& value);
+	uint32_t Read(uint32_t bit_length, uint32_t& value);
+	uint32_t ReadRice(uint32_t& value);
 	uint32_t Finish(const uint32_t* input_start) const;
 };
 
@@ -246,9 +253,11 @@ class BitWriter
 
 	BitWriter(uint32_t output_length = 0, uint32_t* output = nullptr);
 	void Reset(uint32_t output_length, uint32_t* output);
-	int Write(uint32_t value, uint32_t bit_length);
-	int WriteRice(uint32_t value);
+	uint32_t Write(uint32_t value, uint32_t bit_length);
+	uint32_t WriteRice(uint32_t value);
 	uint32_t Finish();
+
+	static uint32_t RiceLength(uint32_t value);
 };
 
 
