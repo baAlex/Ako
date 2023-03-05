@@ -134,7 +134,16 @@ inline void HorizontalTest(unsigned width, bool print,
 	{
 		uint32_t generator_state = 1;
 		for (unsigned i = 0; i < width; i += 1)
-			assert(buffer_a[i] == data_generator(i, generator_state));
+		{
+			const auto v = data_generator(i, generator_state);
+			if (buffer_a[i] != v)
+			{
+				printf("%i != %i, col %u\n", buffer_a[i], v, i);
+				printf("In horizontal, length: %u, %u bits\n", width, depth);
+			}
+
+			assert(buffer_a[i] == v);
+		}
 	}
 
 	// Bye!
@@ -238,7 +247,16 @@ inline void VerticalTest(unsigned height, bool print,
 	{
 		uint32_t generator_state = 1;
 		for (unsigned i = 0; i < height; i += 1)
-			assert(buffer_a[i] == data_generator(i, generator_state));
+		{
+			const auto v = data_generator(i, generator_state);
+			if (buffer_a[i] != v)
+			{
+				printf("%i != %i, col %u\n", buffer_a[i], v, i);
+				printf("In Vertical, length: %u, %u bits\n", width, depth);
+			}
+
+			assert(buffer_a[i] == v);
+		}
 	}
 
 	// Bye!
