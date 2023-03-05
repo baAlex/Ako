@@ -74,8 +74,6 @@ static void sCdf53HorizontalInverse(unsigned height, unsigned lp_w, unsigned hp_
 
 
 #ifdef AKO_SSE2
-#include <emmintrin.h>
-
 template <typename T>
 static void sCdf53HorizontalInverseSimd(unsigned height, unsigned lp_w, unsigned hp_w, unsigned out_stride,
                                         const T* lowpass, const T* highpass, T* output)
@@ -85,16 +83,15 @@ static void sCdf53HorizontalInverseSimd(unsigned height, unsigned lp_w, unsigned
 		// Start
 		unsigned col = 0;
 		{
-
 			const T lp = lowpass[col + 0];
 			const T hp = highpass[col + 0];
 			const T hp_l1 = hp; // Clamp
 			const T lp_p1 = lowpass[col + 1];
 			const T hp_p1 = highpass[col + 1];
 
-			const T even = lp - ((hp_l1 + hp) >> 2);
-			const T even_p1 = lp_p1 - ((hp + hp_p1) >> 2);
-			const T odd = hp + ((even + even_p1) >> 1);
+			const T even = WrapSubtract<T>(lp, WrapAdd(hp_l1, hp) >> 2);
+			const T even_p1 = WrapSubtract<T>(lp_p1, WrapAdd(hp, hp_p1) >> 2);
+			const T odd = WrapAdd<T>(hp, WrapAdd(even, even_p1) >> 1);
 
 			output[(col << 1) + 0] = even;
 			output[(col << 1) + 1] = odd;
@@ -152,7 +149,7 @@ static void sCdf53HorizontalInverseSimd(unsigned height, unsigned lp_w, unsigned
 		// Complete lowpass (width wasn't divisible by two)
 		if (lp_w != hp_w)
 		{
-			const unsigned col = hp_w;
+			col = hp_w;
 
 			const T lp = lowpass[col];
 			const T hp = highpass[col - 1];

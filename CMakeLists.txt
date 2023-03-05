@@ -29,12 +29,12 @@ endif ()
 
 # <optional flags>
 if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang" OR "${CMAKE_CXX_COMPILER_ID}" MATCHES "GNU")
-	set(AKO_CFLAGS       -Wall -Wextra -pedantic -Werror -Wconversion -Wold-style-cast)
+	set(AKO_CFLAGS       -Wall -Wextra -pedantic -Werror -Wold-style-cast)
 	set(AKO_TOOLS_CFLAGS -Wall -Wextra -pedantic)
 endif ()
 
 if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "MSVC")
-	set(AKO_CFLAGS       /W4)
+	set(AKO_CFLAGS       /W2)
 	set(AKO_TOOLS_CFLAGS /W2)
 endif ()
 

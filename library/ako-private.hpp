@@ -40,6 +40,7 @@ SOFTWARE.
 // '_M_AMD64' with MSVC (as x86-64 always have SSE2)
 // '_M_IX86 && _M_IX86_FP == 2' with MSVC in case of x86-32
 #if (defined(__SSE2__) || defined(_M_AMD64) || (defined(_M_IX86) && _M_IX86_FP >= 2))
+#include <emmintrin.h>
 #define AKO_SSE2
 #endif
 
