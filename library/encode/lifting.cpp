@@ -70,7 +70,7 @@ static void sLift(const Callbacks& callbacks, const Wavelet& wavelet_transformat
 
 			// Wavelet transformation
 			if ((wavelet_transformation == Wavelet::Dd137 || wavelet_transformation == Wavelet::Cdf53) &&
-			    (current_w > 8 && current_h > 8)) // TODO, 8 isn't Cdf53 minimum
+			    (current_w >= CDF53_MINIMUM_LENGTH && current_h >= CDF53_MINIMUM_LENGTH))
 			{
 				Cdf53HorizontalForward(current_w, current_h, prev_stride, current_stride, inout, aux);
 				Cdf53VerticalForward(current_w, current_h, current_stride, current_stride, aux, inout);

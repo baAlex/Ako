@@ -86,7 +86,7 @@ static void sUnlift(const Callbacks& callbacks, const Wavelet& wavelet_transform
 
 			// Wavelet transformation
 			if ((wavelet_transformation == Wavelet::Dd137 || wavelet_transformation == Wavelet::Cdf53) &&
-			    ((lp_w + hp_w) > 8 && (lp_h + hp_h) > 8)) // TODO, I'm not really thinking here
+			    ((lp_w + hp_w) >= CDF53_MINIMUM_LENGTH && (lp_h + hp_h) >= CDF53_MINIMUM_LENGTH))
 			{
 				Cdf53InPlaceishVerticalInverse(lp_w, lp_h, hp_h, lp, hp_quad_c, aux);
 				Cdf53InPlaceishVerticalInverse(hp_w, lp_h, hp_h, hp_quad_b, hp_quad_d, hp_quad_b);

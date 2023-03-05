@@ -10,6 +10,7 @@ files="./library/ako.hpp
        ./library/common/utilities.cpp
 
        ./library/decode/ans.cpp
+       ./library/decode/bit.cpp
        ./library/decode/compression-kagari.hpp
        ./library/decode/compression-none.hpp
        ./library/decode/compression.cpp
@@ -21,6 +22,7 @@ files="./library/ako.hpp
        ./library/decode/wavelet-haar.cpp
 
        ./library/encode/ans.cpp
+       ./library/encode/bit.cpp
        ./library/encode/compression-kagari.hpp
        ./library/encode/compression-none.hpp
        ./library/encode/compression.cpp
@@ -29,9 +31,11 @@ files="./library/ako.hpp
        ./library/encode/heads.cpp
        ./library/encode/lifting.cpp
        ./library/encode/wavelet-cdf53.cpp
+       ./library/encode/wavelet-cdf53-simd.cpp
        ./library/encode/wavelet-haar.cpp"
 
-# './library/common/conversions.cpp', doesn't count
+# './library/common/cdf-tables.cpp', doesn't count
+# './library/common/conversions.cpp', same
 # './library/common/version.cpp', same
 
 cloc $flags $files

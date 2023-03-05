@@ -35,6 +35,15 @@ SOFTWARE.
 #include <cstdlib>
 #endif
 
+
+// '__SSE2__' seems to work with Clang and Gcc
+// '_M_AMD64' with MSVC (as x86-64 always have SSE2)
+// '_M_IX86 && _M_IX86_FP == 2' with MSVC in case of x86-32
+#if (defined(__SSE2__) || defined(_M_AMD64) || (defined(_M_IX86) && _M_IX86_FP >= 2))
+#define AKO_SSE2
+#endif
+
+
 namespace ako
 {
 
@@ -309,6 +318,8 @@ void Lift(const Callbacks&, const Wavelet& wavelet_transformation, unsigned widt
 
 // decode/wavelet-cdf53.cpp:
 // encode/wavelet-cdf53.cpp:
+
+const unsigned CDF53_MINIMUM_LENGTH = 4;
 
 template <typename T>
 void Cdf53HorizontalForward(unsigned width, unsigned height, unsigned input_stride, unsigned output_stride,

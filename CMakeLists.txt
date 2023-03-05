@@ -7,7 +7,7 @@ option(AKO_SHARED  "Build shared library" ON)
 option(AKO_STATIC  "Build static library" ON)
 option(AKO_DEC     "Build decoding tool"  ON)
 option(AKO_ENC     "Build encoding tool"  ON)
-option(AKO_VIEW    "Build viewer tool"    ON)
+option(AKO_VIEW    "Build viewer tool"    OFF)
 option(AKO_TESTS   "Build tests"          ON)
 option(AKO_FUZZERS "Build fuzzers"        ON)
 
@@ -110,7 +110,7 @@ if (AKO_STATIC)
 endif ()
 
 
-if (AKO_ENC OR AKODEC OR AKOVIEW)
+if (AKO_ENC OR AKO_DEC OR AKO_VIEW)
 	add_library("tools-common" STATIC
 		"./tools/common/adler32.cpp"
 		"./tools/common/callbacks.cpp"
@@ -218,6 +218,11 @@ if (AKO_TESTS)
 	target_link_libraries("test-wavelet-cdf53" PRIVATE "ako-static")
 	target_compile_options("test-wavelet-cdf53" PRIVATE ${AKO_CFLAGS})
 
+	add_executable("test-wavelet-cdf53-simd" "./tests/wavelet-cdf53-simd.cpp")
+	target_include_directories("test-wavelet-cdf53-simd" PRIVATE "./library/")
+	target_link_libraries("test-wavelet-cdf53-simd" PRIVATE "ako-static")
+	target_compile_options("test-wavelet-cdf53-simd" PRIVATE ${AKO_CFLAGS})
+
 	add_executable("test-wavelet-haar" "./tests/wavelet-haar.cpp")
 	target_include_directories("test-wavelet-haar" PRIVATE "./library/")
 	target_link_libraries("test-wavelet-haar" PRIVATE "ako-static")
@@ -230,6 +235,7 @@ if (AKO_TESTS)
 		set_property(TARGET "test-kagari" PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
 		set_property(TARGET "test-rice" PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
 		set_property(TARGET "test-wavelet-cdf53" PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
+		set_property(TARGET "test-wavelet-cdf53-simd" PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
 		set_property(TARGET "test-wavelet-haar" PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
 	endif ()
 
@@ -239,6 +245,7 @@ if (AKO_TESTS)
 	add_test(NAME "TestKagari" COMMAND "test-kagari")
 	add_test(NAME "TestRice" COMMAND "test-rice")
 	add_test(NAME "TestWaveletCdf53" COMMAND "test-wavelet-cdf53")
+	add_test(NAME "TestWaveletCdf53Simd" COMMAND "test-wavelet-cdf53-simd")
 	add_test(NAME "TestWaveletHaar" COMMAND "test-wavelet-haar")
 
 	include(CTest)

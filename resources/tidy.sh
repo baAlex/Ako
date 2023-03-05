@@ -10,6 +10,7 @@ files="./library/common/conversions.cpp
        ./library/common/version.cpp
 
        ./library/decode/ans.cpp
+       ./library/decode/bit.cpp
        ./library/decode/compression.cpp
        ./library/decode/decode.cpp
        ./library/decode/format.cpp
@@ -19,6 +20,7 @@ files="./library/common/conversions.cpp
        ./library/decode/wavelet-haar.cpp
 
        ./library/encode/ans.cpp
+       ./library/encode/bit.cpp
        ./library/encode/compression.cpp
        ./library/encode/encode.cpp
        ./library/encode/format.cpp
@@ -28,10 +30,12 @@ files="./library/common/conversions.cpp
        ./library/encode/wavelet-haar.cpp
 
        ./tests/ans.cpp
-       ./tests/ans-bits.cpp
+       ./tests/bit.cpp
        ./tests/forward-backward.cpp
        ./tests/kagari.cpp
+       ./tests/rice.cpp
        ./tests/wavelet-cdf53.cpp
+       ./tests/wavelet-cdf53-simd.cpp
        ./tests/wavelet-haar.cpp
 
        ./tools/akodec.cpp
