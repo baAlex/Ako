@@ -44,7 +44,7 @@ static void sCdf53HorizontalForward(unsigned width, unsigned height, unsigned in
 			const T odd = input[(col << 1) + 1];
 			const T even_p1 = (col < half - 1) ? input[(col << 1) + 2] : even; // Clamp
 
-			output[rule + col] = WrapSubtract<T>(odd, WrapAdd(even, even_p1) >> 1);
+			output[rule + col] = WrapSubtract<T>(odd, WrapAdd(even, even_p1) / 2);
 		}
 
 		// Lowpass (length of 'rule')
@@ -54,7 +54,7 @@ static void sCdf53HorizontalForward(unsigned width, unsigned height, unsigned in
 			const T hp = output[col + rule + 0];
 			const T hp_l1 = (col > 0) ? output[col + rule - 1] : hp; // Clamp
 
-			output[col] = WrapAdd<T>(even, WrapAdd(hp_l1, hp) >> 2);
+			output[col] = WrapAdd<T>(even, WrapAdd(hp_l1, hp) / 4);
 		}
 
 		if (rule != half) // If length wasn't divisible by two, complete lowpass
@@ -65,7 +65,7 @@ static void sCdf53HorizontalForward(unsigned width, unsigned height, unsigned in
 			const T hp = output[col + half + 0]; // 'half' is the only change from above routine
 			const T hp_l1 = output[col + half - 1];
 
-			output[col] = WrapAdd<T>(even, WrapAdd(hp_l1, hp) >> 2);
+			output[col] = WrapAdd<T>(even, WrapAdd(hp_l1, hp) / 4);
 		}
 
 		// Next row
@@ -92,7 +92,7 @@ static void sCdf53VerticalForward(unsigned width, unsigned height, unsigned inpu
 		T* out = output + output_stride * (row + rule + 0);
 
 		for (unsigned col = 0; col < width; col += 1)
-			out[col] = WrapSubtract<T>(odd[col], WrapAdd(even[col], even_p1[col]) >> 1);
+			out[col] = WrapSubtract<T>(odd[col], WrapAdd(even[col], even_p1[col]) / 2);
 	}
 
 	// Lowpass (length of 'rule')
@@ -105,7 +105,7 @@ static void sCdf53VerticalForward(unsigned width, unsigned height, unsigned inpu
 		T* out = output + output_stride * (row);
 
 		for (unsigned col = 0; col < width; col += 1)
-			out[col] = WrapAdd<T>(even[col], WrapAdd(hp_l1[col], hp[col]) >> 2);
+			out[col] = WrapAdd<T>(even[col], WrapAdd(hp_l1[col], hp[col]) / 4);
 	}
 
 	if (rule != half) // If length wasn't divisible by two, complete lowpass
@@ -119,7 +119,7 @@ static void sCdf53VerticalForward(unsigned width, unsigned height, unsigned inpu
 		T* out = output + output_stride * (row);
 
 		for (unsigned col = 0; col < width; col += 1)
-			out[col] = WrapAdd<T>(even[col], WrapAdd(hp_l1[col], hp[col]) >> 2);
+			out[col] = WrapAdd<T>(even[col], WrapAdd(hp_l1[col], hp[col]) / 4);
 	}
 }
 
