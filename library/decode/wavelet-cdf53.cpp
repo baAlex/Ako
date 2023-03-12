@@ -81,7 +81,7 @@ static inline __m128i DivideUsingShift(__m128i v, int shift)
 	const auto sign = _mm_srli_epi16(v, 15);
 
 	v = _mm_andnot_si128(v, mask);
-	v = _mm_add_epi16(v, sign); // Add one if was negative, zero if wasn't
+	v = _mm_add_epi16(v, sign); // Add one if is negative, zero if isn't
 
 	v = _mm_srai_epi16(v, shift); // Now that values are positive, divide them
 
