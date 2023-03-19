@@ -34,35 +34,72 @@ static void sCdf53HorizontalInverse(unsigned height, unsigned lp_w, unsigned hp_
 {
 	for (unsigned row = 0; row < height; row += 1)
 	{
-		// Evens (length of 'lp_w')
-		for (unsigned col = 0; col < hp_w; col += 1)
+		T hp_l1 = 0;
+
+		for (unsigned col = 0; col < hp_w - 2; col += 1)
 		{
 			const T lp = lowpass[col];
+			const T lp_p1 = lowpass[col + 1];
 			const T hp = highpass[col];
-			const T hp_l1 = (col > 0) ? highpass[col - 1] : hp; // Clamp
+			const T hp_p1 = highpass[col + 1];
 
-			output[(col << 1) + 0] = WrapSubtract<T>(lp, WrapAdd(hp_l1, hp) / 4);
+			const T even = WrapSubtract<T>(lp, WrapAdd(hp_l1, hp) / 4);
+			const T even_p1 = WrapSubtract<T>(lp_p1, WrapAdd(hp, hp_p1) / 4);
+			const T odd = WrapAdd<T>(hp, WrapAdd(even, even_p1) / 2);
+
+			output[(col << 1) + 0] = even;
+			output[(col << 1) + 1] = odd;
+			hp_l1 = hp;
 		}
 
-		if (lp_w != hp_w) // Complete lowpass
+		if (lp_w == hp_w)
 		{
-			const unsigned col = hp_w;
+			for (unsigned col = hp_w - 2; col < hp_w; col += 1)
+			{
+				const T lp = lowpass[col];
+				const T hp = highpass[col];
 
-			const T lp = lowpass[col];
-			const T hp = highpass[col - 1];
-			const T hp_l1 = highpass[col - 2]; // Clamp
+				const T even = WrapSubtract<T>(lp, WrapAdd(hp_l1, hp) / 4);
+				T even_p1 = even;
 
-			output[(col << 1) + 0] = WrapSubtract<T>(lp, WrapAdd(hp_l1, hp) / 4);
+				if (col != hp_w - 1)
+				{
+					const T lp_p1 = lowpass[col + 1];
+					const T hp_p1 = highpass[col + 1];
+					even_p1 = WrapSubtract<T>(lp_p1, WrapAdd(hp, hp_p1) / 4);
+				}
+
+				const T odd = WrapAdd<T>(hp, WrapAdd(even, even_p1) / 2);
+
+				output[(col << 1) + 0] = even;
+				output[(col << 1) + 1] = odd;
+				hp_l1 = hp;
+			}
 		}
-
-		// Odds (length of 'hp_w')
-		for (unsigned col = 0; col < hp_w; col += 1)
+		else
 		{
-			const T hp = highpass[col];
-			const T even = output[(col << 1) + 0];
-			const T even_p1 = (col < hp_w - 1) ? output[(col << 1) + 2] : even; // Clamp
+			for (unsigned col = hp_w - 2; col < hp_w; col += 1)
+			{
+				const T lp = lowpass[col];
+				const T lp_p1 = lowpass[col + 1];
+				const T hp = highpass[col];
+				const T hp_p1 = (col < hp_w - 1) ? highpass[col + 1] : 0;
 
-			output[(col << 1) + 1] = WrapAdd<T>(hp, WrapAdd(even, even_p1) / 2);
+				const T even = WrapSubtract<T>(lp, WrapAdd(hp_l1, hp) / 4);
+				const T even_p1 = WrapSubtract<T>(lp_p1, WrapAdd(hp, hp_p1) / 4);
+				const T odd = WrapAdd<T>(hp, WrapAdd(even, even_p1) / 2);
+
+				output[(col << 1) + 0] = even;
+				output[(col << 1) + 1] = odd;
+				hp_l1 = hp;
+			}
+
+			{
+				const unsigned col = hp_w;
+				const T lp = lowpass[col];
+				const T hp = 0;
+				output[(col << 1) + 0] = WrapSubtract<T>(lp, WrapAdd(hp_l1, hp) / 4);
+			}
 		}
 
 		// Next row

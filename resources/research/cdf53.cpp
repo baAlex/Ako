@@ -30,6 +30,11 @@ USE OR PERFORMANCE OF THIS SOFTWARE.
 // clang-tidy -checks="-*,bugprone-*,clang-analyzer-*,cert-*,misc-*,performance-*,portability-*" cdf53.cpp
 
 
+// #############################################
+// THERE IS A GLITCH HERE, "NEW-CDF53.PY" FIX IT
+// #############################################
+
+
 namespace Cdf53
 {
 static size_t MINIMUM_LENGTH = 4;

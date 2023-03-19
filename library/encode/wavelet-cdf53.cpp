@@ -37,35 +37,54 @@ static void sCdf53HorizontalForward(unsigned width, unsigned height, unsigned in
 
 	for (unsigned row = 0; row < height; row += 1)
 	{
-		// Highpass (length of 'half')
-		for (unsigned col = 0; col < half; col += 1)
+		T hp_l1 = 0;
+
+		for (unsigned col = 0; col < half - 1; col += 1)
 		{
 			const T even = input[(col << 1) + 0];
 			const T odd = input[(col << 1) + 1];
-			const T even_p1 = (col < half - 1) ? input[(col << 1) + 2] : even; // Clamp
+			const T even_p1 = input[(col << 1) + 2];
 
-			output[rule + col] = WrapSubtract<T>(odd, WrapAdd(even, even_p1) / 2);
+			const T hp = WrapSubtract<T>(odd, WrapAdd(even, even_p1) / 2);
+			const T lp = WrapAdd<T>(even, WrapAdd(hp_l1, hp) / 4);
+
+			output[col + 0] = lp;
+			output[col + rule] = hp;
+			hp_l1 = hp;
 		}
 
-		// Lowpass (length of 'rule')
-		for (unsigned col = 0; col < half; col += 1)
+		if (rule == half)
 		{
+			const unsigned col = rule - 1;
 			const T even = input[(col << 1) + 0];
-			const T hp = output[col + rule + 0];
-			const T hp_l1 = (col > 0) ? output[col + rule - 1] : hp; // Clamp
+			const T odd = input[(col << 1) + 1];
+			const T even_p1 = even;
 
-			output[col] = WrapAdd<T>(even, WrapAdd(hp_l1, hp) / 4);
+			const T hp = WrapSubtract<T>(odd, WrapAdd(even, even_p1) / 2);
+			const T lp = WrapAdd<T>(even, WrapAdd(hp_l1, hp) / 4);
+
+			output[col + 0] = lp;
+			output[col + rule] = hp;
 		}
-
-		if (rule != half) // If length wasn't divisible by two, complete lowpass
+		else
 		{
-			const unsigned col = half;
+			for (unsigned col = half - 1; col < rule; col += 1)
+			{
+				const T even = input[(col << 1) + 0];
+				const T odd = (col != rule - 1) ? input[(col << 1) + 1] : even;
+				const T even_p1 = (col != rule - 1) ? input[(col << 1) + 2] : even;
 
-			const T even = input[(col << 1) + 0];
-			const T hp = output[col + half + 0]; // 'half' is the only change from above routine
-			const T hp_l1 = output[col + half - 1];
+				const T hp = WrapSubtract<T>(odd, WrapAdd(even, even_p1) / 2);
+				const T lp = WrapAdd<T>(even, WrapAdd(hp_l1, hp) / 4);
 
-			output[col] = WrapAdd<T>(even, WrapAdd(hp_l1, hp) / 4);
+				output[col + 0] = lp;
+
+				if (col != rule - 1)
+				{
+					output[col + rule] = hp;
+					hp_l1 = hp;
+				}
+			}
 		}
 
 		// Next row
