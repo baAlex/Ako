@@ -38,9 +38,9 @@ static void sCdf53HorizontalInverse(unsigned height, unsigned lp_w, unsigned hp_
 
 		for (unsigned col = 0; col < hp_w - 2; col += 1)
 		{
-			const T lp = lowpass[col];
+			const T lp = lowpass[col + 0];
 			const T lp_p1 = lowpass[col + 1];
-			const T hp = highpass[col];
+			const T hp = highpass[col + 0];
 			const T hp_p1 = highpass[col + 1];
 
 			const T even = WrapSubtract<T>(lp, WrapAdd(hp_l1, hp) / 4);
@@ -80,9 +80,9 @@ static void sCdf53HorizontalInverse(unsigned height, unsigned lp_w, unsigned hp_
 		{
 			for (unsigned col = hp_w - 2; col < hp_w; col += 1)
 			{
-				const T lp = lowpass[col];
+				const T lp = lowpass[col + 0];
+				const T hp = highpass[col + 0];
 				const T lp_p1 = lowpass[col + 1];
-				const T hp = highpass[col];
 				const T hp_p1 = (col < hp_w - 1) ? highpass[col + 1] : 0;
 
 				const T even = WrapSubtract<T>(lp, WrapAdd(hp_l1, hp) / 4);

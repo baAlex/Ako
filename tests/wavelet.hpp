@@ -92,17 +92,15 @@ inline void HorizontalTest(unsigned width, bool print,
 		printf(" - Horizontal, length: %u, %u bits\n", width, depth);
 
 	// Allocate data
+	const auto buffer_size = static_cast<size_t>(width) * sizeof(T);
 	T* buffer_a;
 	T* buffer_b;
-	{
-		const auto buffer_size = static_cast<size_t>(width) * sizeof(T);
 
-		buffer_a = reinterpret_cast<T*>(malloc(buffer_size));
-		assert(buffer_a != nullptr);
+	buffer_a = reinterpret_cast<T*>(malloc(buffer_size));
+	assert(buffer_a != nullptr);
 
-		buffer_b = reinterpret_cast<T*>(malloc(buffer_size));
-		assert(buffer_b != nullptr);
-	}
+	buffer_b = reinterpret_cast<T*>(malloc(buffer_size));
+	assert(buffer_b != nullptr);
 
 	// Generate data
 	{
@@ -124,6 +122,7 @@ inline void HorizontalTest(unsigned width, bool print,
 		PrintValues(width, 1, buffer_b);
 
 	// Inverse
+	memset(buffer_a, 0, buffer_size);
 	wavelet_transformation_inverse(1, ako::HalfPlusOneRule(width), ako::Half(width), 0, buffer_b,
 	                               buffer_b + ako::HalfPlusOneRule(width), buffer_a);
 

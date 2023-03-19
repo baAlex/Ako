@@ -68,13 +68,13 @@ static void sCdf53HorizontalForward(unsigned width, unsigned height, unsigned in
 		}
 		else
 		{
-			for (unsigned col = half - 1; col < rule; col += 1)
+			for (unsigned col = rule - 2; col < rule; col += 1)
 			{
 				const T even = input[(col << 1) + 0];
 				const T odd = (col != rule - 1) ? input[(col << 1) + 1] : even;
 				const T even_p1 = (col != rule - 1) ? input[(col << 1) + 2] : even;
 
-				const T hp = WrapSubtract<T>(odd, WrapAdd(even, even_p1) / 2);
+				const T hp = (col != rule - 1) ? WrapSubtract<T>(odd, WrapAdd(even, even_p1) / 2) : 0;
 				const T lp = WrapAdd<T>(even, WrapAdd(hp_l1, hp) / 4);
 
 				output[col + 0] = lp;

@@ -165,7 +165,7 @@ template <> int32_t WrapSubtract(int32_t a, int32_t b)
 
 template <> int32_t WrapAdd(int32_t a, int32_t b)
 {
-	return static_cast<int16_t>((static_cast<int64_t>(a) + static_cast<int64_t>(b)) % 4294967296);
+	return static_cast<int32_t>((static_cast<int64_t>(a) + static_cast<int64_t>(b)) % 4294967296);
 }
 
 
