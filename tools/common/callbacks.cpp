@@ -104,6 +104,7 @@ void CallbackGenericEvent(ako::GenericEvent e, unsigned arg_a, unsigned arg_b, u
 
 		// Ratio
 		case ako::GenericEvent::RatioIteration:
+			data.q_ratio = arg_d.f;
 			if (data.print == true)
 				printf("%s\t\t - Ratio iteration, q: %.3f\n", data.prefix, arg_d.f);
 			break;

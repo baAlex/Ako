@@ -65,6 +65,8 @@ struct CallbacksData
 	unsigned tile_x;
 	unsigned tile_y;
 	size_t tile_data_size;
+
+	float q_ratio;
 };
 
 void CallbackGenericEvent(ako::GenericEvent e, unsigned a, unsigned b, unsigned c, ako::GenericType d, void* user_data);

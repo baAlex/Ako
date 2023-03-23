@@ -2,7 +2,7 @@
 
 MIT License
 
-Copyright (c) 2021-2022 Alexander Brandt
+Copyright (c) 2021-2023 Alexander Brandt
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -207,6 +207,7 @@ int main(int argc, const char* argv[])
 	// Encode
 	void* encoded_blob = nullptr;
 	size_t encoded_blob_size = 0;
+	CallbacksData callbacks_data = {};
 	{
 		if (quiet == false && verbose == true)
 		{
@@ -216,7 +217,6 @@ int main(int argc, const char* argv[])
 
 		// Configure callbacks
 		auto callbacks = ako::DefaultCallbacks();
-		CallbacksData callbacks_data = {};
 		callbacks_data.histogram_output = histogram_output_filename;
 
 		if (quiet == false)
@@ -283,11 +283,13 @@ int main(int argc, const char* argv[])
 		                 8.0F * static_cast<float>(channels);
 
 		if (checksum == true)
-			printf("(%x) %.2f kB -> %.2f kB, ratio: %.2f:1, %.4f bpp\n", hash, uncompressed_size, compressed_size,
-			       uncompressed_size / compressed_size, bpp);
+			printf("(%x) %.2f kB -> %.2f kB, ratio: %.2f:1, %.4f bpp [r: %.0f, q: %.0f/%.0f] \n", hash,
+			       uncompressed_size, compressed_size, uncompressed_size / compressed_size, bpp, s.ratio,
+			       s.quantization, callbacks_data.q_ratio);
 		else
-			printf("%.2f kB -> %.2f kB, ratio: %.2f:1, %.4f bpp\n", uncompressed_size, compressed_size,
-			       uncompressed_size / compressed_size, bpp);
+			printf("%.2f kB -> %.2f kB, ratio: %.2f:1, %.4f bpp [r: %.0f, q: %.0f/%.0f]\n", uncompressed_size,
+			       compressed_size, uncompressed_size / compressed_size, bpp, s.ratio, s.quantization,
+			       callbacks_data.q_ratio);
 	}
 
 	return EXIT_SUCCESS;

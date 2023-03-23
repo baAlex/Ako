@@ -34,31 +34,25 @@ template <typename T>
 static void sQuantizer(float q, unsigned width, unsigned height, unsigned input_stride, unsigned output_stride,
                        const T* in, T* out)
 {
-	if (std::isnan(q) == false && q > 1.0F && width > 16 && height > 16)
+	if (std::isnan(q) == false && std::isinf(q) == false && q > 1.0F)
 	{
-		if (std::isinf(q) == true)
-		{
-			for (unsigned row = 0; row < height; row += 1)
-			{
-				for (unsigned col = 0; col < width; col += 1)
-					out[col] = 0;
-				out += output_stride;
-			}
-			return;
-		}
-
 		for (unsigned row = 0; row < height; row += 1)
 		{
+			q = std::floor(q);
+
 			for (unsigned col = 0; col < width; col += 1)
 			{
 				// Quantization with integers
 				// out[col] = static_cast<T>((in[col] / static_cast<T>(q)) * static_cast<T>(q));
 
 				// Gate, looks horribly pixelated if alone, but here is acting as dead-zone:
-				out[col] = (std::abs(static_cast<float>(in[col])) < std::floor(q) / 1.5F) ? 0 : in[col]; // 2.0 - 1.0
+				out[col] = (std::abs(static_cast<float>(in[col])) < q / 1.5F) ? 0 : in[col]; // 2.0 - 1.0
 
 				// Quantization with floats
 				out[col] = static_cast<T>(std::floor(static_cast<float>(out[col]) / q + 0.5F) * q);
+
+				// Old Ako
+				// out[col] = static_cast<T>(std::trunc(static_cast<float>(in[col]) / q) * q);
 			}
 
 			in += input_stride;
@@ -75,6 +69,18 @@ static void sQuantizer(float q, unsigned width, unsigned height, unsigned input_
 		in += input_stride;
 		out += output_stride;
 	}
+}
+
+
+static float sCurve(float x)
+{
+	// return std::pow(x, 3.0F);
+
+	const auto a = (1.0F / 16.0F);
+	if (x < a)
+		return 0.0F; // Quantize only last 16 lifts
+
+	return std::pow(x - a, 3.0F + (3.0F * a)); // Emphasis on last lifts
 }
 
 
@@ -108,11 +114,11 @@ static size_t sCompress2ndPhase(Compressor<T>& compressor, const Settings& setti
 		LiftMeasures(lift, width, height, lp_w, lp_h, hp_w, hp_h);
 
 		// Quantization step
-		const auto x = (static_cast<float>(lifts_no) - static_cast<float>(lift + 1)) / static_cast<float>(lifts_no - 1);
-		const auto q = std::pow(2.0F, std::pow(x, 3.0F) * (std::log2f(settings.quantization)));
+		const auto x = (static_cast<float>(lifts_no) - static_cast<float>(lift)) / static_cast<float>(lifts_no);
+		const auto q = std::pow(2.0F, sCurve(x) * std::log2f(settings.quantization));
 		const float q_diagonal = (settings.quantization > 0.0F) ? 2.0F : 1.0F;
 
-		// printf("x: %f, q: %f\n", x, q);
+		// printf("x: %f, x2: %f, q: %f\n", x, sCurve(x), q);
 
 		// Iterate in Yuv order
 		for (unsigned ch = 0; ch < channels; ch += 1)
