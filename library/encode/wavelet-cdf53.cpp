@@ -39,6 +39,7 @@ static void sCdf53HorizontalForward(unsigned width, unsigned height, unsigned in
 	{
 		T hp_l1 = 0;
 
+		// Beginning/middle
 		for (unsigned col = 0; col < half - 1; col += 1)
 		{
 			const T even = input[(col << 1) + 0];
@@ -53,9 +54,10 @@ static void sCdf53HorizontalForward(unsigned width, unsigned height, unsigned in
 			hp_l1 = hp;
 		}
 
+		// End
 		if (rule == half)
 		{
-			const unsigned col = rule - 1;
+			const unsigned col = half - 1;
 			const T even = input[(col << 1) + 0];
 			const T odd = input[(col << 1) + 1];
 			const T even_p1 = even;
@@ -68,7 +70,7 @@ static void sCdf53HorizontalForward(unsigned width, unsigned height, unsigned in
 		}
 		else
 		{
-			for (unsigned col = rule - 2; col < rule; col += 1)
+			for (unsigned col = half - 1; col < rule; col += 1)
 			{
 				const T even = input[(col << 1) + 0];
 				const T odd = (col != rule - 1) ? input[(col << 1) + 1] : even;
@@ -101,44 +103,94 @@ static void sCdf53VerticalForward(unsigned width, unsigned height, unsigned inpu
 	const auto half = Half(height);
 	const auto rule = HalfPlusOneRule(height);
 
-	// Highpass (length of 'half')
-	for (unsigned row = 0; row < half; row += 1)
+	// Beginning
+	{
+		const unsigned row = 0;
+		const T* even = input + input_stride * ((row << 1) + 0);
+		const T* odd = input + input_stride * ((row << 1) + 1);
+		const T* even_p1 = input + input_stride * ((row << 1) + 2);
+
+		T* lp_out = output + output_stride * (row + 0);
+		T* hp_out = output + output_stride * (row + rule);
+
+		for (unsigned col = 0; col < width; col += 1)
+		{
+			const T hp = WrapSubtract<T>(odd[col], WrapAdd(even[col], even_p1[col]) / 2);
+			const T lp = WrapAdd<T>(even[col], WrapAdd(static_cast<T>(0), hp) / 4);
+
+			lp_out[col] = lp;
+			hp_out[col] = hp;
+		}
+	}
+
+	// Middle
+	for (unsigned row = 1; row < half - 1; row += 1)
 	{
 		const T* even = input + input_stride * ((row << 1) + 0);
 		const T* odd = input + input_stride * ((row << 1) + 1);
-		const T* even_p1 = (row < half - 1) ? (input + input_stride * ((row << 1) + 2)) : even; // Clamp
+		const T* even_p1 = input + input_stride * ((row << 1) + 2);
 
-		T* out = output + output_stride * (row + rule + 0);
+		T* lp_out = output + output_stride * (row + 0);
+		T* hp_out = output + output_stride * (row + rule);
+
+		T* hp_l1 = output + output_stride * ((row - 1) + rule);
 
 		for (unsigned col = 0; col < width; col += 1)
-			out[col] = WrapSubtract<T>(odd[col], WrapAdd(even[col], even_p1[col]) / 2);
+		{
+			const T hp = WrapSubtract<T>(odd[col], WrapAdd(even[col], even_p1[col]) / 2);
+			const T lp = WrapAdd<T>(even[col], WrapAdd(hp_l1[col], hp) / 4);
+
+			lp_out[col] = lp;
+			hp_out[col] = hp;
+		}
 	}
 
-	// Lowpass (length of 'rule')
-	for (unsigned row = 0; row < half; row += 1)
+	// End
+	if (rule == half)
 	{
+		const unsigned row = half - 1;
 		const T* even = input + input_stride * ((row << 1) + 0);
-		const T* hp = output + output_stride * (row + rule + 0);
-		const T* hp_l1 = (row > 0) ? (output + output_stride * (row + rule - 1)) : hp; // Clamp
+		const T* odd = input + input_stride * ((row << 1) + 1);
+		const T* even_p1 = even;
 
-		T* out = output + output_stride * (row);
+		T* lp_out = output + output_stride * (row + 0);
+		T* hp_out = output + output_stride * (row + rule);
+
+		T* hp_l1 = output + output_stride * ((row - 1) + rule);
 
 		for (unsigned col = 0; col < width; col += 1)
-			out[col] = WrapAdd<T>(even[col], WrapAdd(hp_l1[col], hp[col]) / 4);
+		{
+			const T hp = WrapSubtract<T>(odd[col], WrapAdd(even[col], even_p1[col]) / 2);
+			const T lp = WrapAdd<T>(even[col], WrapAdd(hp_l1[col], hp) / 4);
+
+			lp_out[col] = lp;
+			hp_out[col] = hp;
+		}
 	}
-
-	if (rule != half) // If length wasn't divisible by two, complete lowpass
+	else
 	{
-		const unsigned row = half;
+		for (unsigned row = half - 1; row < rule; row += 1)
+		{
+			const T* even = input + input_stride * ((row << 1) + 0);
+			const T* odd = (row != rule - 1) ? (input + input_stride * ((row << 1) + 1)) : even;
+			const T* even_p1 = (row != rule - 1) ? (input + input_stride * ((row << 1) + 2)) : even;
 
-		const T* even = input + input_stride * ((row << 1) + 0);
-		const T* hp = output + output_stride * (row + half + 0);    // 'half' is the only change from above routine
-		const T* hp_l1 = output + output_stride * (row + half - 1); // Clamp
+			T* lp_out = output + output_stride * (row + 0);
+			T* hp_out = output + output_stride * (row + rule);
 
-		T* out = output + output_stride * (row);
+			T* hp_l1 = output + output_stride * ((row - 1) + rule);
 
-		for (unsigned col = 0; col < width; col += 1)
-			out[col] = WrapAdd<T>(even[col], WrapAdd(hp_l1[col], hp[col]) / 4);
+			for (unsigned col = 0; col < width; col += 1)
+			{
+				const T hp = (row != rule - 1) ? WrapSubtract<T>(odd[col], WrapAdd(even[col], even_p1[col]) / 2) : 0;
+				const T lp = WrapAdd<T>(even[col], WrapAdd(hp_l1[col], hp) / 4);
+
+				lp_out[col] = lp;
+
+				if (row != rule - 1)
+					hp_out[col] = hp;
+			}
+		}
 	}
 }
 
