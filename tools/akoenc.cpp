@@ -118,40 +118,40 @@ int main(int argc, const char* argv[])
 		                                          ->option_text("OPTION")
 		                                          ->transform(CheckedTransformer(s_wavelet_transformer, ignore_case));
 
-		app.add_option("-p,--wrap", s.wrap, "Wrap mode: CLAMP, MIRROR, REPEAT or ZERO.\n"
-		                                    "[Default is " + string(ToString(s.wrap)) + "]")
-		                                    ->option_text("OPTION")
-		                                    ->transform(CheckedTransformer(s_wrap_transformer, ignore_case));
+		//app.add_option("-p,--wrap", s.wrap, "Wrap mode: CLAMP, MIRROR, REPEAT or ZERO.\n"
+		//                                    "[Default is " + string(ToString(s.wrap)) + "]")
+		//                                    ->option_text("OPTION")
+		//                                    ->transform(CheckedTransformer(s_wrap_transformer, ignore_case));
 
 		app.add_option("-z,--compression", s.compression, "Compression method: KAGARI, MANBAVARAN or NONE.\n"
 		                                                  "[Default is " + string(ToString(s.compression)) + "]")
 		                                                  ->option_text("OPTION")
 		                                                  ->transform(CheckedTransformer(s_compression_transformer, ignore_case));
 
-		app.add_option("-q,--quantization", s.quantization, "Quantization, controls loss. Zero for lossless.\n"
-		                                                    "[Default is " + to_string(s.quantization) +"]")
-		                                                    ->option_text("NUMBER");
-
-		/*app.add_option("-g,--noise-gate", s.gate, "Noise gate threshold, controls loss. Zero for lossless.\n"
-		                                          "[Default is " + to_string(s.gate) +"]")
-		                                          ->option_text("NUMBER");
-
-		app.add_option("-l,--chroma-loss", s.chroma_loss, "Multiplies quantization and noise-gate threshold on\n"
-		                                                  "chroma channels. Zero or 1 for same loss in both luma\n"
-		                                                  "and chroma channels.\n"
-		                                                  "[Default is " + to_string(s.chroma_loss) +"]")->option_text("NUMBER");*/
+		app.add_option("-t,--tiles-size", s.tiles_dimension, "Tiles size, must be a power of two. Zero traits image\nas a whole.\n"
+		                                                     "[Default is " + to_string(s.tiles_dimension) +"]")
+		                                                     ->option_text("NUMBER");
 
 		app.add_flag("-d,--discard", s.discard, "Discards pixels under fully transparent areas. If set\n"
 		                                        "output will be lossy.\n"
 		                                        "[" + ((s.discard) ? string("Set") : string("No set")) + " by default]");
 
+		app.add_option("-q,--quantization", s.quantization, "Quantization, controls loss. Zero for lossless.\n"
+		                                                    "[Default is " + to_string(s.quantization) +"]")
+		                                                    ->option_text("NUMBER");
+
+		app.add_option("-p,--quantization-power", s.quantization_power, "Quantization power.\n"
+		                                      "[Default is " + to_string(s.quantization_power) +"]")
+		                                      ->option_text("NUMBER");
+
+		app.add_option("-l,--chroma-loss", s.chroma_loss, "Multiplies quantization and noise-gate threshold on\n"
+		                                                  "chroma channels. Zero or 1 for same loss in both luma\n"
+		                                                  "and chroma channels.\n"
+		                                                  "[Default is " + to_string(s.chroma_loss) +"]")->option_text("NUMBER");
+
 		app.add_option("-r,--ratio", s.ratio, "Ratio. Zero for lossless.\n"
 		                                      "[Default is " + to_string(s.ratio) +"]")
 		                                      ->option_text("NUMBER");
-
-		app.add_option("-t,--tiles-size", s.tiles_dimension, "Tiles size, must be a power of two. Zero traits image\nas a whole.\n"
-		                                                     "[Default is " + to_string(s.tiles_dimension) +"]")
-		                                                     ->option_text("NUMBER");
 		// clang-format on
 
 		CLI11_PARSE(app, argc, argv);

@@ -61,6 +61,13 @@ static void sQuantizer(float q, unsigned width, unsigned height, unsigned input_
 
 		return;
 	}
+	else if (std::isinf(q) == true || std::isnan(q) == true)
+	{
+		for (unsigned col = 0; col < width; col += 1)
+			out[col] = 0;
+		out += output_stride;
+		return;
+	}
 
 	for (unsigned row = 0; row < height; row += 1)
 	{
@@ -72,7 +79,7 @@ static void sQuantizer(float q, unsigned width, unsigned height, unsigned input_
 }
 
 
-static float sCurve(float x)
+static float sCurve(float power, float x)
 {
 	// return std::pow(x, 3.0F);
 
@@ -80,7 +87,7 @@ static float sCurve(float x)
 	if (x < a)
 		return 0.0F; // Quantize only last 16 lifts
 
-	return std::pow(x - a, 3.0F + (3.0F * a)); // Emphasis on last lifts
+	return std::pow(x - a, power + (power * a)); // Emphasis on last lifts
 }
 
 
@@ -112,33 +119,35 @@ static size_t sCompress2ndPhase(Compressor<T>& compressor, const Settings& setti
 	for (unsigned lift = (lifts_no - 1); lift < lifts_no; lift -= 1) // Underflows
 	{
 		LiftMeasures(lift, width, height, lp_w, lp_h, hp_w, hp_h);
-
-		// Quantization step
 		const auto x = (static_cast<float>(lifts_no) - static_cast<float>(lift)) / static_cast<float>(lifts_no);
-		const auto q = std::pow(2.0F, sCurve(x) * std::log2f(settings.quantization));
-		const float q_diagonal = (settings.quantization > 0.0F) ? 2.0F : 1.0F;
-
-		// printf("x: %f, x2: %f, q: %f\n", x, sCurve(x), q);
 
 		// Iterate in Yuv order
 		for (unsigned ch = 0; ch < channels; ch += 1)
 		{
-			const float q_sub = (ch == 0 || settings.quantization == 0.0F) ? 1.0F : 2.0F;
+			// Quantization
+			auto q = std::pow(2.0F, sCurve(settings.quantization_power, x) * std::log2f(settings.quantization));
+
+			if (ch != 0)
+				q = std::pow(2.0F, sCurve(settings.quantization_power, x) * std::log2f(settings.quantization) *
+				                       settings.chroma_loss);
+
+			const float q_diagonal = (settings.quantization > 0.0F) ? 2.0F : 1.0F;
+			// printf("x: %f, x2: %f, q: %f\n", x, sCurve(x), q);
 
 			// Quadrant C
-			if (compressor.Step(sQuantizer, (q * q_sub), lp_w, hp_h, in) != 0)
+			if (compressor.Step(sQuantizer, q, lp_w, hp_h, in) != 0)
 				return 0;
 
 			in += (lp_w * hp_h);
 
 			// Quadrant B
-			if (compressor.Step(sQuantizer, (q * q_sub), hp_w, lp_h, in) != 0)
+			if (compressor.Step(sQuantizer, q, hp_w, lp_h, in) != 0)
 				return 0;
 
 			in += (hp_w * lp_h);
 
 			// Quadrant D
-			if (compressor.Step(sQuantizer, (q * q_sub * q_diagonal), hp_w, hp_h, in) != 0)
+			if (compressor.Step(sQuantizer, (q * q_diagonal), hp_w, hp_h, in) != 0)
 				return 0;
 
 			in += (hp_w * hp_h);
@@ -216,7 +225,7 @@ static size_t sCompress1stPhase(const Callbacks& callbacks, const Settings& sett
 				if ((compressed_size = sCompress2ndPhase(compressor, s, width, height, channels, input)) != 0)
 					break;
 
-				if (s.quantization > 4096.0F) // TODO, horribly hardcoded!
+				if (std::isinf(s.quantization) == true) // TODO
 					goto fallback;
 			}
 

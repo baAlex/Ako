@@ -2,7 +2,7 @@
 
 MIT License
 
-Copyright (c) 2021-2022 Alexander Brandt
+Copyright (c) 2021-2023 Alexander Brandt
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -93,10 +93,11 @@ inline void PrintSettings(const ako::Settings& s, const std::string& side = "enc
 
 	if (side == "encoder-side")
 	{
-		std::cout << ", q: " << std::to_string(s.quantization);
-		std::cout << ", g: " << std::to_string(s.gate);
-		std::cout << ", l: " << std::to_string(s.chroma_loss);
 		std::cout << ", d: " << ((s.discard) ? "true" : "false");
+		std::cout << ", q: " << std::to_string(s.quantization);
+		std::cout << ", p: " << std::to_string(s.quantization_power);
+		std::cout << ", l: " << std::to_string(s.chroma_loss);
+		std::cout << ", r: " << std::to_string(s.ratio);
 	}
 
 	std::cout << "]\n";

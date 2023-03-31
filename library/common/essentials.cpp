@@ -214,8 +214,7 @@ Status ValidateSettings(const Settings& settings)
 		    settings.tiles_dimension > MAXIMUM_TILES_DIMENSION)
 			return Status::InvalidTilesDimension;
 
-		if (settings.quantization < 0.0F || settings.gate < 0.0F || settings.chroma_loss < 0.0F ||
-		    settings.ratio < 0.0F)
+		if (settings.quantization < 0.0F || settings.chroma_loss < 1.0F || settings.ratio < 0.0F)
 			return Status::InvalidSettings;
 	}
 

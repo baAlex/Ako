@@ -149,11 +149,12 @@ struct Settings
 	unsigned tiles_dimension;
 
 	// Non recoverable when decoding:
-	float quantization;
 	bool discard;
-	float gate;
-	float chroma_loss;
 
+	float quantization;
+	float quantization_power;
+
+	float chroma_loss;
 	float ratio;
 };
 

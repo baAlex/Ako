@@ -2,7 +2,7 @@
 
 MIT License
 
-Copyright (c) 2021-2022 Alexander Brandt
+Copyright (c) 2021-2023 Alexander Brandt
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -39,11 +39,12 @@ Settings DefaultSettings()
 
 	settings.tiles_dimension = 0;
 
-	settings.quantization = 0.0F;
 	settings.discard = false;
-	settings.gate = 0.0F;
-	settings.chroma_loss = 0.0F;
 
+	settings.quantization = 0.0F;
+	settings.quantization_power = 3.0F;
+
+	settings.chroma_loss = 2.0F;
 	settings.ratio = 12.0F;
 
 	return settings;
