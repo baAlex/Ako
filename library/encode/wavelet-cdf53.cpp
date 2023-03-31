@@ -32,8 +32,8 @@ template <typename T>
 static void sCdf53HorizontalForward(unsigned width, unsigned height, unsigned input_stride, unsigned output_stride,
                                     const T* input, T* output)
 {
-	const auto half = Half(width);
-	const auto rule = HalfPlusOneRule(width);
+	const unsigned half = Half(width);
+	const unsigned rule = HalfPlusOneRule(width);
 
 	for (unsigned row = 0; row < height; row += 1)
 	{
@@ -100,8 +100,8 @@ template <typename T>
 static void sCdf53VerticalForward(unsigned width, unsigned height, unsigned input_stride, unsigned output_stride,
                                   const T* input, T* output)
 {
-	const auto half = Half(height);
-	const auto rule = HalfPlusOneRule(height);
+	const unsigned half = Half(height);
+	const unsigned rule = HalfPlusOneRule(height);
 
 	// Beginning
 	{

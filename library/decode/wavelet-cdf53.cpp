@@ -116,8 +116,6 @@ template <typename T>
 static void sCdf53InPlaceishVerticalInverse(unsigned width, unsigned lp_h, unsigned hp_h, const T* lowpass, T* highpass,
                                             T* out_lowpass)
 {
-	(void)lp_h;
-
 	// Evens
 	{
 		const T* lp = lowpass;
@@ -201,11 +199,7 @@ template <>
 void Cdf53HorizontalInverse(unsigned height, unsigned lp_w, unsigned hp_w, unsigned out_stride, const int16_t* lowpass,
                             const int16_t* highpass, int16_t* output)
 {
-#ifdef AKO_SSE2
-	sCdf53HorizontalInverseSimd(height, lp_w, hp_w, out_stride, lowpass, highpass, output);
-#else
 	sCdf53HorizontalInverse(height, lp_w, hp_w, out_stride, lowpass, highpass, output);
-#endif
 }
 
 template <>

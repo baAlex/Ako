@@ -2,7 +2,7 @@
 
 MIT License
 
-Copyright (c) 2021-2022 Alexander Brandt
+Copyright (c) 2021-2023 Alexander Brandt
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -34,21 +34,28 @@ static void sHaarHorizontalInverse(unsigned height, unsigned lp_w, unsigned hp_w
 {
 	for (unsigned row = 0; row < height; row += 1)
 	{
+		// Beginning/middle
 		for (unsigned col = 0; col < hp_w; col += 1)
 		{
-			const auto lp = lowpass[col];
-			const auto hp = highpass[col];
-			output[(col << 1) + 0] = lp;
-			output[(col << 1) + 1] = WrapSubtract(lp, hp);
+			const T lp = lowpass[col];
+			const T hp = highpass[col];
+
+			const T even = lp;
+			const T odd = WrapSubtract(lp, hp);
+
+			output[(col << 1) + 0] = even;
+			output[(col << 1) + 1] = odd;
 		}
 
+		// End
 		if (lp_w != hp_w)
 		{
-			const auto col = hp_w;
-			const auto lp = lowpass[col];
-			output[(col << 1) + 0] = lp;
+			const unsigned col = hp_w;
+			const T even = lowpass[col];
+			output[(col << 1) + 0] = even;
 		}
 
+		// Next row
 		highpass += hp_w;
 		lowpass += lp_w;
 		output += out_stride;
@@ -60,30 +67,38 @@ template <typename T>
 static void sHaarInPlaceishVerticalInverse(unsigned width, unsigned lp_h, unsigned hp_h, const T* lowpass, T* highpass,
                                            T* out_lowpass)
 {
+	// Beginning/middle
 	for (unsigned row = 0; row < hp_h; row += 1)
 	{
-		const auto lp = lowpass;
-		auto out_lp = out_lowpass;
-		auto hp = highpass;
+		const T* lp = lowpass;
+		T* hp = highpass;
+		T* out_lp = out_lowpass;
 
 		for (unsigned col = 0; col < width; col += 1)
 		{
-			out_lp[col] = lp[col];
-			hp[col] = WrapSubtract(lp[col], hp[col]);
+			const T even = lp[col];
+			const T odd = WrapSubtract(lp[col], hp[col]);
+
+			out_lp[col] = even;
+			hp[col] = odd;
 		}
 
 		lowpass += width;
-		out_lowpass += width;
 		highpass += width;
+		out_lowpass += width;
 	}
 
+	// End
 	if (lp_h != hp_h)
 	{
-		const auto lp = lowpass;
-		auto out_lp = out_lowpass;
+		const T* lp = lowpass;
+		T* out_lp = out_lowpass;
 
 		for (unsigned col = 0; col < width; col += 1)
-			out_lp[col] = lp[col];
+		{
+			const T even = lp[col];
+			out_lp[col] = even;
+		}
 	}
 }
 

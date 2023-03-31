@@ -2,7 +2,7 @@
 
 MIT License
 
-Copyright (c) 2021-2022 Alexander Brandt
+Copyright (c) 2021-2023 Alexander Brandt
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -32,25 +32,52 @@ template <typename T>
 static void sHaarHorizontalForward(unsigned width, unsigned height, unsigned input_stride, unsigned output_stride,
                                    const T* input, T* output)
 {
-	const auto half = Half(width);
-	const auto rule = HalfPlusOneRule(width);
+	const unsigned half = Half(width);
+	const unsigned rule = HalfPlusOneRule(width);
 
 	for (unsigned row = 0; row < height; row += 1)
 	{
-		// Highpass (length of 'half')
-		for (unsigned col = 0; col < half; col += 1)
+		// Beginning/middle
+		for (unsigned col = 0; col < half - 1; col += 1)
 		{
-			const auto even = input[(col << 1) + 0];
-			const auto odd = input[(col << 1) + 1];
+			const T even = input[(col << 1) + 0];
+			const T odd = input[(col << 1) + 1];
 
-			output[rule + col] = WrapSubtract(even, odd);
+			const T hp = WrapSubtract(even, odd);
+			const T lp = even;
+
+			output[col + 0] = lp;
+			output[col + rule] = hp;
 		}
 
-		// Lowpass (length of 'rule')
-		for (unsigned col = 0; col < rule; col += 1)
+		// End
+		if (rule == half)
 		{
-			const auto even = input[(col << 1) + 0];
-			output[col] = even;
+			const unsigned col = half - 1;
+			const T even = input[(col << 1) + 0];
+			const T odd = input[(col << 1) + 1];
+
+			const T hp = WrapSubtract(even, odd);
+			const T lp = even;
+
+			output[col + 0] = lp;
+			output[col + rule] = hp;
+		}
+		else
+		{
+			for (unsigned col = half - 1; col < rule; col += 1)
+			{
+				const T even = input[(col << 1) + 0];
+				const T odd = (col != rule - 1) ? input[(col << 1) + 1] : even;
+
+				const T hp = WrapSubtract(even, odd);
+				const T lp = even;
+
+				output[col + 0] = lp;
+
+				if (col != rule - 1)
+					output[col + rule] = hp;
+			}
 		}
 
 		// Next row
@@ -64,34 +91,67 @@ template <typename T>
 static void sHaarVerticalForward(unsigned width, unsigned height, unsigned input_stride, unsigned output_stride,
                                  const T* input, T* output)
 {
-	const auto rule = HalfPlusOneRule(height);
-	const auto half = Half(height);
+	const unsigned rule = HalfPlusOneRule(height);
+	const unsigned half = Half(height);
 
-	// Highpass (length of 'half')
-	for (unsigned row = 0; row < half; row += 1)
+	// Beginning/middle
+	for (unsigned row = 0; row < half - 1; row += 1)
 	{
-		const auto in = input + input_stride * (row << 1);
-		auto hp_out = output + output_stride * (row + rule);
+		const T* even = input + input_stride * ((row << 1) + 0);
+		const T* odd = input + input_stride * ((row << 1) + 1);
+
+		T* lp_out = output + output_stride * (row + 0);
+		T* hp_out = output + output_stride * (row + rule);
 
 		for (unsigned col = 0; col < width; col += 1)
 		{
-			const auto even = in[col + input_stride * 0];
-			const auto odd = in[col + input_stride * 1];
+			const T hp = WrapSubtract(even[col], odd[col]);
+			const T lp = even[col];
 
-			hp_out[col] = WrapSubtract(even, odd);
+			lp_out[col] = lp;
+			hp_out[col] = hp;
 		}
 	}
 
-	// Lowpass (length of 'rule')
-	for (unsigned row = 0; row < rule; row += 1)
+	// End
+	if (rule == half)
 	{
-		const auto in = input + input_stride * (row << 1);
-		auto lp_out = output + output_stride * (row);
+		const unsigned row = half - 1;
+		const T* even = input + input_stride * ((row << 1) + 0);
+		const T* odd = input + input_stride * ((row << 1) + 1);
+
+		T* lp_out = output + output_stride * (row + 0);
+		T* hp_out = output + output_stride * (row + rule);
 
 		for (unsigned col = 0; col < width; col += 1)
 		{
-			const auto even = in[col + output_stride * 0];
-			lp_out[col] = even;
+			const T hp = WrapSubtract(even[col], odd[col]);
+			const T lp = even[col];
+
+			lp_out[col] = lp;
+			hp_out[col] = hp;
+		}
+	}
+	else
+	{
+		for (unsigned row = half - 1; row < rule; row += 1)
+		{
+			const T* even = input + input_stride * ((row << 1) + 0);
+			const T* odd = (row != rule - 1) ? (input + input_stride * ((row << 1) + 1)) : even;
+
+			T* lp_out = output + output_stride * (row + 0);
+			T* hp_out = output + output_stride * (row + rule);
+
+			for (unsigned col = 0; col < width; col += 1)
+			{
+				const T hp = WrapSubtract(even[col], odd[col]);
+				const T lp = even[col];
+
+				lp_out[col] = lp;
+
+				if (row != rule - 1)
+					hp_out[col] = hp;
+			}
 		}
 	}
 }
