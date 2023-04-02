@@ -267,7 +267,7 @@ class CompressorKagari final : public Compressor<int16_t>
 				if (width >= CDF53_MINIMUM_LENGTH && height >= CDF53_MINIMUM_LENGTH)
 					quantize(quantization, block_w, block_h, width, block_w, input + x, m_block);
 				else
-					quantize(0.0F, block_w, block_h, width, block_w, input + x, m_block);
+					quantize(1.0F, block_w, block_h, width, block_w, input + x, m_block);
 
 				m_block += block_length;
 				input_length -= block_length;

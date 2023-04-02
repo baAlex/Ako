@@ -34,7 +34,7 @@ template <typename T>
 static void sQuantizer(float q, unsigned width, unsigned height, unsigned input_stride, unsigned output_stride,
                        const T* in, T* out)
 {
-	if (std::isnan(q) == false && std::isinf(q) == false && q > 1.0F)
+	if (q >= 1.0F && std::isnan(q) == false && std::isinf(q) == false)
 	{
 		for (unsigned row = 0; row < height; row += 1)
 		{
@@ -46,7 +46,7 @@ static void sQuantizer(float q, unsigned width, unsigned height, unsigned input_
 				// out[col] = static_cast<T>((in[col] / static_cast<T>(q)) * static_cast<T>(q));
 
 				// Gate, looks horribly pixelated if alone, but here is acting as dead-zone:
-				out[col] = (std::abs(static_cast<float>(in[col])) < q / 1.5F) ? 0 : in[col]; // 2.0 - 1.0
+				out[col] = (std::abs(static_cast<float>(in[col])) < q / 2.0F) ? 0 : in[col]; // 2.0 - 1.0
 
 				// Quantization with floats
 				out[col] = static_cast<T>(std::floor(static_cast<float>(out[col]) / q + 0.5F) * q);
@@ -58,31 +58,21 @@ static void sQuantizer(float q, unsigned width, unsigned height, unsigned input_
 			in += input_stride;
 			out += output_stride;
 		}
-
-		return;
 	}
-	else if (std::isinf(q) == true || std::isnan(q) == true)
+	else
 	{
-		for (unsigned col = 0; col < width; col += 1)
-			out[col] = 0;
-		out += output_stride;
-		return;
-	}
-
-	for (unsigned row = 0; row < height; row += 1)
-	{
-		for (unsigned col = 0; col < width; col += 1)
-			out[col] = in[col];
-		in += input_stride;
-		out += output_stride;
+		for (unsigned row = 0; row < height; row += 1)
+		{
+			for (unsigned col = 0; col < width; col += 1)
+				out[col] = 0;
+			out += output_stride;
+		}
 	}
 }
 
 
 static float sCurve(float power, float x)
 {
-	// return std::pow(x, 3.0F);
-
 	const auto a = (1.0F / 16.0F);
 	if (x < a)
 		return 0.0F; // Quantize only last 16 lifts
@@ -111,7 +101,6 @@ static size_t sCompress2ndPhase(Compressor<T>& compressor, const Settings& setti
 	{
 		if (compressor.Step(sQuantizer, 1.0F, lp_w, lp_h, in) != 0)
 			return 0;
-
 		in += (lp_w * lp_h); // Quadrant A
 	}
 
@@ -125,31 +114,34 @@ static size_t sCompress2ndPhase(Compressor<T>& compressor, const Settings& setti
 		for (unsigned ch = 0; ch < channels; ch += 1)
 		{
 			// Quantization
-			auto q = std::pow(2.0F, sCurve(settings.quantization_power, x) * std::log2f(settings.quantization));
+			auto q = std::log2f(settings.quantization) * sCurve(settings.quantization_power / 1.0F, x);
+			auto q_diagonal = std::log2f(settings.quantization) * sCurve(settings.quantization_power / 2.0F, x);
 
 			if (ch != 0)
-				q = std::pow(2.0F, sCurve(settings.quantization_power, x) * std::log2f(settings.quantization) *
-				                       settings.chroma_loss);
+			{
+				q *= settings.chroma_loss;
+				q_diagonal *= settings.chroma_loss;
+			}
 
-			const float q_diagonal = (settings.quantization > 0.0F) ? 2.0F : 1.0F;
-			// printf("x: %f, x2: %f, q: %f\n", x, sCurve(x), q);
+			q = std::pow(2.0F, q);
+			q_diagonal = std::pow(2.0F, q_diagonal);
+
+			if (settings.quantization > 1.0F)
+				q_diagonal = Min(q * 2.0F, q_diagonal);
 
 			// Quadrant C
 			if (compressor.Step(sQuantizer, q, lp_w, hp_h, in) != 0)
 				return 0;
-
 			in += (lp_w * hp_h);
 
 			// Quadrant B
 			if (compressor.Step(sQuantizer, q, hp_w, lp_h, in) != 0)
 				return 0;
-
 			in += (hp_w * lp_h);
 
 			// Quadrant D
-			if (compressor.Step(sQuantizer, (q * q_diagonal), hp_w, hp_h, in) != 0)
+			if (compressor.Step(sQuantizer, q_diagonal, hp_w, hp_h, in) != 0)
 				return 0;
-
 			in += (hp_w * hp_h);
 		}
 	}
@@ -159,127 +151,114 @@ static size_t sCompress2ndPhase(Compressor<T>& compressor, const Settings& setti
 
 
 const unsigned TRY = 8;
-const float ITERATION_SCALE = 2.0F;
+const float ITERATION_SCALE = 4.0F;
 
 
 template <typename T>
 static size_t sCompress1stPhase(const Callbacks& callbacks, const Settings& settings, unsigned width, unsigned height,
                                 unsigned channels, const T* input, void* output, Compression& out_compression)
 {
-	size_t compressed_size = 0;
-
 	if (settings.compression != Compression::None)
 	{
-		// Initialization
-		auto target_size = sizeof(T) * width * height * channels;
-		auto compressor = CompressorKagari(BLOCK_WIDTH, BLOCK_HEIGHT, target_size, output);
+		// Initializations
+		auto s = settings;
+		auto compressor = CompressorKagari(BLOCK_WIDTH, BLOCK_HEIGHT, 0, output);
 		out_compression = Compression::Kagari;
 
-		auto s = settings;
-		auto q_floor = settings.quantization;
-		auto q_ceil = settings.quantization;
-		s.quantization = settings.quantization;
-
-		if (settings.quantization == 0.0F && settings.ratio >= 1.0F) // TODO, repeated check
+		size_t target_size = sizeof(T) * width * height * channels;
+		float initial_q = Max(settings.quantization, 1.0F);
+		if (settings.ratio >= 1.0F)
 		{
-			q_floor = 0.0;
-			q_ceil = 0.0;
-			s.quantization = 0.0F;
-			target_size =
-			    static_cast<size_t>(static_cast<float>((sizeof(T) >> 1) * width * height * channels) / settings.ratio);
+			target_size = static_cast<size_t>(static_cast<float>(target_size >> 1) / settings.ratio);
+			initial_q = 1.0F;
 		}
 
-		const auto error_margin = (target_size * 4) / 100;
+		const size_t error_margin = (target_size * 2) / 100;
 
-		// First floor (quantization as specified, may be zero)
+		// Find a ceil
+		size_t compressed_size;
+		float q_floor = initial_q;
+		float q_ceil = initial_q;
+		while (1)
 		{
-			compressor.Reset(target_size, output);
+			s.quantization = q_ceil;
+			if (std::isinf(s.quantization) == true)
+				goto fallback;
+
+			// User feedback
 			if (callbacks.generic_event != nullptr)
 				callbacks.generic_event(GenericEvent::RatioIteration, 0, 0, 0,
 				                        GenericTypeDesignatedInitialization(s.quantization), callbacks.user_data);
 
+			// Compress
 			compressor.Reset(target_size, output);
-			if ((compressed_size = sCompress2ndPhase(compressor, s, width, height, channels, input)) == 0)
-			{
-				if (settings.ratio < 1.0F)
-					goto fallback;
-			}
+			compressed_size = sCompress2ndPhase(compressor, s, width, height, channels, input);
+			if (compressed_size != 0)
+				break;
+
+			q_floor = q_ceil;
+			q_ceil = q_ceil * ITERATION_SCALE;
 		}
 
-		// Iterate?
-		if (settings.quantization == 0.0F && settings.ratio >= 1.0F && //
-		    ((compressed_size != 0 && compressed_size > target_size) || compressed_size == 0))
+		if (settings.ratio <= 1.0F || q_floor == q_ceil || target_size - compressed_size < error_margin)
+			return compressed_size;
+
+		// Divide space in two, between floor and ceil
+		for (unsigned i = 0; i < TRY; i += 1)
 		{
-			// Find ceil
-			while (1)
+			const auto q = (q_floor + q_ceil) / 2.0F;
+			s.quantization = q;
+
+			if (std::abs(q_floor - q_ceil) < 0.05F) // Epsilon
+				break;
+
+			// User feedback
+			if (callbacks.generic_event != nullptr)
+				callbacks.generic_event(GenericEvent::RatioIteration, 0, 0, 0,
+				                        GenericTypeDesignatedInitialization(s.quantization), callbacks.user_data);
+
+			// Compress
+			compressor.Reset(target_size, output);
+			compressed_size = sCompress2ndPhase(compressor, s, width, height, channels, input);
+
+			if (compressed_size != 0)
 			{
-				q_floor = q_ceil;
-				q_ceil = (q_ceil != 0.0) ? (q_ceil * ITERATION_SCALE) : ITERATION_SCALE;
-				s.quantization = q_ceil;
-
-				if (callbacks.generic_event != nullptr)
-					callbacks.generic_event(GenericEvent::RatioIteration, 0, 0, 0,
-					                        GenericTypeDesignatedInitialization(s.quantization), callbacks.user_data);
-
-				compressor.Reset(target_size, output);
-				if ((compressed_size = sCompress2ndPhase(compressor, s, width, height, channels, input)) != 0)
+				q_ceil = q;
+				if (target_size - compressed_size < error_margin)
 					break;
-
-				if (std::isinf(s.quantization) == true) // TODO
-					goto fallback;
 			}
+			else
+				q_floor = q;
+		}
 
-			// Divide space in two, between floor and ceil
-			for (unsigned i = 0; i < TRY; i += 1)
-			{
-				const auto q = (q_floor + q_ceil) / 2.0F;
-				s.quantization = q;
+		// One last time, as previous iteration end in a failure
+		if (compressed_size == 0)
+		{
+			s.quantization = q_ceil;
 
-				if (callbacks.generic_event != nullptr)
-					callbacks.generic_event(GenericEvent::RatioIteration, 0, 0, 0,
-					                        GenericTypeDesignatedInitialization(s.quantization), callbacks.user_data);
+			// User feedback
+			if (callbacks.generic_event != nullptr)
+				callbacks.generic_event(GenericEvent::RatioIteration, 0, 0, 0,
+				                        GenericTypeDesignatedInitialization(s.quantization), callbacks.user_data);
 
-				compressor.Reset(target_size, output);
-				compressed_size = sCompress2ndPhase(compressor, s, width, height, channels, input);
-
-				if (compressed_size < target_size && compressed_size != 0)
-				{
-					q_ceil = q;
-					if (target_size - compressed_size < error_margin)
-						break;
-				}
-				else
-					q_floor = q;
-			}
-
-			// Last iteration being too close to floor, failed
-			if (s.quantization != q_ceil)
-			{
-				s.quantization = q_ceil;
-
-				if (callbacks.generic_event != nullptr)
-					callbacks.generic_event(GenericEvent::RatioIteration, 0, 0, 0,
-					                        GenericTypeDesignatedInitialization(s.quantization), callbacks.user_data);
-
-				compressor.Reset(target_size, output);
-				compressed_size = sCompress2ndPhase(compressor, s, width, height, channels, input);
-			}
+			// Compress
+			compressor.Reset(target_size, output);
+			compressed_size = sCompress2ndPhase(compressor, s, width, height, channels, input);
 		}
 
 		// Bye!
-		if (callbacks.histogram_event != nullptr)
-			callbacks.histogram_event(compressor.GetHistogram(), compressor.GetHistogramLength(), callbacks.user_data);
-
 		return compressed_size;
+	fallback:
+		s.quantization = NAN; // God is dead
+		compressor.Reset(sizeof(T) * width * height * channels, output);
+		return sCompress2ndPhase(compressor, s, width, height, channels, input);
 	}
-
-fallback:
-{
-	auto compressor = CompressorNone<T>(BLOCK_LENGTH, output);
-	out_compression = Compression::None;
-
-	return sCompress2ndPhase(compressor, settings, width, height, channels, input);
-}
+	else
+	{
+		auto compressor = CompressorNone<T>(BLOCK_LENGTH, output);
+		out_compression = Compression::None;
+		return sCompress2ndPhase(compressor, settings, width, height, channels, input);
+	}
 }
 
 
