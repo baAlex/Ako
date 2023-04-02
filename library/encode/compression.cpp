@@ -248,13 +248,19 @@ static size_t sCompress1stPhase(const Callbacks& callbacks, const Settings& sett
 
 		// Bye!
 		return compressed_size;
+
 	fallback:
 		s.quantization = NAN; // God is dead
 		compressor.Reset(sizeof(T) * width * height * channels, output);
-		return sCompress2ndPhase(compressor, s, width, height, channels, input);
+		compressed_size = sCompress2ndPhase(compressor, s, width, height, channels, input);
+		if (compressed_size != 0)
+			return compressed_size;
+		else
+			goto fallback2; // What a bad day
 	}
 	else
 	{
+	fallback2: // Never fails, because it doesn't compress
 		auto compressor = CompressorNone<T>(BLOCK_LENGTH, output);
 		out_compression = Compression::None;
 		return sCompress2ndPhase(compressor, settings, width, height, channels, input);
