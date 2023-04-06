@@ -46,7 +46,7 @@ static void sQuantizer(float q, unsigned width, unsigned height, unsigned input_
 				// out[col] = static_cast<T>((in[col] / static_cast<T>(q)) * static_cast<T>(q));
 
 				// Gate, looks horribly pixelated if alone, but here is acting as dead-zone:
-				out[col] = (std::abs(static_cast<float>(in[col])) < q / 2.0F) ? 0 : in[col]; // 2.0 - 1.0
+				out[col] = (std::abs(static_cast<float>(in[col])) < q / 1.5F) ? 0 : in[col]; // 2.0 - 1.0
 
 				// Quantization with floats
 				out[col] = static_cast<T>(std::floor(static_cast<float>(out[col]) / q + 0.5F) * q);
@@ -68,16 +68,6 @@ static void sQuantizer(float q, unsigned width, unsigned height, unsigned input_
 			out += output_stride;
 		}
 	}
-}
-
-
-static float sCurve(float power, float x)
-{
-	const auto a = (1.0F / 16.0F);
-	if (x < a)
-		return 0.0F; // Quantize only last 16 lifts
-
-	return std::pow(x - a, power + (power * a)); // Emphasis on last lifts
 }
 
 
@@ -114,33 +104,29 @@ static size_t sCompress2ndPhase(Compressor<T>& compressor, const Settings& setti
 		for (unsigned ch = 0; ch < channels; ch += 1)
 		{
 			// Quantization
-			auto q = std::log2f(settings.quantization) * sCurve(settings.quantization_power / 1.0F, x);
-			auto q_diagonal = std::log2f(settings.quantization) * sCurve(settings.quantization_power / 2.0F, x);
+			const auto o = 1.0F / 12.0F;                      // To discard initial part from quantization
+			const auto q = std::log2f(settings.quantization); // Log2() simply to keep the value low
+			const auto l = (ch == 0) ? 1.0F : Max(1.0F, settings.chroma_loss);
+			const auto p = settings.quantization_power;
 
-			if (ch != 0)
-			{
-				q *= settings.chroma_loss;
-				q_diagonal *= settings.chroma_loss;
-			}
+			const auto c1 = q * std::pow((Max(x, o) - o), (p + p * o) / 1.0F); // Curve damaging high frequencies most
+			const auto c2 = q * std::pow((Max(x, o) - o), (p + p * o) / 2.0F); // A bit less on highs and more on mids
 
-			q = std::pow(2.0F, q);
-			q_diagonal = std::pow(2.0F, q_diagonal);
-
-			if (settings.quantization > 1.0F)
-				q_diagonal = Min(q * 2.0F, q_diagonal);
+			const auto quantization = std::pow(2.0F, c1 * l);
+			const auto quantization_d = Min(std::pow(2.0F, c2 * l), quantization * 2.0F);
 
 			// Quadrant C
-			if (compressor.Step(sQuantizer, q, lp_w, hp_h, in) != 0)
+			if (compressor.Step(sQuantizer, quantization, lp_w, hp_h, in) != 0)
 				return 0;
 			in += (lp_w * hp_h);
 
 			// Quadrant B
-			if (compressor.Step(sQuantizer, q, hp_w, lp_h, in) != 0)
+			if (compressor.Step(sQuantizer, quantization, hp_w, lp_h, in) != 0)
 				return 0;
 			in += (hp_w * lp_h);
 
 			// Quadrant D
-			if (compressor.Step(sQuantizer, q_diagonal, hp_w, hp_h, in) != 0)
+			if (compressor.Step(sQuantizer, quantization_d, hp_w, hp_h, in) != 0)
 				return 0;
 			in += (hp_w * hp_h);
 		}
