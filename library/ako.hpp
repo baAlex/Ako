@@ -69,7 +69,7 @@ enum class Color
 
 enum class Wavelet
 {
-	Dd137,
+	Cdf97,
 	Cdf53,
 	Haar
 };

@@ -339,6 +339,28 @@ void Cdf53InPlaceishVerticalInverse(unsigned width, unsigned lp_h, unsigned hp_h
                                     T* out_lowpass);
 
 
+// decode/wavelet-cdf97.cpp:
+// encode/wavelet-cdf97.cpp:
+
+const unsigned CDF97_MINIMUM_LENGTH = 4;
+
+template <typename T>
+void Cdf97HorizontalForward(unsigned width, unsigned height, unsigned input_stride, unsigned output_stride,
+                            const T* input, T* output);
+
+template <typename T>
+void Cdf97VerticalForward(unsigned width, unsigned height, unsigned input_stride, unsigned output_stride,
+                          const T* input, T* output);
+
+template <typename T>
+void Cdf97HorizontalInverse(unsigned height, unsigned lp_w, unsigned hp_w, unsigned out_stride, const T* lowpass,
+                            const T* highpass, T* output);
+
+template <typename T>
+void Cdf97InPlaceishVerticalInverse(unsigned width, unsigned lp_h, unsigned hp_h, const T* lowpass, T* highpass,
+                                    T* out_lowpass);
+
+
 // decode/wavelet-haar.cpp:
 // encode/wavelet-haar.cpp:
 

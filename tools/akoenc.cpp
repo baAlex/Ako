@@ -47,7 +47,7 @@ const static auto s_color_transformer = // NOLINT(cert-err58-cpp)
 
 const static auto s_wavelet_transformer = // NOLINT(cert-err58-cpp)
     std::map<std::string, ako::Wavelet>({
-        {ako::ToString(ako::Wavelet::Dd137), ako::Wavelet::Dd137}, //
+        {ako::ToString(ako::Wavelet::Cdf97), ako::Wavelet::Cdf97}, //
         {ako::ToString(ako::Wavelet::Cdf53), ako::Wavelet::Cdf53}, //
         {ako::ToString(ako::Wavelet::Haar), ako::Wavelet::Haar}    //
     });
@@ -113,7 +113,7 @@ int main(int argc, const char* argv[])
 		                                      ->option_text("OPTION")
 		                                      ->transform(CheckedTransformer(s_color_transformer, ignore_case));
 
-		app.add_option("-w,--wavelet", s.wavelet, "Wavelet transformation: DD137, CDF53 or HAAR.\n"
+		app.add_option("-w,--wavelet", s.wavelet, "Wavelet transformation: CDF97, CDF53 or HAAR.\n"
 		                                          "[Default is " + string(ToString(s.wavelet)) + "]")
 		                                          ->option_text("OPTION")
 		                                          ->transform(CheckedTransformer(s_wavelet_transformer, ignore_case));

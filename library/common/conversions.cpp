@@ -2,7 +2,7 @@
 
 MIT License
 
-Copyright (c) 2021-2022 Alexander Brandt
+Copyright (c) 2021-2023 Alexander Brandt
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -78,7 +78,7 @@ const char* ToString(Wavelet w)
 {
 	switch (w)
 	{
-	case Wavelet::Dd137: return "DD137";
+	case Wavelet::Cdf97: return "CDF97";
 	case Wavelet::Cdf53: return "CDF53";
 	case Wavelet::Haar: return "HAAR";
 	}
@@ -129,7 +129,7 @@ uint32_t ToNumber(Wavelet w)
 {
 	switch (w)
 	{
-	case Wavelet::Dd137: return 0;
+	case Wavelet::Cdf97: return 0;
 	case Wavelet::Cdf53: return 1;
 	case Wavelet::Haar: return 2;
 	}
@@ -182,7 +182,7 @@ Wavelet ToWavelet(uint32_t number, Status& out_status)
 	out_status = Status::Ok;
 	switch (number)
 	{
-	case 0: return Wavelet::Dd137;
+	case 0: return Wavelet::Cdf97;
 	case 1: return Wavelet::Cdf53;
 	case 2: return Wavelet::Haar;
 	}

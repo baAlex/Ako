@@ -33,7 +33,7 @@ Settings DefaultSettings()
 	Settings settings = {};
 
 	settings.color = Color::YCoCg;
-	settings.wavelet = Wavelet::Dd137;
+	settings.wavelet = Wavelet::Cdf97;
 	settings.wrap = Wrap::Clamp;
 	settings.compression = Compression::Kagari;
 

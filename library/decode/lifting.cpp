@@ -2,7 +2,7 @@
 
 MIT License
 
-Copyright (c) 2021-2022 Alexander Brandt
+Copyright (c) 2021-2023 Alexander Brandt
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -85,7 +85,7 @@ static void sUnlift(const Callbacks& callbacks, const Wavelet& wavelet_transform
 			//       *hp_quad_d);
 
 			// Wavelet transformation
-			if ((wavelet_transformation == Wavelet::Dd137 || wavelet_transformation == Wavelet::Cdf53) &&
+			if ((wavelet_transformation == Wavelet::Cdf97 || wavelet_transformation == Wavelet::Cdf53) &&
 			    ((lp_w + hp_w) >= CDF53_MINIMUM_LENGTH && (lp_h + hp_h) >= CDF53_MINIMUM_LENGTH))
 			{
 				Cdf53InPlaceishVerticalInverse(lp_w, lp_h, hp_h, lp, hp_quad_c, aux);

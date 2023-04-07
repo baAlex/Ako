@@ -2,7 +2,7 @@
 
 MIT License
 
-Copyright (c) 2021-2022 Alexander Brandt
+Copyright (c) 2021-2023 Alexander Brandt
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -69,7 +69,7 @@ static void sLift(const Callbacks& callbacks, const Wavelet& wavelet_transformat
 				aux = output;
 
 			// Wavelet transformation
-			if ((wavelet_transformation == Wavelet::Dd137 || wavelet_transformation == Wavelet::Cdf53) &&
+			if ((wavelet_transformation == Wavelet::Cdf97 || wavelet_transformation == Wavelet::Cdf53) &&
 			    (current_w >= CDF53_MINIMUM_LENGTH && current_h >= CDF53_MINIMUM_LENGTH))
 			{
 				Cdf53HorizontalForward(current_w, current_h, prev_stride, current_stride, inout, aux);

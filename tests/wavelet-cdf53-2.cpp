@@ -92,8 +92,8 @@ int main(int argc, const char* argv[])
 	(void)argc;
 	(void)argv;
 
-	printf("# WaveletCdf53Simd Test (Ako v%i.%i.%i, %s)\n", ako::VersionMajor(), ako::VersionMinor(),
-	       ako::VersionPatch(), (ako::SystemEndianness() == ako::Endianness::Little) ? "little-endian" : "big-endian");
+	printf("# WaveletCdf53 Test 2 (Ako v%i.%i.%i, %s)\n", ako::VersionMajor(), ako::VersionMinor(), ako::VersionPatch(),
+	       (ako::SystemEndianness() == ako::Endianness::Little) ? "little-endian" : "big-endian");
 
 	sTest(48);
 	sTest(47);

@@ -64,6 +64,7 @@ set(AKO_SOURCES
 	"./library/decode/heads.cpp"
 	"./library/decode/lifting.cpp"
 	"./library/decode/wavelet-cdf53.cpp"
+	"./library/decode/wavelet-cdf97.cpp"
 	"./library/decode/wavelet-haar.cpp"
 
 	"./library/encode/ans.cpp"
@@ -74,6 +75,7 @@ set(AKO_SOURCES
 	"./library/encode/heads.cpp"
 	"./library/encode/lifting.cpp"
 	"./library/encode/wavelet-cdf53.cpp"
+	"./library/encode/wavelet-cdf97.cpp"
 	"./library/encode/wavelet-haar.cpp")
 
 
@@ -218,10 +220,15 @@ if (AKO_TESTS)
 	target_link_libraries("test-wavelet-cdf53" PRIVATE "ako-static")
 	target_compile_options("test-wavelet-cdf53" PRIVATE ${AKO_CFLAGS})
 
-	add_executable("test-wavelet-cdf53-simd" "./tests/wavelet-cdf53-simd.cpp")
-	target_include_directories("test-wavelet-cdf53-simd" PRIVATE "./library/")
-	target_link_libraries("test-wavelet-cdf53-simd" PRIVATE "ako-static")
-	target_compile_options("test-wavelet-cdf53-simd" PRIVATE ${AKO_CFLAGS})
+	add_executable("test-wavelet-cdf53-2" "./tests/wavelet-cdf53-2.cpp")
+	target_include_directories("test-wavelet-cdf53-2" PRIVATE "./library/")
+	target_link_libraries("test-wavelet-cdf53-2" PRIVATE "ako-static")
+	target_compile_options("test-wavelet-cdf53-2" PRIVATE ${AKO_CFLAGS})
+
+	add_executable("test-wavelet-cdf97" "./tests/wavelet-cdf97.cpp")
+	target_include_directories("test-wavelet-cdf97" PRIVATE "./library/")
+	target_link_libraries("test-wavelet-cdf97" PRIVATE "ako-static")
+	target_compile_options("test-wavelet-cdf97" PRIVATE ${AKO_CFLAGS})
 
 	add_executable("test-wavelet-haar" "./tests/wavelet-haar.cpp")
 	target_include_directories("test-wavelet-haar" PRIVATE "./library/")
@@ -235,7 +242,8 @@ if (AKO_TESTS)
 		set_property(TARGET "test-kagari" PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
 		set_property(TARGET "test-rice" PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
 		set_property(TARGET "test-wavelet-cdf53" PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
-		set_property(TARGET "test-wavelet-cdf53-simd" PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
+		set_property(TARGET "test-wavelet-cdf53-2" PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
+		set_property(TARGET "test-wavelet-cdf97" PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
 		set_property(TARGET "test-wavelet-haar" PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
 	endif ()
 
@@ -245,7 +253,8 @@ if (AKO_TESTS)
 	add_test(NAME "TestKagari" COMMAND "test-kagari")
 	add_test(NAME "TestRice" COMMAND "test-rice")
 	add_test(NAME "TestWaveletCdf53" COMMAND "test-wavelet-cdf53")
-	add_test(NAME "TestWaveletCdf53Simd" COMMAND "test-wavelet-cdf53-simd")
+	add_test(NAME "TestWaveletCdf53-2" COMMAND "test-wavelet-cdf53-2")
+	add_test(NAME "TestWaveletCdf97" COMMAND "test-wavelet-cdf97")
 	add_test(NAME "TestWaveletHaar" COMMAND "test-wavelet-haar")
 
 	include(CTest)
