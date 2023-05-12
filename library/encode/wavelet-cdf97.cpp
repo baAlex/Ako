@@ -28,6 +28,17 @@ SOFTWARE.
 namespace ako
 {
 
+template <typename T> static T sHp(T odd, T even, T even_p1)
+{
+	return WrapSubtract<T>(odd, WrapAdd(even, even_p1) / 2);
+}
+
+template <typename T> static T sLp(T even, T hp_l1, T hp)
+{
+	return WrapAdd<T>(even, WrapAdd(hp_l1, hp) / 4);
+}
+
+
 template <typename T>
 static void sCdf97HorizontalForward(unsigned width, unsigned height, unsigned input_stride, unsigned output_stride,
                                     const T* input, T* output)
@@ -46,8 +57,8 @@ static void sCdf97HorizontalForward(unsigned width, unsigned height, unsigned in
 			const T odd = input[(col << 1) + 1];
 			const T even_p1 = input[(col << 1) + 2];
 
-			const T hp = WrapSubtract<T>(odd, WrapAdd(even, even_p1) / 2);
-			const T lp = WrapAdd<T>(even, WrapAdd(hp_l1, hp) / 4);
+			const T hp = sHp(odd, even, even_p1);
+			const T lp = sLp(even, hp_l1, hp);
 
 			output[col + 0] = lp;
 			output[col + rule] = hp;
@@ -62,8 +73,8 @@ static void sCdf97HorizontalForward(unsigned width, unsigned height, unsigned in
 			const T odd = input[(col << 1) + 1];
 			const T even_p1 = even;
 
-			const T hp = WrapSubtract<T>(odd, WrapAdd(even, even_p1) / 2);
-			const T lp = WrapAdd<T>(even, WrapAdd(hp_l1, hp) / 4);
+			const T hp = sHp(odd, even, even_p1);
+			const T lp = sLp(even, hp_l1, hp);
 
 			output[col + 0] = lp;
 			output[col + rule] = hp;
@@ -73,19 +84,17 @@ static void sCdf97HorizontalForward(unsigned width, unsigned height, unsigned in
 			for (unsigned col = half - 1; col < rule; col += 1)
 			{
 				const T even = input[(col << 1) + 0];
-				const T odd = (col != rule - 1) ? input[(col << 1) + 1] : even;
-				const T even_p1 = (col != rule - 1) ? input[(col << 1) + 2] : even;
+				const T odd = (col < rule - 1) ? input[(col << 1) + 1] : even;
+				const T even_p1 = (col < rule - 1) ? input[(col << 1) + 2] : even;
 
-				const T hp = (col != rule - 1) ? WrapSubtract<T>(odd, WrapAdd(even, even_p1) / 2) : 0;
-				const T lp = WrapAdd<T>(even, WrapAdd(hp_l1, hp) / 4);
+				const T hp = (col < rule - 1) ? sHp(odd, even, even_p1) : 0;
+				const T lp = sLp(even, hp_l1, hp);
 
 				output[col + 0] = lp;
-
-				if (col != rule - 1)
-				{
+				if (col < rule - 1)
 					output[col + rule] = hp;
-					hp_l1 = hp;
-				}
+
+				hp_l1 = hp;
 			}
 		}
 
@@ -115,8 +124,8 @@ static void sCdf97VerticalForward(unsigned width, unsigned height, unsigned inpu
 
 		for (unsigned col = 0; col < width; col += 1)
 		{
-			const T hp = WrapSubtract<T>(odd[col], WrapAdd(even[col], even_p1[col]) / 2);
-			const T lp = WrapAdd<T>(even[col], WrapAdd(static_cast<T>(0), hp) / 4);
+			const T hp = sHp(odd[col], even[col], even_p1[col]);
+			const T lp = sLp(even[col], static_cast<T>(0), hp);
 
 			lp_out[col] = lp;
 			hp_out[col] = hp;
@@ -137,8 +146,8 @@ static void sCdf97VerticalForward(unsigned width, unsigned height, unsigned inpu
 
 		for (unsigned col = 0; col < width; col += 1)
 		{
-			const T hp = WrapSubtract<T>(odd[col], WrapAdd(even[col], even_p1[col]) / 2);
-			const T lp = WrapAdd<T>(even[col], WrapAdd(hp_l1[col], hp) / 4);
+			const T hp = sHp(odd[col], even[col], even_p1[col]);
+			const T lp = sLp(even[col], hp_l1[col], hp);
 
 			lp_out[col] = lp;
 			hp_out[col] = hp;
@@ -160,8 +169,8 @@ static void sCdf97VerticalForward(unsigned width, unsigned height, unsigned inpu
 
 		for (unsigned col = 0; col < width; col += 1)
 		{
-			const T hp = WrapSubtract<T>(odd[col], WrapAdd(even[col], even_p1[col]) / 2);
-			const T lp = WrapAdd<T>(even[col], WrapAdd(hp_l1[col], hp) / 4);
+			const T hp = sHp(odd[col], even[col], even_p1[col]);
+			const T lp = sLp(even[col], hp_l1[col], hp);
 
 			lp_out[col] = lp;
 			hp_out[col] = hp;
@@ -182,8 +191,8 @@ static void sCdf97VerticalForward(unsigned width, unsigned height, unsigned inpu
 
 			for (unsigned col = 0; col < width; col += 1)
 			{
-				const T hp = (row != rule - 1) ? WrapSubtract<T>(odd[col], WrapAdd(even[col], even_p1[col]) / 2) : 0;
-				const T lp = WrapAdd<T>(even[col], WrapAdd(hp_l1[col], hp) / 4);
+				const T hp = (row != rule - 1) ? sHp(odd[col], even[col], even_p1[col]) : 0;
+				const T lp = sLp(even[col], hp_l1[col], hp);
 
 				lp_out[col] = lp;
 

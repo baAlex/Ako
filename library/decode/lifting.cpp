@@ -85,8 +85,16 @@ static void sUnlift(const Callbacks& callbacks, const Wavelet& wavelet_transform
 			//       *hp_quad_d);
 
 			// Wavelet transformation
-			if ((wavelet_transformation == Wavelet::Cdf97 || wavelet_transformation == Wavelet::Cdf53) &&
-			    ((lp_w + hp_w) >= CDF53_MINIMUM_LENGTH && (lp_h + hp_h) >= CDF53_MINIMUM_LENGTH))
+			if ((wavelet_transformation == Wavelet::Cdf97) &&
+			    ((lp_w + hp_w) >= CDF97_MINIMUM_LENGTH && (lp_h + hp_h) >= CDF97_MINIMUM_LENGTH))
+			{
+				Cdf97InPlaceishVerticalInverse(lp_w, lp_h, hp_h, lp, hp_quad_c, aux);
+				Cdf97InPlaceishVerticalInverse(hp_w, lp_h, hp_h, hp_quad_b, hp_quad_d, hp_quad_b);
+				Cdf97HorizontalInverse(lp_h, lp_w, hp_w, (lp_w + hp_w) << 1, aux, hp_quad_b, lp);
+				Cdf97HorizontalInverse(hp_h, lp_w, hp_w, (lp_w + hp_w) << 1, hp_quad_c, hp_quad_d, lp + (lp_w + hp_w));
+			}
+			else if ((wavelet_transformation == Wavelet::Cdf97 || wavelet_transformation == Wavelet::Cdf53) &&
+			         ((lp_w + hp_w) >= CDF53_MINIMUM_LENGTH && (lp_h + hp_h) >= CDF53_MINIMUM_LENGTH))
 			{
 				Cdf53InPlaceishVerticalInverse(lp_w, lp_h, hp_h, lp, hp_quad_c, aux);
 				Cdf53InPlaceishVerticalInverse(hp_w, lp_h, hp_h, hp_quad_b, hp_quad_d, hp_quad_b);

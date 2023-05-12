@@ -342,7 +342,7 @@ void Cdf53InPlaceishVerticalInverse(unsigned width, unsigned lp_h, unsigned hp_h
 // decode/wavelet-cdf97.cpp:
 // encode/wavelet-cdf97.cpp:
 
-const unsigned CDF97_MINIMUM_LENGTH = 4;
+const unsigned CDF97_MINIMUM_LENGTH = 8;
 
 template <typename T>
 void Cdf97HorizontalForward(unsigned width, unsigned height, unsigned input_stride, unsigned output_stride,

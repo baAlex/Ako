@@ -28,6 +28,17 @@ SOFTWARE.
 namespace ako
 {
 
+template <typename T> static T sEven(T lp, T hp_l1, T hp)
+{
+	return WrapSubtract<T>(lp, WrapAdd(hp_l1, hp) / 4);
+}
+
+template <typename T> static T sOdd(T hp, T even, T even_p1)
+{
+	return WrapAdd<T>(hp, WrapAdd(even, even_p1) / 2);
+}
+
+
 template <typename T>
 static void sCdf97HorizontalInverse(unsigned height, unsigned lp_w, unsigned hp_w, unsigned out_stride,
                                     const T* lowpass, const T* highpass, T* output)
@@ -44,9 +55,9 @@ static void sCdf97HorizontalInverse(unsigned height, unsigned lp_w, unsigned hp_
 			const T hp = highpass[col + 0];
 			const T hp_p1 = highpass[col + 1];
 
-			const T even = WrapSubtract<T>(lp, WrapAdd(hp_l1, hp) / 4);
-			const T even_p1 = WrapSubtract<T>(lp_p1, WrapAdd(hp, hp_p1) / 4);
-			const T odd = WrapAdd<T>(hp, WrapAdd(even, even_p1) / 2);
+			const T even = sEven(lp, hp_l1, hp);
+			const T even_p1 = sEven(lp_p1, hp, hp_p1);
+			const T odd = sOdd(hp, even, even_p1);
 
 			output[(col << 1) + 0] = even;
 			output[(col << 1) + 1] = odd;
@@ -61,17 +72,17 @@ static void sCdf97HorizontalInverse(unsigned height, unsigned lp_w, unsigned hp_
 				const T lp = lowpass[col];
 				const T hp = highpass[col];
 
-				const T even = WrapSubtract<T>(lp, WrapAdd(hp_l1, hp) / 4);
+				const T even = sEven(lp, hp_l1, hp);
 				T even_p1 = even;
 
 				if (col != hp_w - 1)
 				{
 					const T lp_p1 = lowpass[col + 1];
 					const T hp_p1 = highpass[col + 1];
-					even_p1 = WrapSubtract<T>(lp_p1, WrapAdd(hp, hp_p1) / 4);
+					even_p1 = sEven(lp_p1, hp, hp_p1);
 				}
 
-				const T odd = WrapAdd<T>(hp, WrapAdd(even, even_p1) / 2);
+				const T odd = sOdd(hp, even, even_p1);
 
 				output[(col << 1) + 0] = even;
 				output[(col << 1) + 1] = odd;
@@ -87,9 +98,9 @@ static void sCdf97HorizontalInverse(unsigned height, unsigned lp_w, unsigned hp_
 				const T lp_p1 = lowpass[col + 1];
 				const T hp_p1 = (col < hp_w - 1) ? highpass[col + 1] : 0;
 
-				const T even = WrapSubtract<T>(lp, WrapAdd(hp_l1, hp) / 4);
-				const T even_p1 = WrapSubtract<T>(lp_p1, WrapAdd(hp, hp_p1) / 4);
-				const T odd = WrapAdd<T>(hp, WrapAdd(even, even_p1) / 2);
+				const T even = sEven(lp, hp_l1, hp);
+				const T even_p1 = sEven(lp_p1, hp, hp_p1);
+				const T odd = sOdd(hp, even, even_p1);
 
 				output[(col << 1) + 0] = even;
 				output[(col << 1) + 1] = odd;
@@ -100,7 +111,8 @@ static void sCdf97HorizontalInverse(unsigned height, unsigned lp_w, unsigned hp_
 				const unsigned col = hp_w;
 				const T lp = lowpass[col];
 				const T hp = 0;
-				output[(col << 1) + 0] = WrapSubtract<T>(lp, WrapAdd(hp_l1, hp) / 4);
+				const T even = sEven(lp, hp_l1, hp);
+				output[(col << 1) + 0] = even;
 			}
 		}
 
@@ -127,7 +139,7 @@ static void sCdf97InPlaceishVerticalInverse(unsigned width, unsigned lp_h, unsig
 			const T hp_l1 = 0;
 			for (unsigned col = 0; col < width; col += 1)
 			{
-				const T even = WrapSubtract<T>(lp[col], WrapAdd(hp_l1, hp[col]) / 4);
+				const T even = sEven(lp[col], hp_l1, hp[col]);
 				out_lp[col] = even;
 			}
 
@@ -142,7 +154,7 @@ static void sCdf97InPlaceishVerticalInverse(unsigned width, unsigned lp_h, unsig
 			const T* hp_l1 = hp - width;
 			for (unsigned col = 0; col < width; col += 1)
 			{
-				const T even = WrapSubtract<T>(lp[col], WrapAdd(hp_l1[col], hp[col]) / 4);
+				const T even = sEven(lp[col], hp_l1[col], hp[col]);
 				out_lp[col] = even;
 			}
 
@@ -157,7 +169,7 @@ static void sCdf97InPlaceishVerticalInverse(unsigned width, unsigned lp_h, unsig
 			const T* hp_l1 = hp - width;
 			for (unsigned col = 0; col < width; col += 1)
 			{
-				const T even = WrapSubtract<T>(lp[col], WrapAdd(hp_l1[col], static_cast<T>(0)) / 4);
+				const T even = sEven(lp[col], hp_l1[col], static_cast<T>(0));
 				out_lp[col] = even;
 			}
 		}
@@ -174,7 +186,7 @@ static void sCdf97InPlaceishVerticalInverse(unsigned width, unsigned lp_h, unsig
 			const T* even_p1 = even + width;
 			for (unsigned col = 0; col < width; col += 1)
 			{
-				const T odd = WrapAdd<T>(hp[col], WrapAdd(even[col], even_p1[col]) / 2);
+				const T odd = sOdd(hp[col], even[col], even_p1[col]);
 				hp[col] = odd;
 			}
 
@@ -187,7 +199,7 @@ static void sCdf97InPlaceishVerticalInverse(unsigned width, unsigned lp_h, unsig
 			const T* even_p1 = (lp_h == hp_h) ? even : even + width;
 			for (unsigned col = 0; col < width; col += 1)
 			{
-				const T odd = WrapAdd<T>(hp[col], WrapAdd(even[col], even_p1[col]) / 2);
+				const T odd = sOdd(hp[col], even[col], even_p1[col]);
 				hp[col] = odd;
 			}
 		}

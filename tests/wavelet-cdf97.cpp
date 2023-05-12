@@ -27,8 +27,8 @@ int main()
 	HorizontalTest(11, true, HFORWARD, HINVERSE, DataGeneratorMostlyRandom<int32_t>);
 	VerticalTest(11, true, VFORWARD, VINVERSE, DataGeneratorMostlyRandom<int32_t>);
 
-	HorizontalTest(5, true, HFORWARD, HINVERSE, DataGeneratorMostlyRandom<int16_t>);
-	VerticalTest(5, true, VFORWARD, VINVERSE, DataGeneratorMostlyRandom<int16_t>);
+	HorizontalTest(ako::CDF97_MINIMUM_LENGTH + 1, true, HFORWARD, HINVERSE, DataGeneratorMostlyRandom<int16_t>);
+	VerticalTest(ako::CDF97_MINIMUM_LENGTH + 1, true, VFORWARD, VINVERSE, DataGeneratorMostlyRandom<int16_t>);
 	HorizontalTest(ako::CDF97_MINIMUM_LENGTH, true, HFORWARD, HINVERSE, DataGeneratorMostlyRandom<int16_t>);
 	VerticalTest(ako::CDF97_MINIMUM_LENGTH, true, VFORWARD, VINVERSE, DataGeneratorMostlyRandom<int16_t>);
 
